@@ -1,30 +1,10 @@
-<p align="center">
-  <img src="assets/images/logo.svg" alt="APRENDA C Logo" width="560" />
-</p>
-
 <h1 align="center">APRENDA C</h1>
 
 <p align="center"><strong>DO ZERO AO SHELLCODE</strong></p>
 
 <p align="center"><em>Um compilador. Um leitor. Eu.</em></p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/C11-00599C?style=for-the-badge" alt="C11" />
-  <img src="https://img.shields.io/badge/gcc-__Wall__Wextra-527c23?style=for-the-badge" alt="gcc -Wall -Wextra" />
-  <img src="https://img.shields.io/badge/pt--BR-27ae60?style=for-the-badge" alt="pt-BR" />
-  <img src="https://img.shields.io/badge/Beej's_Guide-gold?style=for-the-badge" alt="Beej's Guide to C" />
-  <img src="https://img.shields.io/badge/King-15918f?style=for-the-badge" alt="C Programming: A Modern Approach" />
-  <img src="https://img.shields.io/badge/Vanilla_JS-f7df1e?style=for-the-badge" alt="Vanilla JS" />
-  <img src="https://img.shields.io/badge/GitHub_Pages-0a66c2?style=for-the-badge" alt="GitHub Pages" />
-  <img src="https://img.shields.io/badge/WSL2-4f5b66?style=for-the-badge" alt="WSL2 (Trilha 4)" />
-</p>
-
-<p align="center">
-  <a href="https://github.com/shwdaniel7/aprenda-c"><img src="https://img.shields.io/github/last-commit/shwdaniel7/aprenda-c?style=for-the-badge" alt="Last Commit" /></a>
-  <a href="https://github.com/shwdaniel7/aprenda-c"><img src="https://img.shields.io/github/repo-size/shwdaniel7/aprenda-c?style=for-the-badge" alt="Repository Size" /></a>
-</p>
-
-<p align="center"><sub><em>made by daniel • @shwdaniel7 • <strong>para daniel</strong></em></sub></p>
+<p align="center"><sub><em>made by daniel • @shwdaniel7 • para daniel • com ajuda de agentes de IA</em></sub></p>
 
 ---
 
@@ -45,9 +25,13 @@ A **Trilha 4 (Cyber)** ensina exploração de memória em C — buffer overflow,
 
 APRENDA C é um curso completo e **offline** (arquivos estáticos) de C11 em português, organizado em 5 trilhas e 50 módulos. Cada módulo traz teoria objetiva, exemplos completos e compiláveis, leitura guiada de duas referências clássicas — o [Beej's Guide to C](https://beej.us/guide/bgc/) (grátis, online) e *C Programming: A Modern Approach* (2ª ed., K. N. King) —, quiz de fixação, exercícios resolvidos e um projeto. O conteúdo sai de um conjunto de arquivos JS que alimentam um **gerador de site estático** (`build/build.js`), que produz um site HTML/CSS/JS sem dependências.
 
+**Como este curso foi feito:** o conteúdo foi produzido com **agentes de IA** que executaram **pesquisas** na web e **analisaram livros** fornecidos por mim (incluindo o Beej's Guide e o livro do King) para extrair a teoria, validar a ordem pedagógica e garantir que cada exemplo fosse correto e compilável. Todo código é verificado de verdade: os exemplos são extraídos e compilados com `gcc` por um script do próprio repositório. A experiência é minha — eu leio, compilo, quebro e reescrevo — mas a curadoria e a redação foram fortemente apoiadas por IA.
+
 O fluxo é linear e cumulativo: cada módulo aponta os pré-requisitos exatos e o que aprender antes de prosseguir.
 
 O projeto nasceu de uma decisão simples: antes de seguir para segurança e sistemas, eu precisava aprender C **para valer** — não "saber ler C". A trilha Cyber existe como destino final e motivação, não como atalho.
+
+**Planos:** pretendo **adicionar mais fontes de livros e referências** ao longo do tempo para enriquecer o curso — novos capítulos de leitura guiada, exercícios e material complementar conforme eu avançar e encontrar obras que valham a pena.
 
 ---
 
@@ -85,8 +69,6 @@ aprenda-c/
 ├── assets/
 │   ├── css/
 │   │   └── style.css
-│   ├── images/
-│   │   └── logo.svg
 │   └── js/
 │       ├── highlight.js   (destaque de sintaxe)
 │       ├── progress.js    (barra de progresso local)
@@ -290,7 +272,7 @@ node build/check-links.js    # percorre as 53 páginas e valida os links
 
 ## ⚖ Legal Notice
 
-APRENDA C é material educacional escrito **por mim e para mim**, hospedado publicamente para acesso de qualquer lugar.
+APRENDA C é material educacional criado **por mim e para mim** (com curadoria de conteúdo e escrita assistidas por agentes de IA), hospedado publicamente para acesso de qualquer lugar.
 
 O conteúdo Cyber é estritamente **didático e de pesquisa**, executado apenas contra binários-vítima fictícios criados nos próprios exercícios, em WSL2/VM isolada.
 
