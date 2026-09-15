@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.01 — Ponteiros: o coração do C — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / Ponteiros: o coração do C</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.01</div>
+    <h1>Ponteiros: o coração do C</h1>
+    <p class="subtitulo">endereços, operador &amp;, dereferência, NULL e retorno múltiplo</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: T1.06 a T1.08 (arrays, loops e funções)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m01">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Entender que toda variável mora em um endereço de memória, que um ponteiro é uma caixa que guarda esse endereço, e usar & e * para ler, escrever e "devolver" valores por meio de funções — o famoso swap.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 5 (Pointers and Arrays)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 11 (Pointers)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, leia a ideia de ponteiro como "variável que guarda um endereço" e os exemplos com & e *. No King, capriche nos diagramas de memória do capítulo 11 — eles fixam o modelo mental.</p>
+</section>
+  <section class="card secao">
+  <h2>A memória e o endereço das variáveis</h2>
+  <p>Imagine a memória RAM como uma rua com milhões de casas numeradas. Cada byte tem um <em>endereço</em> — um número que diz onde ele está. Quando você declara <code>int x = 42;</code>, o compilador reserva 4 bytes em algum lugar dessa rua e associa o nome <code>x</code> a esse endereço.</p>
+<p>O operador <strong>unário <code>&amp;</code></strong> (e-comercial) devolve o endereço de uma variável. É como perguntar "qual casa o <code>x</code> mora?". O especificador <code>%p</code> imprime um endereço (elemento tem de ser disparado como <code>void *</code>):</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — endereco.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int x = 42;
+    char c = 'A';
+    double d = 3.14;
+
+    printf(&quot;x = %d, &amp;x = %p\n&quot;, x, (void *)&amp;x);
+    printf(&quot;c = %c, &amp;c = %p\n&quot;, c, (void *)&amp;c);
+    printf(&quot;d = %.2f, &amp;d = %p\n&quot;, d, (void *)&amp;d);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>x = 42, &amp;x = 000000A177BFFDCC
+c = A, &amp;c = 000000A177BFFDCB
+d = 3.14, &amp;d = 000000A177BFFDC0
+
+(as casas são números longos; endereços mudam a cada execução. x, c e d ficaram pertinhos no stack)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Ponteiro: uma caixa que guarda um endereço</h2>
+  <p>Um ponteiro é exatamente isso: uma variável cujo <em>conteúdo é um endereço</em>. A declaração <code>int *p;</code> lê-se "p é um ponteiro para int". Diagrama mental: <em>uma caixa com um bilhete escrito &amp;x</em>.</p>
+<p>Para <strong>pegar o endereço</strong> usamos <code>&amp;x</code>; para <strong>seguir para a casa</strong> (ler ou escrever no valor apontado) usamos o operador unário <strong><code>*</code></strong>, chamado <em>dereferência</em>:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — primeiro-ponteiro.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int x = 42;
+    int *p = &amp;x;
+
+    printf(&quot;x = %d\n&quot;, x);
+    printf(&quot;&amp;x = %p\n&quot;, (void *)&amp;x);
+    printf(&quot;p = %p\n&quot;, (void *)p);
+    printf(&quot;*p = %d\n&quot;, *p);
+
+    *p = 7;              /* escreve no mesmo endereço de x */
+    printf(&quot;depois de *p = 7 -&gt; x = %d\n&quot;, x);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>x = 42
+&amp;x = 000000A8D05FFA34
+p = 000000A8D05FFA34
+*p = 42
+depois de *p = 7 -&gt; x = 7
+
+(p e &amp;x imprimem o mesmo número: p guarda o endereço de x)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Por que o tipo do ponteiro importa</h2>
+  <p><code>int *p</code> e <code>char *p</code> guardam endereços do mesmo tamanho (8 bytes em 64 bits). Então por que o tipo? Porque <code>*</code> precisa saber <strong>quantos bytes e como interpretá-los</strong> na casa apontada: um <code>int</code> ocupa 4 bytes; um <code>char</code>, 1. O tipo define a "unidade" da casa.</p>
+<p>O exemplo abaixo olha os <em>bytes por dentro</em> de um int usando um <code>char *</code>. Em máquinas little-endian (x86/x64), o byte menos significativo vem primeiro:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — tipos.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int x = 1000;               /* 0x000003E8 */
+    int *pi = &amp;x;
+    char *pc = (char *)&amp;x;
+
+    printf(&quot;sizeof(ponteiro) = %zu bytes\n&quot;, sizeof(pi));
+    printf(&quot;*pi = %d\n&quot;, *pi);
+    printf(&quot;primeiro byte via char* = %d\n&quot;, (int)*pc);
+    printf(&quot;bytes do int: %02X %02X %02X %02X\n&quot;,
+           (unsigned char)pc[0], (unsigned char)pc[1],
+           (unsigned char)pc[2], (unsigned char)pc[3]);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>sizeof(ponteiro) = 8 bytes
+*pi = 1000
+primeiro byte via char* = -24
+bytes do int: E8 03 00 00
+
+(o byte 0xE8 visto como unsigned char seria 232; como char com sinal aparece -24)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Ponteiro que não aponta para nada: NULL</h2>
+  <p>Um ponteiro <strong>não inicializado</strong> guarda lixo — dereferenciá-lo é comportamento indefinido (crash). Por isso a linguagem fornece <code>NULL</code>: um valor sentinela <em>garantidamente inválido</em> que significa "não aponto para lugar nenhum". Compare com <code>NULL</code> antes de usar, e use <code>NULL</code> após um <code>free</code> para não "seguir" um ponteiro já apagado.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — nulo.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int *p = NULL;
+
+    if (p == NULL) {
+        printf(&quot;p ainda nao aponta para lugar nenhum.\n&quot;);
+    }
+
+    int x = 5;
+    p = &amp;x;
+    printf(&quot;depois de p = &amp;x, *p = %d\n&quot;, *p);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>p ainda nao aponta para lugar nenhum.
+depois de p = &amp;x, *p = 5</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Swap: funções que modificam quem chamou</h2>
+  <p>Em C, funções recebem <strong>cópias</strong> dos argumentos. Por isso <code>trocar(a, b)</code> com valores não muda nada lá fora. A solução clássica é passar <em>endereços</em>: a função segue o bilhete e mexe na casa original.</p>
+<p>Este é o ponto de virada para "retornar" múltiplos valores: em vez de um <code>return</code>, você recebe endereços de variáveis do chamador e escreve nelas.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — swap.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void trocar(int *a, int *b)
+{
+    int tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+int main(void)
+{
+    int x = 10, y = 99;
+    printf(&quot;antes : x=%d y=%d\n&quot;, x, y);
+    trocar(&amp;x, &amp;y);
+    printf(&quot;depois: x=%d y=%d\n&quot;, x, y);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>antes : x=10 y=99
+depois: x=99 y=10</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Devolvendo dois resultados: quociente e resto</h2>
+  <p>A mesma técnica resolve o caso de uma operação que produz dois resultados. Aqui <code>divide</code> "devolve" o quociente e o resto por meio de dois ponteiros — nenhum <code>return</code> é necessário.</p>
+<p>Observe ainda dois detalhes do C: <code>-17 / 5</code> trunca em direção a zero (dá -3), e o resto acompanha o sinal do dividendo (dá -2). Programas científicos de verdade desenham as regras de arredondamento de propósito.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — divisao-com-resto.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void divide(int a, int b, int *quociente, int *resto)
+{
+    *quociente = a / b;
+    *resto = a % b;
+}
+
+int main(void)
+{
+    int q, r;
+    divide(17, 5, &amp;q, &amp;r);
+    printf(&quot;17 / 5  = %d, resto %d\n&quot;, q, r);
+    divide(-17, 5, &amp;q, &amp;r);
+    printf(&quot;-17 / 5 = %d, resto %d\n&quot;, q, r);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>17 / 5  = 3, resto 2
+-17 / 5 = -3, resto -2</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.01.1</p>
+  <p class="enunciado">Declare um <code>int</code>, um <code>char</code> e um <code>double</code>, imprima os três valores e os três endereços com <code>%p</code>. Imprima também <code>sizeof(int*)</code> e <code>sizeof(char*)</code>. Rode o programa algumas vezes: os endereços mudam? O <code>sizeof</code> muda?</p>
+  <p class="dica"><strong>Dica:</strong> Imprima endereço sempre com <code>(void *)</code> no argumento do <code>%p</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int x = 1;
+    char c = 'z';
+    double d = 2.5;
+
+    printf(&quot;x = %d  &amp;x = %p\n&quot;, x, (void *)&amp;x);
+    printf(&quot;c = %c  &amp;c = %p\n&quot;, c, (void *)&amp;c);
+    printf(&quot;d = %.2f &amp;d = %p\n&quot;, d, (void *)&amp;d);
+
+    printf(&quot;sizeof(int*)  = %zu\n&quot;, sizeof(int *));
+    printf(&quot;sizeof(char*) = %zu\n&quot;, sizeof(char *));
+    return 0;
+}</code></pre>
+        <p class="obs">Os endereços variam a cada execução (o sistema posiciona o stack onde quiser); o <code>sizeof</code> depende da arquitetura (8 em 64 bits).</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.01.2</p>
+  <p class="enunciado">Escreva a função <code>trocar</code> e use-a para inverter os valores de duas variáveis lidas de um array, mostrando o array antes e depois (ex.: <code>arr = {5, 9}</code> vira <code>{9, 5}</code>).</p>
+  <p class="dica"><strong>Dica:</strong> Um array decai para o endereço do primeiro elemento; você pode passar <code>&amp;arr[0]</code> e <code>&amp;arr[1]</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void trocar(int *a, int *b)
+{
+    int tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+int main(void)
+{
+    int arr[2] = {5, 9};
+
+    printf(&quot;antes : arr[0]=%d arr[1]=%d\n&quot;, arr[0], arr[1]);
+    trocar(&amp;arr[0], &amp;arr[1]);
+    printf(&quot;depois: arr[0]=%d arr[1]=%d\n&quot;, arr[0], arr[1]);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.01.3</p>
+  <p class="enunciado">Gere quociente e resto de 29 ÷ 7 e também de -29 ÷ 7 usando uma função com ponteiros. Imprima resultados em formato <code>a / b = q, resto r</code>.</p>
+  <p class="dica"><strong>Dica:</strong> A função <code>divide</code> acima já faz isso — basta adaptar os valores.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void divide(int a, int b, int *q, int *r)
+{
+    *q = a / b;
+    *r = a % b;
+}
+
+int main(void)
+{
+    int q, r;
+    divide(29, 7, &amp;q, &amp;r);
+    printf(&quot;29 / 7 = %d, resto %d\n&quot;, q, r);
+    divide(-29, 7, &amp;q, &amp;r);
+    printf(&quot;-29 / 7 = %d, resto %d\n&quot;, q, r);
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado: 29/7 = 4 resto 1; -29/7 = -4 resto -1 (truncamento em direção a zero).</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.01.4</p>
+  <p class="enunciado">Escreva <code>estatisticas(a, b, c, &menor, &maior)</code> que devolve, pelos ponteiros, o menor e o maior de três inteiros. Teste com valores com negativos e repita com ordem trocada.</p>
+  <p class="dica"><strong>Dica:</strong> Comece com <code>*menor = a</code> e <code>*maior = a</code>, depois compare com <code>b</code> e <code>c</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void estatisticas(int a, int b, int c, int *menor, int *maior)
+{
+    *menor = a;
+    *maior = a;
+
+    if (b &lt; *menor) *menor = b;
+    if (b &gt; *maior) *maior = b;
+    if (c &lt; *menor) *menor = c;
+    if (c &gt; *maior) *maior = c;
+}
+
+int main(void)
+{
+    int mn, mx;
+    estatisticas(-3, 12, 0, &amp;mn, &amp;mx);
+    printf(&quot;entre -3, 12 e 0: menor=%d maior=%d\n&quot;, mn, mx);
+    estatisticas(7, 7, 1, &amp;mn, &amp;mx);
+    printf(&quot;entre 7, 7 e 1: menor=%d maior=%d\n&quot;, mn, mx);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t2-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.01.5</p>
+  <p class="enunciado">Escreva uma função <code>apontar_para(int **pp, int *alvo)</code> que muda para onde o ponteiro do chamador aponta (dica: receba o endereço do próprio ponteiro). No <code>main</code>, faça <code>p</code> apontar para <code>a</code>, imprima <code>*p</code>, chame a função com <code>&amp;p</code> e <code>&amp;b</code>, e imprima <code>*p</code> de novo.</p>
+  <p class="dica"><strong>Dica:</strong> Isso é um ponteiro-para-ponteiro: <code>**pp</code> é o ponteiro original; <code>*pp = alvo</code> troca o ponteiro do chamador.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void apontar_para(int **pp, int *alvo)
+{
+    *pp = alvo;
+}
+
+int main(void)
+{
+    int a = 10, b = 20;
+    int *p = &amp;a;
+
+    printf(&quot;p aponta para %d\n&quot;, *p);
+    apontar_para(&amp;p, &amp;b);
+    printf(&quot;p agora aponta para %d\n&quot;, *p);
+    return 0;
+}</code></pre>
+        <p class="obs">A mesma ideia de passar o endereço da caixa que você quer alterar — aqui a caixa guarda um ponteiro. Esse padrão será explorado no módulo T2.11 e no strtok.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual operador devolve o endereço de uma variável?&quot;,&quot;opcoes&quot;:[&quot;*&quot;,&quot;&amp;&quot;,&quot;%&quot;,&quot;#&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;&lt;code&gt;&amp;amp;x&lt;/code&gt; (\&quot;endereço de x\&quot;) é o operador que retorna o endereço em memória da variável.&quot;},{&quot;pergunta&quot;:&quot;O que declara &lt;code&gt;int *p;&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;Uma variável inteira chamada *p&quot;,&quot;Um ponteiro para int chamado p&quot;,&quot;Um ponteiro que guarda o valor 0&quot;,&quot;Um array de inteiros&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;&lt;code&gt;int *p&lt;/code&gt; declara p como um ponteiro capaz de guardar o endereço de um &lt;code&gt;int&lt;/code&gt;.&quot;},{&quot;pergunta&quot;:&quot;Se &lt;code&gt;int *p = &amp;amp;x;&lt;/code&gt;, o que faz &lt;code&gt;*p = 7;&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;Muda o ponteiro p para apontar para o valor 7&quot;,&quot;Escreve 7 na variável x (na casa apontada)&quot;,&quot;Copia o endereço de x para 7&quot;,&quot;Gera erro de compilação obrigatoriamente&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Com &lt;code&gt;*&lt;/code&gt; na esquerda (dereferência em escrita), escrevemos 7 no endereço guardado por p, ou seja, em x.&quot;},{&quot;pergunta&quot;:&quot;Qual valor usamos para um ponteiro \&quot;não aponta para nada\&quot;?&quot;,&quot;opcoes&quot;:[&quot;NULL&quot;,&quot;0x00 apenas em main&quot;,&quot;NaN&quot;,&quot;undefined (em C lispe)&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;NULL é o valor sentinela que significa \&quot;nenhum endereço válido\&quot;. Testamos com &lt;code&gt;if (p == NULL)&lt;/code&gt;.&quot;},{&quot;pergunta&quot;:&quot;Por que o swap clássico usa ponteiros?&quot;,&quot;opcoes&quot;:[&quot;Para deixar o código mais curto&quot;,&quot;Porque funções recebem cópias; com ponteiros a função altera as variáveis do chamador.&quot;,&quot;Porque int não pode ser copiado&quot;,&quot;É apenas uma tradição histórica&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Passando &lt;code&gt;&amp;amp;a&lt;/code&gt; e &lt;code&gt;&amp;amp;b&lt;/code&gt;, a função segue os endereços e modifica diretamente as variáveis originais.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Caixa registradora: troco em cédulas</h2>
+  <p>Implemente a função <code>troco(int valor, int *c100, int *c50, int *c20, int *c10, int *c5, int *c2, int *c1)</code> que preenche a menor quantidade de cédulas/moedas para pagar um valor. No <code>main</code>, teste com 289, 117 e 30 e imprima o "extrato". Vale também validar que a soma das cédulas multiplicadas pelos valores bate com o total.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Função usa ponteiros para "devolver" as sete quantidades.</li><li>Menu/testes cobrem valores variados (incluindo múltiplos de 5 e ímpares).</li><li>Verificação de soma: 100*c100 + 50*c50 + ... + 1*c1 == valor informado.</li><li>Compila com <code>gcc -Wall -Wextra -std=c11</code> sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-next" href="ponteiros-e-arrays-aritmetica-de-ponteiros.html">2.02 Ponteiros e arrays: aritmética de ponteiros →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m01">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

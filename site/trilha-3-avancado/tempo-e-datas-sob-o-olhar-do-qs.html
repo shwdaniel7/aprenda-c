@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3.09 — Tempo e datas (sob o olhar do QS) — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="3">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t3">Trilha 3 — Avançado</a> / Tempo e datas (sob o olhar do QS)</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">3.09</div>
+    <h1>Tempo e datas (sob o olhar do QS)</h1>
+    <p class="subtitulo">Do epoch ao relógio de parede: como medir, carimbar e formatar tempo em C com padrão C11.</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: Conhecer ponteiros, structs e manipulação de strings (T2.06). Saber tratar erros de forma robusta (T3.01).</span>
+    </div>
+    <button class="btn btn-done" data-mod="t3-m09">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Compreender o modelo de tempo da linguagem C (epoch, time_t, struct tm), usar as funções do cabeçalho <time.h> para obter o instante atual, converter entre UTC e local, formatar e parsear datas, medir intervalo de parede, CPU e nanossegundos — e aplicar tudo isso num registro de log com carimbo de hora, o padrão de um Quality System.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Beej cap. de &quot;Time and date functionality&quot; (cap. 38)</p>
+  <p><strong>King (livro em PDF):</strong> King cap. 17, 20 (ponteiros avançados e ponteiros para função).</p>
+  <p class="foco"><strong>Foco da leitura:</strong> Foque em time(), localtime(), gmtime(), mktime(), difftime(), clock(), timespec_get(), strftime() e mktime() — e no exemplo de "formatação de horário" do Beej.</p>
+</section>
+  <section class="card secao">
+  <h2>O tempo na máquina: epoch, time_t e struct tm</h2>
+  <p>O computador não "sente" o tempo como nós. Ele guarda um inteiro gigante: o número de segundos decorridos desde a <strong>epoch</strong> — a meia-noite UTC de 1º de janeiro de 1970. Em C, esse valor inteiro é o tipo <code>time_t</code>, retornado por <code>time()</code>.</p>
+<p>A outra metade da história é o <code>struct tm</code>: uma estrutura com campos legíveis (<code>tm_year</code>, <code>tm_mon</code>, <code>tm_mday</code>, <code>tm_hour</code>…), preenchida por <code>localtime()</code> (no fuso da máquina) ou <code>gmtime()</code> (em UTC). Cuidado com dois detalhes que derrubam iniciantes: <code>tm_year</code> conta anos desde 1900 e <code>tm_mon</code> começa em 0 (janeiro).</p>
+<p>No exemplo, exibimos o epoch e os dois "rostos" legíveis do mesmo instante: o local e o UTC. Note como <code>tm_year + 1900</code> e <code>tm_mon + 1</code> precisam ser ajustados na hora de imprimir.</p>
+  <ul><li><code>time_t</code> — inteiro (normalmente) que representa segundos desde a epoch; as funções de data devolvem/consomem esse tipo.</li>
+<li><code>time(&amp;t)</code> — grava o instante atual em <code>t</code>; pode retornar o valor diretamente também.</li>
+<li><code>struct tm</code> — campos <code>tm_year</code> (anos desde 1900), <code>tm_mon</code> (0–11), <code>tm_mday</code> (1–31), <code>tm_hour</code>, <code>tm_min</code>, <code>tm_sec</code>, <code>tm_wday</code>, <code>tm_yday</code>, <code>tm_isdst</code>.</li>
+<li><code>localtime()</code>/<code>gmtime()</code> — convertem <code>time_t</code> para <code>struct tm</code> no fuso local ou em UTC.</li>
+<li><code>asctime()</code> — devolve uma string fixa (e feia) com a data/hora; <code>ctime()</code> faz o mesmo direto do <code>time_t</code>.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m0901</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+int main(void) {
+    time_t agora = time(NULL);
+
+    printf(&quot;epoch: %lld\n&quot;, (long long)agora);
+    printf(&quot;em horas: %lld\n&quot;, (long long)(agora / 3600));
+    printf(&quot;em dias: %lld\n&quot;, (long long)(agora / 86400));
+
+    struct tm *local = localtime(&amp;agora);
+    struct tm *utc = gmtime(&amp;agora);
+
+    printf(&quot;local: %04d-%02d-%02d %02d:%02d:%02d\n&quot;,
+           local-&gt;tm_year + 1900, local-&gt;tm_mon + 1, local-&gt;tm_mday,
+           local-&gt;tm_hour, local-&gt;tm_min, local-&gt;tm_sec);
+    printf(&quot;utc  : %04d-%02d-%02d %02d:%02d:%02d\n&quot;,
+           utc-&gt;tm_year + 1900, utc-&gt;tm_mon + 1, utc-&gt;tm_mday,
+           utc-&gt;tm_hour, utc-&gt;tm_min, utc-&gt;tm_sec);
+    printf(&quot;dia do ano: %d (0 = 1 de janeiro)\n&quot;, local-&gt;tm_yday);
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .hora-atual.exe
+&gt; epoch: 1789503467
+&gt; em horas: 497084
+&gt; em dias: 20711
+&gt; local: 2026-09-15 17:17:47
+&gt; utc  : 2026-09-15 20:17:47
+&gt; dia do ano: 258 (0 = 1 de janeiro)
+&gt; 
+&gt; (Os valores de epoch e de hora variam conforme o momento em que você roda; o formato, não.)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Medindo intervalos: relógio de parede com difftime()</h2>
+  <p>Medir quanto tempo um trecho demorou parece trivial: pegue o instante antes, o instante depois e subtraia. O C11 padronizou isso com <code>difftime()</code>, que devolve a diferença em segundos (como <code>double</code>) entre dois instantes <code>time_t</code>.</p>
+<p>O relógio do <code>time()</code> tem resolução de segundo, então para algo mais fino você precisará de outro recurso (veremos <code>clock()</code> e <code>timespec_get()</code> logo adiante). Para trechos longos, porém, a leitura em segundos inteiros é suficiente e é o que usamos aqui.</p>
+<p>No exemplo, medimos quanto tempo o loop de soma demora. Para evitar que o otimizador "aposte" que o resultado não é usado e elimine o loop, imprimimos a soma ao final. Esse é um truque clássico de toda medição em C.</p>
+  <ul><li><code>double difftime(time_t fim, time_t inicio)</code> — devolve <code>fim - inicio</code> em segundos.</li>
+<li>Cuidado com a ordem: primeiro capturamos o início, depois o fim.</li>
+<li>Nunca declare o resultado de medição como <code>int</code>; use <code>double</code> (ou <code>long long</code> quando for epoch).</li>
+<li>Se o tempo marcado for 0, verifique a resolução do relógio, não a "velocidade" do trecho.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m0902</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+int main(void) {
+    time_t inicio = time(NULL);
+
+    long long soma = 0;
+    for (long long i = 0; i &lt; 200000000LL; i++) {
+        soma += i;
+    }
+
+    time_t fim = time(NULL);
+    double decorrido = difftime(fim, inicio);
+
+    printf(&quot;soma: %lld\n&quot;, soma);
+    printf(&quot;decorrido: %.0f s (parede)\n&quot;, decorrido);
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .medindo-difftime.exe
+&gt; soma: 19999999900000000
+&gt; decorrido: 2 s (parede)
+&gt; 
+&gt; (Os segundos exatos variam conforme a máquina e a carga; na execução de referência, 2 s.)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>clock() como cronômetro</h2>
+  <p>Há uma diferença sutil mas importante entre relógio de parede e tempo de processador. O primeiro conta tudo (inclusive enquanto o processo dorme esperando I/O); o segundo conta só o tempo em que a CPU esteve executando o seu código.</p>
+<p>A função <code>clock()</code> devolve <code>clock_t</code>, um valor em <strong>unidades de clock</strong> (ticks). Para converter em segundos, divide-se por <code>CLOCKS_PER_SEC</code>. O número de ticks por segundo não precisa ser 1.000.000 — é o sistema que define —, mas a divisão sempre produz segundos.</p>
+<p>Note que <code>clock()</code> é o recurso certo para comparar a performance de duas implementações do mesmo algoritmo no mesmo processo. O relógio de parede incluiria qualquer balanço do sistema operacional.</p>
+  <ul><li><code>clock_t clock(void)</code> — tempo de CPU consumido pelo processo, em ticks.</li>
+<li><code>CLOCKS_PER_SEC</code> — quantos ticks há em um segundo; divida para obter segundos.</li>
+<li>Sempre converta com cast para <code>double</code> antes de dividir (evite truncamento).</li>
+<li>Não use <code>clock()</code> para carimbar data/hora: ele não tem relação com a epoch.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m0903</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+int main(void) {
+    clock_t inicio = clock();
+
+    long long soma = 0;
+    for (long long i = 0; i &lt; 300000000LL; i++) {
+        soma += i;
+    }
+
+    clock_t fim = clock();
+    double segundos = (double)(fim - inicio) / CLOCKS_PER_SEC;
+
+    printf(&quot;soma: %lld\n&quot;, soma);
+    printf(&quot;cpu: %.3f s\n&quot;, segundos);
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .cronometro-clock.exe
+&gt; soma: 44999999985000000
+&gt; cpu: 0.132 s
+&gt; 
+&gt; (O tempo de CPU varia conforme a máquina; na execução de referência, 0.132 s.)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Convertendo e construindo datas: mktime()</h2>
+  <p>Até aqui só "descemos" do epoch para o calendário. O caminho inverso é o <code>mktime()</code>: recebe um <code>struct tm</code> (no fuso local) e devolve o <code>time_t</code> correspondente. É ele que permite transformar uma data digitada em epoch.</p>
+<p>Uma surpresa útil: o <code>mktime()</code> <strong>normaliza</strong> os campos. Se você montar 40 de março, ele entende que isso é 9 de abril e ajusta <code>tm_mday</code>/<code>tm_mon</code> na própria estrutura — corrigindo automaticamente "estouros" de calendário.</p>
+<p>No exemplo, além de mostrar o epoch de uma data fixa (15/06/2000), demonstramos a normalização: montamos 40/03/2000 e deixamos o mktime resolver. Em sistemas com resolução de 1 s, o horário é assumido meia-noite local.</p>
+  <ul><li><code>mktime(struct tm *)</code> — devolve <code>time_t</code>; se a data for inválida, devolve <code>(time_t)-1</code>.</li>
+<li>Normalização: valores fora de faixa (mês 13, dia 40) são convertidos automaticamente.</li>
+<li><code>tm_isdst</code> — se -1, o horário de verão é descoberto automaticamente.</li>
+<li>O epoch é sempre interpretado como <strong>hora local</strong> pela mktime; para UTC você precisaria ajustar o fuso manualmente.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m0904</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+int main(void) {
+    time_t agora = time(NULL);
+    printf(&quot;epoch agora: %lld\n&quot;, (long long)agora);
+
+    struct tm *local = localtime(&amp;agora);
+    printf(&quot;agora local: %04d-%02d-%02d %02d:%02d:%02d\n&quot;,
+           local-&gt;tm_year + 1900, local-&gt;tm_mon + 1, local-&gt;tm_mday,
+           local-&gt;tm_hour, local-&gt;tm_min, local-&gt;tm_sec);
+
+    struct tm nasc = {0};
+    nasc.tm_year = 2000 - 1900;
+    nasc.tm_mon = 5;
+    nasc.tm_mday = 15;
+    time_t t = mktime(&amp;nasc);
+    printf(&quot;15/06/2000 -&gt; epoch %lld\n&quot;, (long long)t);
+
+    struct tm mud = {0};
+    mud.tm_year = 2000 - 1900;
+    mud.tm_mon = 2;
+    mud.tm_mday = 40;
+    time_t t2 = mktime(&amp;mud);
+    printf(&quot;40 de marco -&gt; vira %02d/%02d/%04d, epoch %lld\n&quot;,
+           mud.tm_mday, mud.tm_mon + 1, mud.tm_year + 1900, (long long)t2);
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .calendario-mktime.exe
+&gt; epoch agora: 1789503469
+&gt; agora local: 2026-09-15 17:17:49
+&gt; 15/06/2000 -&gt; epoch 961038000
+&gt; 40 de marco -&gt; vira 09/04/2000, epoch 955249200
+&gt; 
+&gt; (O epoch de &quot;agora&quot; varia; os dois epochs de data fixa são determinísticos no fuso local.)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Formatando datas: strftime()</h2>
+  <p>Imprimir datas na mão, campo a campo, funciona — mas é frágil e verboso. O padrão C oferece <code>strftime()</code>: você passa um buffer, seu tamanho, uma máscara com especificadores e um <code>struct tm</code>; a função preenche o buffer, devolvendo quantos caracteres escreveu.</p>
+<p>Os especificadores lembram <code>printf</code>, mas com <code>%</code> próprios: <code>%Y</code> ano com 4 dígitos, <code>%m</code> mês 2 dígitos, <code>%d</code> dia, <code>%H:%M:%S</code> hora, <code>%j</code> dia do ano, <code>%A</code> nome do dia da semana. Basta concatená-los para montar o formato que o seu sistema (o Quality System do seu time, por exemplo) exigir.</p>
+<p>Sempre confira o retorno: se for igual ao tamanho do buffer, o espaço era insuficiente e a string foi truncada (ou nada escrito) — um erro clássico em relatórios de produção.</p>
+  <ul><li>`strftime(buf, tam, formato, tm)` — escreve em <code>buf</code>, devolve o nº de caracteres ou 0.</li>
+<li>Especificadores comuns: <code>%Y</code>, <code>%m</code>, <code>%d</code>, <code>%H</code>, <code>%M</code>, <code>%S</code>, <code>%j</code>, <code>%A</code>, <code>%a</code>, <code>%B</code>.</li>
+<li><code>%Y-%m-%d %H:%M:%S</code> é o formato ISO-8601, recomendado para logs.</li>
+<li>Os caracteres que não começam com <code>%</code> (hífens, dois-pontos, espaços) são copiados literalmente.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m0905</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+int main(void) {
+    time_t agora = time(NULL);
+    struct tm *local = localtime(&amp;agora);
+
+    char buf[128];
+
+    strftime(buf, sizeof buf, &quot;%d/%m/%Y&quot;, local);
+    printf(&quot;data curta: %s\n&quot;, buf);
+
+    strftime(buf, sizeof buf, &quot;%Y-%m-%d&quot;, local);
+    printf(&quot;iso: %s\n&quot;, buf);
+
+    strftime(buf, sizeof buf, &quot;%A, dia %d de %B de %Y&quot;, local);
+    printf(&quot;por extenso: %s\n&quot;, buf);
+
+    strftime(buf, sizeof buf, &quot;[%Y-%m-%d %H:%M:%S]&quot;, local);
+    printf(&quot;formato de log: %s\n&quot;, buf);
+
+    char hora[16];
+    strftime(hora, sizeof hora, &quot;%H:%M:%S&quot;, local);
+    printf(&quot;hora: %s\n&quot;, hora);
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .strftime-datas.exe
+&gt; data curta: 15/09/2026
+&gt; iso: 2026-09-15
+&gt; por extenso: Tuesday, dia 15 de September de 2026
+&gt; formato de log: [2026-09-15 17:17:49]
+&gt; hora: 17:17:49
+&gt; 
+&gt; (Dia da semana e horário variam com o momento da execução; o formato, não.)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Nanossegundos e o relógio monotônico: timespec_get()</h2>
+  <p>Precisão de 1 segundo não basta para medir funções rápidas — e o C11 trouxe a resposta: <code>timespec_get()</code>, que preenche um <code>struct timespec</code> com <strong>segundos</strong> (campo <code>tv_sec</code>) e <strong>nanossegundos</strong> (campo <code>tv_nsec</code>). No Windows/glibc atuais ela é implementada sobre relógio de alta resolução.</p>
+<p>A constante a passar é <code>TIME_UTC</code>: o relógio tem base na epoch (UTC). Combinando os dois campos, você consegue timestamps como <code>1789503469.243354400</code> — carimbo completo, ideal para eventos de alta frequência.</p>
+<p>Para medir trechos curtos, capture o <code>timespec</code> antes e depois e subtraia campo a campo, tomando cuidado com o "empréstimo" dos nanossegundos (se <code>tv_nsec_fim &lt; tv_nsec_inicio</code>, subtraia 1 do segundo e some 1e9 aos nanossegundos).</p>
+  <ul><li><code>struct timespec { time_t tv_sec; long tv_nsec; }</code>.</li>
+<li><code>timespec_get(&amp;ts, TIME_UTC)</code> — preenche com o instante atual; devolve <code>TIME_UTC</code> em sucesso.</li>
+<li>Cuidado com a formatação: use <code>%09ld</code> para zerar os nanossegundos à esquerda.</li>
+<li>Subtração de dois timespec: a lógica do "empréstimo" dos nanossegundos evita durações negativas.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m0906</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+int main(void) {
+    struct timespec ts;
+
+    if (timespec_get(&amp;ts, TIME_UTC) != TIME_UTC) {
+        printf(&quot;falha ao obter o tempo\n&quot;);
+        return 1;
+    }
+
+    printf(&quot;segundos: %lld\n&quot;, (long long)ts.tv_sec);
+    printf(&quot;nanossegundos: %ld\n&quot;, ts.tv_nsec);
+    printf(&quot;combinado: %lld.%09ld\n&quot;, (long long)ts.tv_sec, ts.tv_nsec);
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .	imespec-get.exe
+&gt; segundos: 1789503469
+&gt; nanossegundos: 243354400
+&gt; combinado: 1789503469.243354400
+&gt; 
+&gt; (Os valores exatos variam a cada execução; o formato é sempre &lt;code&gt;segundos.nanossegundos&lt;/code&gt;.)</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t3-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel nIntermediário">Nível Intermediário</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.09.1</p>
+  <p class="enunciado">Escreva um programa que formate a data e hora atuais em três formatos diferentes, com strftime: dia/mês/ano (sem barras, ex. 15/09/2026), ISO (2026-09-15) e o mês por extenso (September). Imprima os três, cada um em sua linha, precedidos de rotulo.</p>
+  <p class="dica"><strong>Dica:</strong> Use o mesmo struct tm para as três chamadas de strftime, reutilizando o mesmo buffer ou buffers separados.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+int main(void) {
+    time_t agora = time(NULL);
+    struct tm *local = localtime(&amp;agora);
+
+    char a[16], b[16], c[64];
+    strftime(a, sizeof a, &quot;%d/%m/%Y&quot;, local);
+    strftime(b, sizeof b, &quot;%Y-%m-%d&quot;, local);
+    strftime(c, sizeof c, &quot;%B de %Y&quot;, local);
+
+    printf(&quot;formato1: %s\n&quot;, a);
+    printf(&quot;formato2: %s\n&quot;, b);
+    printf(&quot;formato3: %s\n&quot;, c);
+
+    return 0;
+}</code></pre>
+        <p class="obs">./ex09_1</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t3-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel nIntermediário">Nível Intermediário</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.09.2</p>
+  <p class="enunciado">Reescreva o programa de soma longa (seção 3) mas meça com time() (parede) e com clock() (CPU) ao mesmo tempo. Imprima soma, tempo de parede em s e tempo de CPU em s. Use um loop de 300000000 iteracoes.</p>
+  <p class="dica"><strong>Dica:</strong> Capture o início dos dois relogios antes do loop e o fim depois; a soma precisa ser impressa para o loop nao ser otimizado.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+int main(void) {
+    time_t t0 = time(NULL);
+    clock_t c0 = clock();
+
+    long long soma = 0;
+    for (long long i = 0; i &lt; 300000000LL; i++) {
+        soma += i;
+    }
+
+    time_t t1 = time(NULL);
+    clock_t c1 = clock();
+
+    printf(&quot;soma: %lld\n&quot;, soma);
+    printf(&quot;parede: %.0f s\n&quot;, difftime(t1, t0));
+    printf(&quot;cpu: %.3f s\n&quot;, (double)(c1 - c0) / CLOCKS_PER_SEC);
+
+    return 0;
+}</code></pre>
+        <p class="obs">./ex09_2 — o tempo de parede proximo de 0 s e normal quando o relogio de time() tem resolucao de 1 s e a execucao leva menos de meio segundo.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t3-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel nIntermediário">Nível Intermediário</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.09.3</p>
+  <p class="enunciado">Calcule a idade aproximada de uma pessoa: dado o nascimento (1990-07-20), imprima a idade em anos (a partir da data atual) e a idade em dias (usando mktime para fixar o nascimento e difftime na data atual).</p>
+  <p class="dica"><strong>Dica:</strong> Monte o nascimento num struct tm e use mktime; para os dias, divida a diferenca em segundos por 86400.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+int main(void) {
+    struct tm nat = {0};
+    nat.tm_year = 1990 - 1900;
+    nat.tm_mon = 6;
+    nat.tm_mday = 20;
+
+    time_t nasc = mktime(&amp;nat);
+    time_t agora = time(NULL);
+
+    struct tm *atual = localtime(&amp;agora);
+    int anos = atual-&gt;tm_year - nat.tm_year;
+    if (atual-&gt;tm_mon &lt; nat.tm_mon ||
+        (atual-&gt;tm_mon == nat.tm_mon &amp;&amp; atual-&gt;tm_mday &lt; nat.tm_mday)) {
+        anos--;
+    }
+
+    long long dias = (long long)difftime(agora, nasc) / 86400LL;
+
+    printf(&quot;nascimento: %04d-%02d-%02d\n&quot;,
+           nat.tm_year + 1900, nat.tm_mon + 1, nat.tm_mday);
+    printf(&quot;idade por ano: %d anos\n&quot;, anos);
+    printf(&quot;idade por dias: %lld dias\n&quot;, dias);
+
+    return 0;
+}</code></pre>
+        <p class="obs">./ex09_3 — os dias dependem da data em que o programa roda.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t3-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel nAvançado">Nível Avançado</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.09.4</p>
+  <p class="enunciado">Complete o mini-log: um programa que abre "log.txt" em modo append, escreve uma linha no formato "[AAAA-MM-DDTHH:MM:SSzz] evento" (o T separando e o fuso com sinal), e imprime a mesma linha na tela. Execute duas vezes e confirme que o arquivo ganhou duas linhas.</p>
+  <p class="dica"><strong>Dica:</strong> Use strftime com uma mascara que termine em "%z" (fuso, ex. -0300). Abra com fopen("log.txt", "a").</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+int main(void) {
+    time_t agora = time(NULL);
+    struct tm *local = localtime(&amp;agora);
+
+    char linha[128];
+    strftime(linha, sizeof linha, &quot;%Y-%m-%dT%H:%M:%S%z&quot;, local);
+
+    FILE *f = fopen(&quot;log.txt&quot;, &quot;a&quot;);
+    if (!f) {
+        printf(&quot;nao foi possivel abrir log.txt\n&quot;);
+        return 1;
+    }
+    fprintf(f, &quot;&gt;&gt;&gt; %s no evento: inicializacao concluida\n&quot;, linha);
+    fclose(f);
+
+    printf(&quot;&gt;&gt;&gt; %s no evento: inicializacao concluida\n&quot;, linha);
+    return 0;
+}</code></pre>
+        <p class="obs">./ex09_4 — na execucao de referencia, o fuso apareceu como -0300. O formato %z depende do compilador/sistema.</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t3-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel nAvançado">Nível Avançado</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.09.5</p>
+  <p class="enunciado">Compare fib(40) recursivo e iterativo: meça o tempo de CPU de cada implementacao com clock() e imprima os dois resultados e os dois tempos. O iterativo deve ser drasticamente mais rapido.</p>
+  <p class="dica"><strong>Dica:</strong> A versao recursiva ingênua chama a si mesma duas vezes por chamada; a iterativa mantem os dois ultimos valores com um loop.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+long long fib_rec(int n) {
+    if (n &lt; 2) return (long long)n;
+    return fib_rec(n - 1) + fib_rec(n - 2);
+}
+
+long long fib_ite(int n) {
+    long long a = 0, b = 1;
+    for (int i = 0; i &lt; n; i++) {
+        long long t = a;
+        a = b;
+        b = t + b;
+    }
+    return a;
+}
+
+int main(void) {
+    clock_t c0 = clock();
+    long long r1 = fib_rec(40);
+    clock_t c1 = clock();
+    long long r2 = fib_ite(40);
+    clock_t c2 = clock();
+
+    printf(&quot;fib(40) recursivo = %lld em %.3f s\n&quot;,
+           r1, (double)(c1 - c0) / CLOCKS_PER_SEC);
+    printf(&quot;fib(40) iterativo = %lld em %.3f s\n&quot;,
+           r2, (double)(c2 - c1) / CLOCKS_PER_SEC);
+
+    return 0;
+}</code></pre>
+        <p class="obs">./ex09_5 — execucao de referencia: recursivo 0.418 s, iterativo 0.000 s (o valor exato varia).</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que representa o tipo time_t em C?&quot;,&quot;opcoes&quot;:[&quot;O dia do ano (1 a 366)&quot;,&quot;A quantidade de segundos desde a epoch (geralmente 01/01/1970 UTC)&quot;,&quot;Um struct com campos de data legíveis&quot;,&quot;O fuso horário da máquina&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;time_t é tipicamente um inteiro contando segundos desde a epoch. Para campos legíveis usa-se struct tm.&quot;},{&quot;pergunta&quot;:&quot;Na struct tm, o mês de março (terceiro do ano) é representado por qual valor de tm_mon?&quot;,&quot;opcoes&quot;:[&quot;0&quot;,&quot;1&quot;,&quot;2&quot;,&quot;3&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;tm_mon começa em 0 (janeiro). Março, o terceiro mês, é tm_mon == 2.&quot;},{&quot;pergunta&quot;:&quot;Qual função converte um struct tm em time_t, considerando a hora local?&quot;,&quot;opcoes&quot;:[&quot;localtime()&quot;,&quot;gmtime()&quot;,&quot;mktime()&quot;,&quot;ctime()&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;O caminho inverso de localtime é mktime: recebe struct tm, devolve time_t em hora local.&quot;},{&quot;pergunta&quot;:&quot;Para escrever 2026-09-15 em um buffer usando strftime, qual máscara usar?&quot;,&quot;opcoes&quot;:[&quot;%d-%m-%Y&quot;,&quot;%Y-%m-%d&quot;,&quot;%y-%m-%d&quot;,&quot;%D-%M-%Y&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;%Y ano com 4 dígitos, %m mês 2 dígitos, %d dia 2 dígitos — nessa ordem gera 2026-09-15.&quot;},{&quot;pergunta&quot;:&quot;O que timespec_get() preenche em um struct timespec?&quot;,&quot;opcoes&quot;:[&quot;Apenas segundos inteiros&quot;,&quot;Segundos e nanossegundos&quot;,&quot;O nome do dia da semana&quot;,&quot;Apenas o fuso horário&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;struct timespec tem tv_sec (segundos, base epoch) e tv_nsec (nanossegundos).&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Registrador de log com carimbo de hora</h2>
+  <p>Construa um pequeno registrador de eventos no estilo Quality System: o programa recebe mensagens pela entrada padrão (uma por linha) e as grava, em ordem, num arquivo "eventos.log", cada linha no formato ISO-8601 com fuso: "2026-09-15T17:20:31-0300 INFO sua mensagem aqui". No final, imprima quantas linhas foram gravadas e o tempo total de CPU gasto (clock()/CLOCKS_PER_SEC). Estrutura sugerida: funcao registrar(nivel, mensagem) que monta o carimbo com strftime, abre o arquivo em modo "a" a cada chamada e fecha na sequencia; o programa principal le linhas com fgets ate EOF.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Carimbo usa strftime com %z e data corrente.</li><li>Mensagens chegam pela stdin (fgets), cada uma vira uma linha com rótulo INFO (ou o nível recebido).</li><li>Arquivo persistente entre execuções (modo "a").</li><li>Total de linhas impresso com printf ao final.</li><li>Tempo de CPU impresso em segundos com 3 casas.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="sockets-com-posix-no-linux-wsl.html">← 3.08 Sockets com POSIX (no Linux/WSL)</a><a class="btn nav-next" href="numeros-exatos-bits-e-layouts-compactos.html">3.10 Números exatos, bits e layouts compactos →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t3-m09">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

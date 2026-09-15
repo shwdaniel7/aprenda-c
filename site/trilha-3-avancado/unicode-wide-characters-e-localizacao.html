@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3.04 — Unicode, wide characters e localização — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="3">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t3">Trilha 3 — Avançado</a> / Unicode, wide characters e localização</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">3.04</div>
+    <h1>Unicode, wide characters e localização</h1>
+    <p class="subtitulo">UTF-8, wchar_t, mbrtowc/wcrtomb e setlocale</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado</span>
+      <span class="chip">Duração: ~35 min</span>
+      <span class="chip">Pré-requisitos: T2.05 (strings)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t3-m04">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Entender o que é Unicode (code points), ver como UTF-8 codifica caracteres em 1–4 bytes, descobrir que wchar_t tem tamanho diferente por plataforma (2 bytes no Windows, 4 no Linux), e converter entre multibyte e wide com mbrtowc e wcrtomb sob controle do setlocale.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulos 26–27 (wide/multibyte e Unicode)</p>
+  <p><strong>King (livro em PDF):</strong> Seção pertinente de strings (cap. 13) + documentação do sistema para setlocale</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej foque nas funções multibyte/wide e na ideia do code point. Depois rode os exemplos deste módulo — eles revelam detalhes reais que variam entre Windows e Linux.</p>
+</section>
+  <section class="card secao">
+  <h2>O que é Unicode</h2>
+  <p>Unicode é uma tabela universal que atribui um número — o <strong>code point</strong> — a cada caractere de todos os alfabetos do mundo (U+0041 é o "A", U+00E1 é o á, U+1F600 é o 😀). Mas um <em>code point</em> é só um número; ele ainda precisa ser <em>codificado</em> em bytes para ser armazenado e transmitido. Aí entram os encodings.</p>
+  <ul><li><strong>UTF-8</strong> — codifica cada code point em 1 a 4 bytes; compatível com ASCII; a codificação padrão da web e de quase tudo hoje. O "á" vira 2 bytes, o 😀 vira 4.</li>
+<li><strong>UTF-16</strong> — usa 2 ou 4 bytes. É internamente usado no Windows (wchar_t).</li>
+<li><strong>UTF-32</strong> — usa exatamente 4 bytes por code point; simples de indexar, ineficiente de guardar.</li>
+<li>Regra do UTF-8: bytes com bit 7 zero são ASCII (1 byte); bytes 0xC0–0xDF iniciam sequência de 2; 0xE0–0xEF de 3; 0xF0–0xF7 de 4. Os bytes de continuação sempre começam com 10.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>wchar_t e a surpresa de cada plataforma</h2>
+  <p>O tipo <code>wchar_t</code> é o "caractere largo" do C. O problema é que ele <strong>não tem tamanho fixo</strong>: no Windows vale 2 bytes (e guarda UTF-16); no Linux vale 4 bytes (e guarda UTF-32). Isso muda o programa compilado, e é um dos motivos de existir o tipo fixo <code>char32_t</code> em C11. Strings e funções wide têm o prefixo L e as funções <code>wcs*</code> (<code>wcslen</code>, <code>wprintf</code>...). Em geral, para texto trocado com o mundo, o C moderno prefere trabalhar com UTF-8 (bytes) e converter na fronteira.</p>
+  <ul><li>Literal wide: <code>L"Olá"</code>; tipo <code>wchar_t</code>; cabeçalho <code>&lt;wchar.h&gt;</code>.</li>
+<li>Funções <code>wcslen</code>, <code>wcscpy</code>, <code>wcsstr</code>... espelham as de <code>&lt;string.h&gt;</code>.</li>
+<li>No Windows, um código point fora do BMP (ex.: 😀)=2 unidades wchar_t (par de surrogates); no Linux é 1.</li>
+<li>A constante via <code>setlocale(LC_ALL, ".UTF-8")</code> deixa a libc operar em UTF-8 no Windows; no Linux, "en_US.UTF-8" ou "C.UTF-8".</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Contando code points de uma string UTF-8</h2>
+  <p>O maior erro é contar <em>bytes</em> numa string UTF-8 achando que está contando caracteres. A função certa para percorrer é <code>mbrtowc</code>: ela converte (e consome) um code point por iteração e devolve quantos bytes ela andou. Aqui contamos quantas vezes o loop passou — independente de o caractere ter 1, 2, 3 ou 4 bytes. Note que em UTF-8 obter contagens iguais (ler 17, contar 13 code points) é o comportamento esperado.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — unica.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;locale.h&gt;
+#include &lt;string.h&gt;
+#include &lt;wchar.h&gt;
+
+int main(void)
+{
+    if (setlocale(LC_ALL, &quot;.UTF-8&quot;) == NULL) {
+        fprintf(stderr, &quot;setlocale falhou\n&quot;);
+        return 1;
+    }
+    const char *s = &quot;Olá, 😀 mundo!&quot;;
+    mbstate_t estado;
+    memset(&amp;estado, 0, sizeof estado);
+    size_t total = 0;
+    size_t nbytes = strlen(s);
+    size_t i = 0;
+    while (i &lt; nbytes) {
+        wchar_t wc;
+        size_t n = mbrtowc(&amp;wc, s + i, nbytes - i, &amp;estado);
+        if (n == (size_t)-1 || n == (size_t)-2) {
+            fprintf(stderr, &quot;sequencia invalida\n&quot;);
+            return 1;
+        }
+        i += n;
+        total++;
+    }
+    printf(&quot;bytes       = %zu\n&quot;, strlen(s));
+    printf(&quot;code points = %zu\n&quot;, total);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; unica
+bytes       = 17
+code points = 13</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Do wide para UTF-8 com os bits na mão</h2>
+  <p>Como o <code>wprintf</code> do Windows mistura code pages na saída, o jeito controlado de produzir Unicode é converter você mesmo: de <code>wchar_t</code> para bytes UTF-8 com uma máquina de estados simples. Este programa percorre uma string wide, emenda pares de surrogates (o jeito que 😀 existe como 2 wchar_t no Windows) e codifica cada code point em UTF-8 bit a bit. Repare na divisão: 😀 tem code point U+1F600 e "pesa" 4 bytes em UTF-8.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — emoji8.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;locale.h&gt;
+#include &lt;wchar.h&gt;
+
+static void cp_para_utf8(unsigned long cp, char buf[4], size_t *n)
+{
+    if (cp &lt; 0x80) {
+        buf[0] = (char)cp;
+        *n = 1;
+    } else if (cp &lt; 0x800) {
+        buf[0] = (char)(0xC0 | (cp &gt;&gt; 6));
+        buf[1] = (char)(0x80 | (cp &amp; 0x3F));
+        *n = 2;
+    } else if (cp &lt; 0x10000) {
+        buf[0] = (char)(0xE0 | (cp &gt;&gt; 12));
+        buf[1] = (char)(0x80 | ((cp &gt;&gt; 6) &amp; 0x3F));
+        buf[2] = (char)(0x80 | (cp &amp; 0x3F));
+        *n = 3;
+    } else {
+        buf[0] = (char)(0xF0 | (cp &gt;&gt; 18));
+        buf[1] = (char)(0x80 | ((cp &gt;&gt; 12) &amp; 0x3F));
+        buf[2] = (char)(0x80 | ((cp &gt;&gt; 6) &amp; 0x3F));
+        buf[3] = (char)(0x80 | (cp &amp; 0x3F));
+        *n = 4;
+    }
+}
+
+int main(void)
+{
+    setlocale(LC_ALL, &quot;.UTF-8&quot;);
+    const wchar_t *ws = L&quot;Olá \xD83D\xDE00&quot;;   /* &quot;Olá&quot; + 😀 em UTF-16 */
+    printf(&quot;wchar_t tem %d bytes nesta plataforma\n&quot;, (int)sizeof(wchar_t));
+    printf(&quot;bytes da string wide: %zu unidades wchar_t\n&quot;, wcslen(ws));
+
+    char utf8[64] = {0};
+    size_t total = 0;
+    int i = 0;
+    while (ws[i] != L'\0') {
+        unsigned long cp;
+        if (ws[i] &gt;= 0xD800 &amp;&amp; ws[i] &lt;= 0xDBFF) {
+            unsigned long lo = ws[i + 1];
+            cp = 0x10000 + ((ws[i] - 0xD800) &lt;&lt; 10) + (lo - 0xDC00);
+            i += 2;
+        } else {
+            cp = ws[i];
+            i++;
+        }
+        size_t n = 0;
+        cp_para_utf8(cp, utf8 + total, &amp;n);
+        printf(&quot;U+%04lX -&gt; %zu byte(s)\n&quot;, cp, n);
+        total += n;
+    }
+    printf(&quot;texto final em UTF-8: &quot;);
+    fwrite(utf8, 1, total, stdout);
+    printf(&quot;\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; emoji8
+wchar_t tem 2 bytes nesta plataforma
+bytes da string wide: 6 unidades wchar_t
+U+004F -&gt; 1 byte(s)
+U+006C -&gt; 1 byte(s)
+U+00E1 -&gt; 2 byte(s)
+U+0020 -&gt; 1 byte(s)
+U+1F600 -&gt; 4 byte(s)
+texto final em UTF-8: Olá 😀</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Mão dupla: UTF-8 → wide → UTF-8 (mbrtowc/wcrtomb)</h2>
+  <p>O par <code>mbrtowc</code> (multibyte → wide) e <code>wcrtomb</code> (wide → multibyte) faz a troca de formato sob a "lupa" do locale atual. É importante zerar a <code>mbstate_t</code> antes (estado multibyte). Note que <code>wcrtomb</code> converte de um em um <code>wchar_t</code>; no Windows isso significa que caracteres não-BMP (surrogates) precisam do tratamento manual que você viu na seção anterior.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — arredonda.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;locale.h&gt;
+#include &lt;string.h&gt;
+#include &lt;wchar.h&gt;
+
+int main(void)
+{
+    setlocale(LC_ALL, &quot;.UTF-8&quot;);
+    const char *entrada = &quot;Olá café&quot;;
+    mbstate_t est;
+    memset(&amp;est, 0, sizeof est);
+    wchar_t wide[32] = {0};
+    int j = 0;
+    printf(&quot;UTF-8 -&gt; wide (mbrtowc):\n&quot;);
+    size_t nbytes = strlen(entrada);
+    size_t i = 0;
+    while (i &lt; nbytes) {
+        size_t n = mbrtowc(&amp;wide[j], entrada + i, nbytes - i, &amp;est);
+        if (n == (size_t)-1 || n == (size_t)-2) break;
+        printf(&quot;  bytes[%zu..%zu] -&gt; wchar U+%04X\n&quot;, i, i + n, (unsigned)wide[j]);
+        i += n;
+        j++;
+    }
+    printf(&quot;wide -&gt; UTF-8 (wcrtomb):\n&quot;);
+    memset(&amp;est, 0, sizeof est);
+    char saida[64] = {0};
+    char *p = saida;
+    for (int k = 0; wide[k] != L'\0'; k++) {
+        size_t n = wcrtomb(p, wide[k], &amp;est);
+        if (n == (size_t)-1) {
+            fprintf(stderr, &quot;erro de conversao\n&quot;);
+            return 1;
+        }
+        printf(&quot;  U+%04X -&gt; %zu byte(s)\n&quot;, (unsigned)wide[k], n);
+        p += n;
+    }
+    printf(&quot;texto final: %s\n&quot;, saida);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; arredonda
+UTF-8 -&gt; wide (mbrtowc):
+  bytes[0..1] -&gt; wchar U+004F
+  bytes[1..2] -&gt; wchar U+006C
+  bytes[2..4] -&gt; wchar U+00E1
+  bytes[4..5] -&gt; wchar U+0020
+  bytes[5..6] -&gt; wchar U+0063
+  bytes[6..7] -&gt; wchar U+0061
+  bytes[7..8] -&gt; wchar U+0066
+  bytes[8..10] -&gt; wchar U+00E9
+wide -&gt; UTF-8 (wcrtomb):
+  U+004F -&gt; 1 byte(s)
+  U+006C -&gt; 1 byte(s)
+  U+00E1 -&gt; 2 byte(s)
+  U+0020 -&gt; 1 byte(s)
+  U+0063 -&gt; 1 byte(s)
+  U+0061 -&gt; 1 byte(s)
+  U+0066 -&gt; 1 byte(s)
+  U+00E9 -&gt; 2 byte(s)
+texto final: Olá café</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t3-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.04.1</p>
+  <p class="enunciado">Escreva um "lente de caracteres": para a string "Olá, 😀 mundo!", percorra com mbrtowc e imprima, para cada caracter, o offset do byte, o nº de bytes consumidos e o code point em U+XXXX. No fim imprima o total de code points e quantos são ASCII.</p>
+  <p class="dica"><strong>Dica:</strong> O offset é o índice i antes de avançar. No Windows, o emoji pode aparecer como U+FFFD — descubra por quê na explicação.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;locale.h&gt;
+#include &lt;string.h&gt;
+#include &lt;wchar.h&gt;
+
+int main(void)
+{
+    setlocale(LC_ALL, &quot;.UTF-8&quot;);
+    const char *texto = &quot;Olá, 😀 mundo!&quot;;
+    mbstate_t est;
+    memset(&amp;est, 0, sizeof est);
+    size_t nbytes = strlen(texto);
+    size_t i = 0;
+    size_t primos = 0;
+    size_t ascii = 0;
+    while (i &lt; nbytes) {
+        wchar_t wc;
+        size_t n = mbrtowc(&amp;wc, texto + i, nbytes - i, &amp;est);
+        if (n == (size_t)-1 || n == (size_t)-2) break;
+        printf(&quot;offset %3zu: %zu byte(s) -&gt; U+%04X\n&quot;, i, n, (unsigned)wc);
+        primos++;
+        if (wc &lt;= 0x7F) ascii++;
+        i += n;
+    }
+    printf(&quot;code points: %zu (ASCII: %zu)\n&quot;, primos, ascii);
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real no Windows: o á aparece como U+00E1 e o emoji como U+FFFD (o mbrtowc consumiu os 4 bytes mas converteu para o caractere de substituição, porque wchar_t de 2 bytes não guarda code point fora do BMP). No Linux (wchar_t 4 bytes) você veria U+1F600. Total: 13 code points, 11 ASCII.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t3-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.04.2</p>
+  <p class="enunciado">Crie um "filtro de emojis": remova da string "vamos 😀 comer 🐍 hoje" todos os caracteres fora do BMP (os que têm 4 bytes em UTF-8). Imprima antes e depois.</p>
+  <p class="dica"><strong>Dica:</strong> A regra do mbrtowc devolve n bytes consumidos; caracteres fora do BMP consomem n == 4. Copie só os de n < 4.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;locale.h&gt;
+#include &lt;string.h&gt;
+#include &lt;wchar.h&gt;
+
+int main(void)
+{
+    setlocale(LC_ALL, &quot;.UTF-8&quot;);
+    const char *texto = &quot;vamos 😀 comer 🐍 hoje&quot;;
+    printf(&quot;antes:  %s\n&quot;, texto);
+    printf(&quot;depois: &quot;);
+    mbstate_t est;
+    memset(&amp;est, 0, sizeof est);
+    size_t nbytes = strlen(texto);
+    size_t i = 0;
+    while (i &lt; nbytes) {
+        wchar_t wc;
+        size_t n = mbrtowc(&amp;wc, texto + i, nbytes - i, &amp;est);
+        if (n == (size_t)-1 || n == (size_t)-2) break;
+        if (n &lt; 4) {   /* somente caractere do BMP (1 a 3 bytes) */
+            fwrite(texto + i, 1, n, stdout);
+        }
+        i += n;
+    }
+    printf(&quot;\n&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real: "antes:  vamos 😀 comer 🐍 hoje" e "depois: vamos  comer  hoje". A armação por nº de bytes é portável entre Windows e Linux.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t3-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.04.3</p>
+  <p class="enunciado">Escreva um conversor wide→UTF-8: parta da string wide "café" e, com wcrtomb, gere os bytes UTF-8 num buffer. Imprima o resultado como texto e também como hex, mostrando quantos bytes cada caractere ocupou.</p>
+  <p class="dica"><strong>Dica:</strong> Depois de cada wcrtomb, avance o ponteiro para o próximo trecho do buffer. O "café" termina com os bytes c3 a9.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;locale.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;wchar.h&gt;
+
+int main(void)
+{
+    setlocale(LC_ALL, &quot;.UTF-8&quot;);
+    const wchar_t *ws = L&quot;café&quot;;
+    char saida[64] = {0};
+    mbstate_t est;
+    memset(&amp;est, 0, sizeof est);
+    char *p = saida;
+    for (size_t i = 0; ws[i] != L'\0'; i++) {
+        size_t n = wcrtomb(p, ws[i], &amp;est);
+        if (n == (size_t)-1) {
+            fprintf(stderr, &quot;erro de conversao\n&quot;);
+            return EXIT_FAILURE;
+        }
+        p += n;
+    }
+    printf(&quot;wide \&quot;café\&quot; -&gt; UTF-8 (%zu bytes): %s\n&quot;, (size_t)(p - saida), saida);
+    printf(&quot;hex: &quot;);
+    for (char *q = saida; q &lt; p; q++) {
+        printf(&quot;%02x &quot;, (unsigned char)*q);
+    }
+    printf(&quot;\n&quot;);
+    return EXIT_SUCCESS;
+}</code></pre>
+        <p class="obs">Saída real: "wide "café" -> UTF-8 (5 bytes): café" e "hex: 63 61 66 c3 a9". O é vira 2 bytes (c3 a9) — a "pegadinha" dos acentos em UTF-8.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Quantos bytes ocupa o caractere á (U+00E1) em UTF-8?&quot;,&quot;opcoes&quot;:[&quot;1&quot;,&quot;2&quot;,&quot;3&quot;,&quot;4&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Code points entre 0x80 e 0x7FF viram 2 bytes em UTF-8 (c3 a9 no caso do á).&quot;},{&quot;pergunta&quot;:&quot;No Windows, quanto vale sizeof(wchar_t)?&quot;,&quot;opcoes&quot;:[&quot;1 byte&quot;,&quot;2 bytes&quot;,&quot;4 bytes&quot;,&quot;8 bytes&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;No Windows, wchar_t tem 2 bytes e guarda UTF-16; no Linux tem 4 bytes e guarda UTF-32.&quot;},{&quot;pergunta&quot;:&quot;Qual função converte uma sequência multibyte (UTF-8) em um wchar_t de cada vez?&quot;,&quot;opcoes&quot;:[&quot;wcrtomb&quot;,&quot;mbrtowc&quot;,&quot;strtok&quot;,&quot;wcslen&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;mbrtowc (\&quot;multi-byte to wide char\&quot;) é a conversão da direção multibyte → wide.&quot;},{&quot;pergunta&quot;:&quot;Por que o exercício 1 mostrou U+FFFD para o emoji no Windows?&quot;,&quot;opcoes&quot;:[&quot;O emoji é inválido&quot;,&quot;wchar_t de 2 bytes não guarda code points fora do BMP num único valor&quot;,&quot;Faltou setlocale&quot;,&quot;A string não era UTF-8&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;! = U+1F600 está fora do BMP; num wchar_t de 2 bytes ele vira par de surrogates, e o mbrtowc/CRT entrega o caractere de substituição U+FFFD.&quot;},{&quot;pergunta&quot;:&quot;Para que serve setlocale(LC_ALL, \&quot;.UTF-8\&quot;)?&quot;,&quot;opcoes&quot;:[&quot;Para abrir arquivos&quot;,&quot;Para ativar o suporte UTF-8 na libc (base das conversões multibyte/wide)&quot;,&quot;Para compilar mais rápido&quot;,&quot;Para mudar o fuso horário&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Setlocale define o \&quot;dialeto\&quot; de conversão de caracteres da libc; sem ele, mbrtowc/wcrtomb operam em \&quot;C\&quot; (só ASCII).&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: wc -m: contador de caracteres reais</h2>
+  <p>Crie <code>conta9.c</code>: dado um arquivo ou entrada padrão, conte e imprima (1) o total de bytes, (2) o total de code points com mbrtowc e (3) a lista dos code points únicos aparecendo no texto com U+XXXX. Use a string do módulo como teste. É o "wc -m" das distribuições, mas com os detalhes abertos na tela.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Compila com <code>gcc -Wall -Wextra -std=c11</code> sem avisos.</li><li>Para "Olá, 😀 mundo!" devolve 17 bytes e 13 code points.</li><li>Lista de U+ única: imprime U+004F, U+006C, U+00E1, U+002C, U+0020, U+FFFD (Windows), U+006D, U+0075, U+006E, U+0064, U+006F, U+0021.</li><li>Usa setlocale com verificação e mbrtowc com tratamento de erro.</li><li>Não usa wprintf para a saída (seria vítima da code page).</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="tipos-avancados-storage-classes-e-declaracoes.html">← 3.03 Tipos avançados, storage classes e declarações</a><a class="btn nav-next" href="sinais-as-interrupcoes-do-so.html">3.05 Sinais: as interrupções do SO →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t3-m04">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

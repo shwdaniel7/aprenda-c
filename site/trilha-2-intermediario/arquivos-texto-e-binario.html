@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.13 — Arquivos: texto e binário — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / Arquivos: texto e binário</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.13</div>
+    <h1>Arquivos: texto e binário</h1>
+    <p class="subtitulo">FILE*, fopen, modos r/w/a, fgets/fscanf, fwrite/fread e fseek</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: T2.04 e T2.06</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m13">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Dominar a persistência em C: abrir e fechar arquivos com FILE*, gravar e ler texto com fprintf/fscanf e fgets, gravar e ler binário com fwrite/fread, navegar com fseek/ftell/rewind — e sair de cada programa com arquivos íntegros e bem fechados.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 9 (File I/O)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 22 (Input/Output)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, leia as seções de fopen/fclose, fprintf/fscanf, fgets/fputs e fread/fwrite. No King, o capítulo 22 é todo dedicado a arquivos: modos de abertura, navegação e o ciclo de vida do FILE*.</p>
+</section>
+  <section class="card secao">
+  <h2>Por que arquivos: persistência</h2>
+  <p>Tudo o que você imprimiu até aqui morreu no terminal. <strong>Arquivos</strong> são a memória de longo prazo do programa: o dado gravado hoje pode ser lido amanhã — por outro programa seu, pelo editor de texto ou por um banco de dados. Sem arquivos, agendas, logs, configurações e jogos salvos não existiriam.</p>
+<p>O meio de acesso é a struct <code>FILE</code>. Quem "abre" um arquivo é <code>fopen(caminho, modo)</code>, que devolve um ponteiro <code>FILE *</code> — ou <code>NULL</code> se algo deu errado (permissão, disco cheio, arquivo inexistente...). Regra de ouro: <strong>confira sempre o retorno</strong> antes de usar.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — primeiro-arquivo.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    FILE *f = fopen(&quot;dados.txt&quot;, &quot;w&quot;);
+    if (f == NULL) {
+        printf(&quot;nao consegui abrir o arquivo para escrita\n&quot;);
+        return 1;
+    }
+    fprintf(f, &quot;Ana 8.5\n&quot;);
+    fprintf(f, &quot;Bruno 7.0\n&quot;);
+    fclose(f);
+
+    f = fopen(&quot;dados.txt&quot;, &quot;r&quot;);
+    if (f == NULL) {
+        printf(&quot;nao consegui abrir o arquivo para leitura\n&quot;);
+        return 1;
+    }
+
+    char nome[50];
+    double nota;
+    while (fscanf(f, &quot;%49s %lf&quot;, nome, &amp;nota) == 2) {
+        printf(&quot;li: %s com nota %.1f\n&quot;, nome, nota);
+    }
+    fclose(f);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 primeiro-arquivo.c -o pa
+&gt; .\pa.exe
+
+li: Ana com nota 8.5
+li: Bruno com nota 7.0</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Modos de abertura e texto vs binário</h2>
+  <p><code>fopen</code> recebe o caminho e o <em>modo</em>: <code>"r"</code> (read), <code>"w"</code> (write — <strong>apaga</strong> o que havia e recomeça do zero), <code>"a"</code> (append — escreve no fim), e os "plus" <code>"r+"</code>/<code>"w+"</code>/<code>"a+"</code>, que abrem para leitura E escrita. Neste módulo os programas criam/leem arquivos na pasta atual.</p>
+<p>Nos modos <em>de texto</em> (sem <code>"b"</code>), o C traduz a quebra de linha: você escreve <code>\n</code> e o arquivo guarda <code>\r\n</code> no Windows. Os modos <strong>binários</strong> (<code>"rb"</code>, <code>"wb"</code>) copiam os bytes exatamente como estão — essencial para arquivos de dados sem tradução.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — modos.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    FILE *f;
+
+    f = fopen(&quot;notas.txt&quot;, &quot;w&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    fprintf(f, &quot;primeira linha\n&quot;);
+    fclose(f);
+
+    f = fopen(&quot;notas.txt&quot;, &quot;a&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    fprintf(f, &quot;segunda linha (anexada)\n&quot;);
+    fclose(f);
+
+    f = fopen(&quot;notas.txt&quot;, &quot;r&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    char linha[200];
+    int n = 0;
+    while (fgets(linha, sizeof linha, f) != NULL) {
+        n++;
+        printf(&quot;%d: %s&quot;, n, linha);
+    }
+    fclose(f);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 modos.c -o modos
+&gt; .\modos.exe
+
+1: primeira linha
+2: segunda linha (anexada)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Texto: escrever com formato e ler com o &quot;padrão fgets&quot;</h2>
+  <p>Para texto formatado, o par <code>fprintf</code>/<code>fscanf</code> é o <code>printf</code>/<code>scanf</code> com um <code>FILE *</code> como primeiro argumento. Para ler <em>linhas inteiras</em> — incluindo espaços —, o padrão é <code>fgets</code>: ele lê até a quebra de linha e <strong>conserva o <code>\n</code></strong> no buffer. E o truque do loop: enquanto <code>fgets</code> devolver <code>NULL</code>, não chegamos ao fim; quando o arquivo acaba, o retorno vira <code>NULL</code> e o loop encerra sozinho.</p>
+<p>Depois do loop, <code>feof(f)</code> diz "terminou normalmente"; <code>ferror(f)</code> indica erro real de I/O (disco, permissão). No dia a dia, esperamos o fim natural e conferimos <code>ferror</code> ao sair.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — texto.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    FILE *f = fopen(&quot;texto.txt&quot;, &quot;w&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    fprintf(f, &quot;linha um: aprendendo C\n&quot;);
+    fprintf(f, &quot;linha dois: arquivos\n&quot;);
+    fprintf(f, &quot;linha tres: misterio termina em EOF\n&quot;);
+    fclose(f);
+
+    f = fopen(&quot;texto.txt&quot;, &quot;r&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+
+    char buf[200];
+    int contador = 0;
+    while (fgets(buf, sizeof buf, f) != NULL) {
+        contador++;
+        printf(&quot;linha %d (%zu bytes): %s&quot;, contador, strlen(buf), buf);
+    }
+    if (ferror(f)) {
+        printf(&quot;erro de leitura!\n&quot;);
+    } else {
+        printf(&quot;fim de arquivo (EOF) apos %d linhas\n&quot;, contador);
+    }
+    fclose(f);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 texto.c -o texto
+&gt; .\texto.exe
+
+linha 1 (23 bytes): linha um: aprendendo C
+linha 2 (21 bytes): linha dois: arquivos
+linha 3 (36 bytes): linha tres: misterio termina em EOF
+fim de arquivo (EOF) apos 3 linhas
+
+(strlen conta até o \n inclusive, daí os tamanhos das linhas)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Binário: fwrite e fread</h2>
+  <p>Arquivo binário guarda a memória "crua": <code>fwrite(endereco, tamanho_do_elemento, quantidade, f)</code> grava <code>quantidade</code> blocos; <code>fread</code> faz o caminho inverso. Os dois devolvem quantos <em>elementos</em> conseguiram processar — confira esse número contra o esperado.</p>
+<p><strong>Cuidado com structs:</strong> gravar uma struct direto grava também o <em>padding</em> (T2.06), que muda de compilador para compilador. Um arquivo criado numa máquina pode não ser lido de forma igual noutra. Para formatos duradouros, grava-se campo a campo e embute-se um campo <code>versao</code> no próprio arquivo.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — binario.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+typedef struct {
+    int id;
+    double valor;
+    char nome[20];
+    int versao;
+} Registro;
+
+int main(void)
+{
+    Registro dados[3] = {
+        {1, 10.50, &quot;maca&quot;, 1},
+        {2, 3.25, &quot;feijao&quot;, 1},
+        {3, 99.00, &quot;cafe&quot;, 1},
+    };
+    Registro lido[3];
+    FILE *f;
+
+    printf(&quot;sizeof(Registro) = %zu bytes\n&quot;, sizeof(Registro));
+
+    f = fopen(&quot;dados.bin&quot;, &quot;wb&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    size_t escritos = fwrite(dados, sizeof dados[0], 3, f);
+    printf(&quot;fwrite gravou %zu de 3 registros\n&quot;, escritos);
+    fclose(f);
+
+    f = fopen(&quot;dados.bin&quot;, &quot;rb&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    size_t lidos = fread(lido, sizeof lido[0], 3, f);
+    printf(&quot;fread leu %zu de 3 registros\n&quot;, lidos);
+    fclose(f);
+
+    for (int i = 0; i &lt; 3; i++) {
+        printf(&quot;id=%d valor=%.2f nome=%s versao=%d\n&quot;,
+               lido[i].id, lido[i].valor, lido[i].nome, lido[i].versao);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 binario.c -o binario
+&gt; .\binario.exe
+
+sizeof(Registro) = 40 bytes
+fwrite gravou 3 de 3 registros
+fread leu 3 de 3 registros
+id=1 valor=10.50 nome=maca versao=1
+id=2 valor=3.25 nome=feijao versao=1
+id=3 valor=99.00 nome=cafe versao=1
+
+(os 40 bytes incluem padding: int 4 + double 8 + char[20] + int 4 + alinhamento — depende da arquitetura)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Navegando: fseek, rewind e ftell</h2>
+  <p>Todo arquivo aberto tem um "ponteiro de posição" interno. <code>fseek(f, offset, SEEK_SET)</code> pula para o byte <code>offset</code> a partir do início (<code>SEEK_CUR</code> a partir do atual, <code>SEEK_END</code> a partir do fim); <code>ftell(f)</code> diz em qual byte você está e <code>rewind(f)</code> volta ao início.</p>
+<p>Em um arquivo de registros de tamanho fixo, o registro N mora no offset <code>N × sizeof(Registro)</code>. Com um único <code>fseek</code>, lemos só o registro desejado — sem percorrer os anteriores. É o acesso aleatório que bancos de dados usam por trás dos índices.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — fseek.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+typedef struct {
+    int id;
+    int valor;
+} Registro;
+
+int main(void)
+{
+    Registro regs[6];
+    for (int i = 0; i &lt; 6; i++) {
+        regs[i].id = 100 + i;
+        regs[i].valor = i * 10;
+    }
+
+    FILE *f = fopen(&quot;registros.bin&quot;, &quot;wb&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    fwrite(regs, sizeof regs[0], 6, f);
+    fclose(f);
+
+    f = fopen(&quot;registros.bin&quot;, &quot;rb&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+
+    int indice = 4;
+    long offset = (long)indice * (long)sizeof(Registro);
+    if (fseek(f, offset, SEEK_SET) != 0) {
+        printf(&quot;falha no fseek\n&quot;);
+        fclose(f);
+        return 1;
+    }
+    printf(&quot;ftell depois do fseek: %ld\n&quot;, ftell(f));
+
+    Registro r;
+    size_t n = fread(&amp;r, sizeof r, 1, f);
+    printf(&quot;li %zu registro: id=%d valor=%d\n&quot;, n, r.id, r.valor);
+
+    rewind(f);
+    n = fread(&amp;r, sizeof r, 1, f);
+    printf(&quot;com rewind li de novo o registro 0: id=%d\n&quot;, r.id);
+
+    fclose(f);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 fseek.c -o fseek
+&gt; .\fseek.exe
+
+ftell depois do fseek: 32
+li 1 registro: id=104 valor=40
+com rewind li de novo o registro 0: id=100
+
+(32 = 4 registros × 8 bytes cada; o registro 104 é o 5º, de índice 4)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Boas práticas: o fluxo de um programa de qualidade</h2>
+  <p>Um programa que mexe com arquivo merece os mesmos cuidados de um que mexe com ponteiros. A lista abaixo é o "checklist" que todo código de arquivo sério segue:</p>
+  <ul><li><strong>Fechar sempre</strong>: <code>fclose</code> despeja os buffers no disco. Esquecer pode perder o último pedaço de dados e, em volume, esgotar os descritores do processo.</li>
+<li><strong>Checar o retorno do fclose</strong>: boa parte das falhas de escrita (disco cheio, por exemplo) só aparece no fechamento.</li>
+<li>Conferir <code>NULL</code> logo após o <code>fopen</code> e conferir o retorno dos <code>fwrite</code>/<code>fread</code>/<code>fprintf</code>.</li>
+<li><strong>Conferir o modo</strong>: <code>"w"</code> destrói o arquivo antigo; abrir para escrita algo que devia ser lido é corrupção em câmara lenta.</li>
+<li>Fechar cada arquivo assim que terminar de usá-lo, mesmo que o programa siga com outros.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — fluxo-seguro.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    FILE *f = fopen(&quot;importante.txt&quot;, &quot;w&quot;);
+    if (f == NULL) {
+        printf(&quot;erro: nao deu para criar o arquivo\n&quot;);
+        return 1;
+    }
+
+    if (fprintf(f, &quot;dados importantes\n&quot;) &lt; 0) {
+        printf(&quot;erro: falha ao escrever\n&quot;);
+        fclose(f);
+        return 1;
+    }
+
+    if (fclose(f) != 0) {
+        printf(&quot;erro: falha ao fechar (dados podem nao ter ido ao disco)\n&quot;);
+        return 1;
+    }
+    printf(&quot;arquivo salvo e fechado com sucesso\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 fluxo-seguro.c -o fluxo
+&gt; .\fluxo.exe
+
+arquivo salvo e fechado com sucesso</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m13">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.13.1</p>
+  <p class="enunciado">Escreva um programa que grava 5 inteiros num arquivo <code>numeros.txt</code> com <code>fprintf</code> (um por linha), fecha, reabre para leitura e lê tudo com <code>fscanf</code> somando. Imprima cada valor lido e a soma final.</p>
+  <p class="dica"><strong>Dica:</strong> O loop <code>while (fscanf(f, "%d", &x) == 1)</code> para sozinho ao chegar no fim do arquivo.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int valores[5] = {3, 8, 15, 22, 47};
+
+    FILE *f = fopen(&quot;numeros.txt&quot;, &quot;w&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    for (int i = 0; i &lt; 5; i++) {
+        fprintf(f, &quot;%d\n&quot;, valores[i]);
+    }
+    fclose(f);
+
+    f = fopen(&quot;numeros.txt&quot;, &quot;r&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+
+    int x, soma = 0, lidos = 0;
+    while (fscanf(f, &quot;%d&quot;, &amp;x) == 1) {
+        soma += x;
+        lidos++;
+        printf(&quot;li: %d\n&quot;, x);
+    }
+    fclose(f);
+
+    printf(&quot;lidos=%d soma=%d\n&quot;, lidos, soma);
+    return 0;
+}</code></pre>
+        <p class="obs">Para 3, 8, 15, 22 e 47, a soma esperada é 95.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m13">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.13.2</p>
+  <p class="enunciado">Escreva um programa que cria <code>origem.txt</code> com três linhas, copia para <code>destino.txt</code> <strong>linha a linha</strong> com <code>fgets</code>/<code>fputs</code> e por fim imprime o conteúdo copiado para provar que a cópia funcionou.</p>
+  <p class="dica"><strong>Dica:</strong> fgets devolve NULL no fim do arquivo; fputs reescreve a linha sem formato (o \n já vem embutido).</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    FILE *origem = fopen(&quot;origem.txt&quot;, &quot;w&quot;);
+    if (origem == NULL) {
+        return 1;
+    }
+    fprintf(origem, &quot;primeira linha\n&quot;);
+    fprintf(origem, &quot;segunda linha\n&quot;);
+    fprintf(origem, &quot;terceira linha\n&quot;);
+    fclose(origem);
+
+    origem = fopen(&quot;origem.txt&quot;, &quot;r&quot;);
+    if (origem == NULL) {
+        return 1;
+    }
+    FILE *dest = fopen(&quot;destino.txt&quot;, &quot;w&quot;);
+    if (dest == NULL) {
+        fclose(origem);
+        return 1;
+    }
+
+    char linha[256];
+    int copiadas = 0;
+    while (fgets(linha, sizeof linha, origem) != NULL) {
+        fputs(linha, dest);
+        copiadas++;
+    }
+
+    fclose(origem);
+    if (fclose(dest) != 0) {
+        return 1;
+    }
+    printf(&quot;copiei %d linhas\n&quot;, copiadas);
+
+    dest = fopen(&quot;destino.txt&quot;, &quot;r&quot;);
+    if (dest == NULL) {
+        return 1;
+    }
+    while (fgets(linha, sizeof linha, dest) != NULL) {
+        printf(&quot;%s&quot;, linha);
+    }
+    fclose(dest);
+    return 0;
+}</code></pre>
+        <p class="obs">fputs conserva exatamente o que fgets leu, inclusive o \n — nada de formatar de novo.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m13">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.13.3</p>
+  <p class="enunciado">Implemente um "wc" caseiro: crie um arquivo de texto com duas linhas, reabra para leitura e conte <strong>linhas, palavras e bytes</strong>. Palavra é qualquer sequência de caracteres que não seja espaço, tab ou quebra de linha.</p>
+  <p class="dica"><strong>Dica:</strong> Conte palavras dentro de cada linha com uma função simples que alterna os estados "dentro de palavra" e "fora de palavra". Bytes = soma de strlen das linhas lidas.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int contar_palavras(const char *linha)
+{
+    int n = 0;
+    int dentro = 0;
+    for (const char *p = linha; *p != '\0'; p++) {
+        if (*p == ' ' || *p == '\t' || *p == '\n') {
+            dentro = 0;
+        } else if (!dentro) {
+            dentro = 1;
+            n++;
+        }
+    }
+    return n;
+}
+
+int main(void)
+{
+    FILE *f = fopen(&quot;texto.txt&quot;, &quot;w&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    fprintf(f, &quot;o rato roeu a roupa do rei de roma\n&quot;);
+    fprintf(f, &quot;programacao em c\n&quot;);
+    fclose(f);
+
+    f = fopen(&quot;texto.txt&quot;, &quot;r&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+
+    char linha[512];
+    int linhas = 0, palavras = 0;
+    long bytes = 0;
+    while (fgets(linha, sizeof linha, f) != NULL) {
+        linhas++;
+        palavras += contar_palavras(linha);
+        bytes += (long)strlen(linha);
+    }
+    fclose(f);
+
+    printf(&quot;linhas:  %d\n&quot;, linhas);
+    printf(&quot;palavras: %d\n&quot;, palavras);
+    printf(&quot;bytes:   %ld\n&quot;, bytes);
+    return 0;
+}</code></pre>
+        <p class="obs">Com o conteúdo do exemplo, o resultado real é linhas 2, palavras 12, bytes 52.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m13">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.13.4</p>
+  <p class="enunciado">Crie a struct <code>Contato</code> (nome[40], telefone[20], idade) e grave um array de 3 contatos com <code>fwrite</code> em <code>contatos.bin</code> (modo <code>"wb"</code>). Depois releia com <code>fread</code> e liste tudo.</p>
+  <p class="dica"><strong>Dica:</strong> <code>fwrite(agenda, sizeof agenda[0], 3, f)</code>; confira que o retorno é 3.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+typedef struct {
+    char nome[40];
+    char telefone[20];
+    int idade;
+} Contato;
+
+int main(void)
+{
+    Contato agenda[3] = {
+        {&quot;Ana&quot;, &quot;119999-0001&quot;, 25},
+        {&quot;Bruno&quot;, &quot;119999-0002&quot;, 31},
+        {&quot;Carla&quot;, &quot;119999-0003&quot;, 44},
+    };
+    Contato lido[3];
+    FILE *f;
+
+    f = fopen(&quot;contatos.bin&quot;, &quot;wb&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    size_t n = fwrite(agenda, sizeof agenda[0], 3, f);
+    printf(&quot;gravados: %zu\n&quot;, n);
+    fclose(f);
+
+    f = fopen(&quot;contatos.bin&quot;, &quot;rb&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    n = fread(lido, sizeof lido[0], 3, f);
+    printf(&quot;lidos: %zu\n&quot;, n);
+    fclose(f);
+
+    for (int i = 0; i &lt; 3; i++) {
+        printf(&quot;%s | %s | %d anos\n&quot;,
+               lido[i].nome, lido[i].telefone, lido[i].idade);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">O arquivo .bin é ilegível num editor de texto: são bytes puros. É o preço — e a vantagem — do binário.</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t2-m13">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.13.5</p>
+  <p class="enunciado">Grave 5 registros da struct <code>Record { int id; long pontos; }</code> em <code>records.bin</code>. Depois, <strong>sem ler os anteriores</strong>, use <code>fseek</code> para ler direto o 3º registro (índice 2).</p>
+  <p class="dica"><strong>Dica:</strong> O offset do registro N é <code>N * sizeof(Record)</code>. Leia um único elemento com fread.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+typedef struct {
+    int id;
+    long pontos;
+} Record;
+
+int main(void)
+{
+    Record dados[5];
+    for (int i = 0; i &lt; 5; i++) {
+        dados[i].id = i + 1;
+        dados[i].pontos = (long)(i + 1) * 1000;
+    }
+
+    FILE *f = fopen(&quot;records.bin&quot;, &quot;wb&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    fwrite(dados, sizeof dados[0], 5, f);
+    fclose(f);
+
+    f = fopen(&quot;records.bin&quot;, &quot;rb&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+
+    int indice = 2;
+    if (fseek(f, (long)indice * (long)sizeof(Record), SEEK_SET) != 0) {
+        fclose(f);
+        return 1;
+    }
+
+    Record r;
+    if (fread(&amp;r, sizeof r, 1, f) != 1) {
+        fclose(f);
+        return 1;
+    }
+
+    printf(&quot;registro %d (o 3o da lista) = id %d, pontos %ld\n&quot;,
+           indice + 1, r.id, r.pontos);
+    fclose(f);
+    return 0;
+}</code></pre>
+        <p class="obs">Chave do acesso aleatório: registros de tamanho fixo e a conta N × sizeof. Valide o índice antes de pagar o fseek em produção.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que &lt;code&gt;fopen(\&quot;dados.bin\&quot;, \&quot;rb\&quot;)&lt;/code&gt; devolve em caso de sucesso?&quot;,&quot;opcoes&quot;:[&quot;O endereço do primeiro byte do arquivo&quot;,&quot;Um ponteiro FILE *&quot;,&quot;Um inteiro positivo&quot;,&quot;Um novo arquivo vazio&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;fopen devolve um &lt;code&gt;FILE *&lt;/code&gt; que representa o arquivo aberto; em falha, devolve NULL.&quot;},{&quot;pergunta&quot;:&quot;Qual modo de abertura apaga o arquivo que já existia antes de começar a escrever?&quot;,&quot;opcoes&quot;:[&quot;\&quot;r\&quot;&quot;,&quot;\&quot;w\&quot;&quot;,&quot;\&quot;a\&quot;&quot;,&quot;\&quot;r+\&quot;&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;&lt;code&gt;\&quot;w\&quot;&lt;/code&gt; trunca (apaga) o arquivo existente. &lt;code&gt;\&quot;a\&quot;&lt;/code&gt; preserva e anexa no fim.&quot;},{&quot;pergunta&quot;:&quot;O que &lt;code&gt;fgets&lt;/code&gt; faz com a quebra de linha da entrada?&quot;,&quot;opcoes&quot;:[&quot;Remove automaticamente&quot;,&quot;Conserva o \\n no buffer&quot;,&quot;Deixa o buffer sem \\0&quot;,&quot;Transforma em espaço&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;fgets lê até o \\n inclusive e o guarda no buffer — por isso tiramos o \\n quando não o queremos.&quot;},{&quot;pergunta&quot;:&quot;No loop &lt;code&gt;while (fgets(buf, n, f) != NULL)&lt;/code&gt;, como descobrimos que o arquivo acabou?&quot;,&quot;opcoes&quot;:[&quot;feof(f) retorna 1 dentro do loop&quot;,&quot;fgets devolve NULL&quot;,&quot;fclose retorna 1&quot;,&quot;O compilador avisa com um warning&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O NULL de fgets é a sentinela de fim de arquivo; feof vale antes/fora do loop para diagnóstico.&quot;},{&quot;pergunta&quot;:&quot;Por que gravar uma struct inteira com fwrite em binário pede cuidado?&quot;,&quot;opcoes&quot;:[&quot;fwrite é lento demais para structs&quot;,&quot;O padding depende da arquitetura/compilador; o formato pode não ser compatível entre máquinas&quot;,&quot;structs não podem ser gravadas&quot;,&quot;o arquivo fica invisível no bloco de notas&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;fwrite grava bytes com padding (T2.06). Para portabilidade, grava-se campo a campo com um campo de versão.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Agenda de contatos binária</h2>
+  <p>Construa uma agenda persistente em <code>agenda.bin</code> com a struct Contato (nome, telefone, idade) gravada via <code>fwrite</code>. O programa abre o arquivo (cria se não existir), lê os registros existentes com <code>fread</code> para um vetor em memória e apresenta um menu: (1) adicionar contato, (2) listar todos, (3) buscar por posição (índice) usando <code>fseek</code> sem ler os anteriores, (4) sair — reescrevendo o vetor inteiro com fwrite antes de fechar.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Leitura inicial e gravação final sempre via fwrite/fread sobre a mesma struct; nada de texto.</li><li>Adicionar respeita um teto definido por você (ex.: 100 contatos) com mensagem clara.</li><li>Buscar por posição usa fseek com N * sizeof(Contato) e confirma o resultado; índice fora do intervalo é tratado.</li><li>Todos os fopen conferem NULL e todos os fclose conferem o retorno.</li><li>Compila com gcc -Wall -Wextra -std=c11 sem avisos e trabalha com o arquivo na pasta atual.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="estruturas-de-dados-listas-encadeadas-e-recursao.html">← 2.12 Estruturas de dados: listas encadeadas e recursão</a><a class="btn nav-next" href="funcoes-variadicas-va-list.html">2.14 Funções variádicas: va_list →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m13">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

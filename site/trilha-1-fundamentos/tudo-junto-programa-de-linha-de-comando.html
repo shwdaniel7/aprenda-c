@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.12 — Tudo junto: programa de linha de comando — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="1">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t1">Trilha 1 — Fundamentos</a> / Tudo junto: programa de linha de comando</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">1.12</div>
+    <h1>Tudo junto: programa de linha de comando</h1>
+    <p class="subtitulo">argc, argv, atoi e um utilitário completo</p>
+    <div class="chips">
+      <span class="chip">Nível: Iniciante</span>
+      <span class="chip">Duração: ~40 min</span>
+      <span class="chip">Pré-requisitos: T1.09, T1.10</span>
+    </div>
+    <button class="btn btn-done" data-mod="t1-m12">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Fazer a costura final da trilha: ler argumentos do terminal (argc/argv), converter texto para número (atoi), estruturar um utilitário (entrada → processamento → saída), dividir em funções pequenas e construir um programa completo — além de orientar o projeto final de um interpretador de comandos.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 18 — argc e argv</p>
+  <p><strong>King (livro em PDF):</strong> Capítulos 10 e 19 — organização e programas maiores</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, o capítulo de line arguments é curto e objetivo: entenda argc (contagem) e argv (vetor de textos). No King, o capítulo 10 consolidou organização de funções; o 19 mostra um programa maior no fim do livro, inspiração para o seu projeto final.</p>
+</section>
+  <section class="card secao">
+  <h2>argc e argv: o terminal falando com seu programa</h2>
+  <p>Chamar <code>.\meuprog.exe bom dia</code> dá <code>argc = 3</code>. O <code>argv[0]</code> é o próprio nome do programa, <code>argv[1]</code> é o primeiro argumento (<code>"bom"</code>) e <code>argv[2]</code> o segundo (<code>"dia"</code>).</p>
+<p><strong>Detalhe do Windows:</strong> com o MinGW, o <code>argv[0]</code> costuma chegar com o caminho completo (ex.: <code>C:\minha\pasta\eco.exe</code>), enquanto no Linux costuma ser só o nome digitado. Isso não muda nada no que <em>você</em> programa — mas explica por que a primeira linha do exemplo abaixo varia de máquina para máquina.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — argc argv</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(int argc, char *argv[])
+{
+    int i;
+
+    printf(&quot;argc: %d\n&quot;, argc);
+    for (i = 0; i &lt; argc; i++) {
+        printf(&quot;argv[%d]: %s\n&quot;, i, argv[i]);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .\eco.exe bom dia ja
+argc: 4
+argv[0]: C:\caminho\para\eco.exe
+argv[1]: bom
+argv[2]: dia
+argv[3]: ja</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Convertendo texto em número: atoi</h2>
+  <p>Argumentos chegam como <em>texto</em>; para somar, precisamos converter. A função <code>atoi</code> (ASCII-to-integer, de <code>&lt;stdlib.h&gt;</code>) faz exatamente isso: lê os dígitos e devolve o <code>int</code>. O utilitário abaixo valida o número de argumentos e imprime a soma:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — atoi</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(int argc, char *argv[])
+{
+    int a, b;
+
+    if (argc != 3) {
+        printf(&quot;uso: soma.exe numero1 numero2\n&quot;);
+        return 1;
+    }
+
+    a = atoi(argv[1]);
+    b = atoi(argv[2]);
+
+    printf(&quot;%d + %d = %d\n&quot;, a, b, a + b);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .soma.exe 4 9
+4 + 9 = 13
+
+&gt; .soma.exe sem_arg
+uso: soma.exe numero1 numero2</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O fluxo de um utilitário: entrada → processamento → saída</h2>
+  <p>Um programa de terminal bem-feito obedece um esqueleto previsível:</p>
+  <ul><li><strong>Entrada</strong> — argumentos (argc/argv) e/ou leitura de teclado (scanf).</li>
+<li><strong>Validação</strong> — quantidade de argumentos, tipos, limites. Falhou? mensagem de uso e <code>return 1</code> (código de erro).</li>
+<li><strong>Processamento</strong> — as contas, loops, funções (o "miolo").</li>
+<li><strong>Saída</strong> — resultado formatado; <code>return 0</code> para sucesso.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Dividir para conquistar: main fino</h2>
+  <p>Um bom utilitário tem <code>main</code> pequeno e funções específicas para cada passo. Onde está a lógica? Nas funções, testáveis e legíveis. É o "cheiro" de programa profissional: você lê o <code>main</code> e sabe o que o programa faz em 5 linhas.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — main fino</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+double media_de_n(int n)
+{
+    long long soma = 0;
+    int i;
+
+    for (i = 1; i &lt;= n; i++) {
+        soma += i;
+    }
+    return soma / (double) n;
+}
+
+int main(int argc, char *argv[])
+{
+    int n;
+
+    if (argc != 2) {
+        printf(&quot;uso: media.exe N\n&quot;);
+        return 1;
+    }
+    n = atoi(argv[1]);
+
+    if (n &lt;= 0) {
+        printf(&quot;erro: N deve ser positivo\n&quot;);
+        return 1;
+    }
+
+    printf(&quot;media dos numeros de 1 a %d: %.4f\n&quot;, n, media_de_n(n));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .media.exe 10
+media dos numeros de 1 a 10: 5.5000</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Exemplo completo: um interpretador de comandos</h2>
+  <p>O projeto final (abaixo) é um <strong>interpretador de comandos</strong>: um loop que lê um comando ("s" soma, "m" média, "?" ajuda, "q" sair), executa e repete. É um "mini shell" numérico — joga com <code>for (;;)</code>, <code>switch</code>, <code>scanf</code> e funções: tudo desta trilha em um único programa. A versão de referência:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — interpretador</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void menu(void)
+{
+    printf(&quot;Comandos:\n&quot;);
+    printf(&quot;  s &lt;n1&gt; &lt;n2&gt;   soma dois numeros\n&quot;);
+    printf(&quot;  m             media de 3 numeros\n&quot;);
+    printf(&quot;  ?             mostra este menu\n&quot;);
+    printf(&quot;  q             sai\n&quot;);
+}
+
+double soma(double a, double b)
+{
+    return a + b;
+}
+
+double media3(double a, double b, double c)
+{
+    return (a + b + c) / 3.0;
+}
+
+int main(void)
+{
+    char comando;
+    double a, b, c;
+
+    menu();
+
+    for (;;) {
+        printf(&quot;&gt; &quot;);
+        scanf(&quot; %c&quot;, &amp;comando);
+
+        if (comando == 'q') {
+            printf(&quot;Ate mais!\n&quot;);
+            break;
+        } else if (comando == 's') {
+            scanf(&quot;%lf %lf&quot;, &amp;a, &amp;b);
+            printf(&quot;%.2f + %.2f = %.2f\n&quot;, a, b, soma(a, b));
+        } else if (comando == 'm') {
+            scanf(&quot;%lf %lf %lf&quot;, &amp;a, &amp;b, &amp;c);
+            printf(&quot;media: %.2f\n&quot;, media3(a, b, c));
+        } else if (comando == '?') {
+            menu();
+        } else {
+            printf(&quot;comando invalido. use ? para ajuda.\n&quot;);
+        }
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Comandos:
+  s &lt;n1&gt; &lt;n2&gt;   soma dois numeros
+  m             media de 3 numeros
+  ?             mostra este menu
+  q             sai
+&gt; ?
+Comandos:
+  s &lt;n1&gt; &lt;n2&gt;   soma dois numeros
+  m             media de 3 numeros
+  ?             mostra este menu
+  q             sai
+&gt; s 2.5 3
+2.50 + 3.00 = 5.50
+&gt; m 10 20 30
+media: 20.00
+&gt; q
+Ate mais!</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Como testar seu programa</h2>
+  <p>Teste de terminal é previsível: monte uma lista de casos e execute todos.</p>
+  <ul><li>Nenhum argumento (mensagem de uso).</li>
+<li>Argumentos inválidos (texto em vez de número) — atoi devolve 0; decida o comportamento.</li>
+<li>Casos-limite: 0, negativos, valores que podem estourar <code>long long</code>.</li>
+<li>Entrada incompleta no interpretador ("s" sem números) — o scanf espera e o programa pausa.</li>
+<li>Sempre compile com <code>-Wall -Wextra</code> — um utilitário com warning é um utilitário com dívida.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>O projeto final: passo a passo</h2>
+  <p>Seguindo a receita abaixo, você constrói o <code>calc_estudo.exe</code> (detalhes no quadro do projeto):</p>
+  <ul><li><strong>Esqueleto</strong>: crie <code>calc_estudo.c</code> com menu() e main que chama menu() e entra no <code>for (;;)</code>.</li>
+<li><strong>Comando soma</strong>: adicione <code>s</code> com leitura de dois doubles e a função <code>soma()</code>. Compile, teste.</li>
+<li><strong>Comando media</strong>: <code>m</code> com três doubles e <code>media3()</code>. Compile, teste.</li>
+<li><strong>Comando extra</strong>: escolha <code>p</code> (produto), <code>d</code> (desconto) ou <code>f</code> (fatorial). Compile, teste.</li>
+<li><strong>Histórico</strong>: com <code>static</code>, guarde quantas operações foram feitas e exiba com <code>h</code>.</li>
+<li><strong>Polimento</strong>: mensagem de uso, validações, e rodada final com <code>-Wall -Wextra</code> em todos os testes.</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t1-m12">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.12.1</p>
+  <p class="enunciado">Crie um programa <code>eco.c</code> que imprime todos os argumentos (a partir de argv[1]) separados por espaço em uma única linha, ignorando argv[0].</p>
+  <p class="dica"><strong>Dica:</strong> Um for de i=1 até argc-1 com printf("%s ", argv[i]).</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(int argc, char *argv[])
+{
+    int i;
+
+    for (i = 1; i &lt; argc; i++) {
+        printf(&quot;%s &quot;, argv[i]);
+    }
+    printf(&quot;\n&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">Rode: <code>.\eco.exe bom dia</code> → <code>bom dia</code>.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t1-m12">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.12.2</p>
+  <p class="enunciado">Crie <code>mult.exe</code>: leia DOIS argumentos, converta com atoi e imprima o produto. Se não houver exatamente dois argumentos, imprima a mensagem de uso e retorne 1.</p>
+  <p class="dica"><strong>Dica:</strong> Validar argc antes de converter evita crash com argumentos faltando.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(int argc, char *argv[])
+{
+    int a, b;
+
+    if (argc != 3) {
+        printf(&quot;uso: mult.exe numero1 numero2\n&quot;);
+        return 1;
+    }
+
+    a = atoi(argv[1]);
+    b = atoi(argv[2]);
+
+    printf(&quot;%d * %d = %d\n&quot;, a, b, a * b);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t1-m12">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.12.3</p>
+  <p class="enunciado">Crie <code>media_args.exe</code>: aceita quantos argumentos numéricos o usuário quiser, converte todos com atoi, soma e imprime a média com 2 casas. Se não houver argumentos, mensagem de uso.</p>
+  <p class="dica"><strong>Dica:</strong> argc - 1 é a quantidade de números; some cada argv[i] convertido.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(int argc, char *argv[])
+{
+    int i;
+    long long soma = 0;
+
+    if (argc &lt; 2) {
+        printf(&quot;uso: media_args.exe n1 n2 n3 ...\n&quot;);
+        return 1;
+    }
+
+    for (i = 1; i &lt; argc; i++) {
+        soma += atoi(argv[i]);
+    }
+
+    printf(&quot;media: %.2f\n&quot;, soma / (double) (argc - 1));
+    return 0;
+}</code></pre>
+        <p class="obs">A média usa (argc - 1) como divisor — a quantidade de números lidos.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t1-m12">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.12.4</p>
+  <p class="enunciado">Refatore o <code>soma.exe</code> (o exemplo de atoi) em três funções: <code>uso()</code> (imprime e sai), <code>somar(int a, int b)</code> e um main que só valida e chama. O programa continua idêntico em comportamento.</p>
+  <p class="dica"><strong>Dica:</strong> uso() pode imprimir e retornar um código; main usa o retorno no return.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int uso(void)
+{
+    printf(&quot;uso: soma.exe numero1 numero2\n&quot;);
+    return 1;
+}
+
+int somar(int a, int b)
+{
+    return a + b;
+}
+
+int main(int argc, char *argv[])
+{
+    int a, b;
+
+    if (argc != 3) {
+        return uso();
+    }
+
+    a = atoi(argv[1]);
+    b = atoi(argv[2]);
+
+    printf(&quot;%d + %d = %d\n&quot;, a, b, somar(a, b));
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t1-m12">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.12.5</p>
+  <p class="enunciado">Crie <code>converte.exe</code> que recebe um argumento numérico e o converte de Celsius para Fahrenheit, e outro que faz o caminho inverso — decida pela presença de um segundo argumento ("c" ou "f"). Ex.: <code>converte.exe 37 c</code> converte 37°C para °F.</p>
+  <p class="dica"><strong>Dica:</strong> Um if no argv[2] escolhe a fórmula; a fórmula de F→C é (F−32)×5/9.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(int argc, char *argv[])
+{
+    double valor;
+
+    if (argc != 3) {
+        printf(&quot;uso: converte.exe &lt;valor&gt; &lt;c|f&gt;\n&quot;);
+        printf(&quot;  c: Celsius -&gt; Fahrenheit\n&quot;);
+        printf(&quot;  f: Fahrenheit -&gt; Celsius\n&quot;);
+        return 1;
+    }
+
+    valor = atof(argv[1]);
+
+    if (argv[2][0] == 'c') {
+        printf(&quot;%.2f C = %.2f F\n&quot;, valor, valor * 9.0 / 5.0 + 32.0);
+    } else if (argv[2][0] == 'f') {
+        printf(&quot;%.2f F = %.2f C\n&quot;, valor, (valor - 32.0) * 5.0 / 9.0);
+    } else {
+        printf(&quot;erro: segundo argumento deve ser c ou f\n&quot;);
+        return 1;
+    }
+    return 0;
+}</code></pre>
+        <p class="obs"><code>atof</code> converte texto para double (como atoi, mas para ponto flutuante).</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Rodando &lt;code&gt;.\\prog.exe tilha teste&lt;/code&gt;, o valor de argc é:&quot;,&quot;opcoes&quot;:[&quot;3&quot;,&quot;2&quot;,&quot;4&quot;,&quot;1&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;argc conta o próprio nome (argv[0]) mais os 2 argumentos = 3.&quot;},{&quot;pergunta&quot;:&quot;Qual é argv[0] quando você chama o programa na linha de comando?&quot;,&quot;opcoes&quot;:[&quot;o nome do executável&quot;,&quot;o primeiro argumento digitado&quot;,&quot;o caminho do compilador&quot;,&quot;sempre vazio&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;argv[0] é o nome do programa; os argumentos de verdade começam em argv[1].&quot;},{&quot;pergunta&quot;:&quot;O que &lt;code&gt;atoi(\&quot;42\&quot;)&lt;/code&gt; devolve?&quot;,&quot;opcoes&quot;:[&quot;o inteiro 42&quot;,&quot;a string \&quot;42\&quot;&quot;,&quot;42.0 (double)&quot;,&quot;um erro&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;atoi converte texto para int, via &lt;stdlib.h&gt;.&quot;},{&quot;pergunta&quot;:&quot;Melhor prática ao receber argumentos inválidos (ex.: faltando número):&quot;,&quot;opcoes&quot;:[&quot;imprimir mensagem de uso e retornar 1&quot;,&quot;ignorar e continuar com lixo&quot;,&quot;travar o programa com assert&quot;,&quot;ficar em loop esperando o usuário&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;A validação na entrada + return 1 é o padrão de utilitários de terminal.&quot;},{&quot;pergunta&quot;:&quot;A \&quot;média de 1 a N\&quot; calculada como &lt;code&gt;soma/(double)N&lt;/code&gt; precisa de cast porque:&quot;,&quot;opcoes&quot;:[&quot;soma é int e a divisão seria inteira (truncaria)&quot;,&quot;double não pode dividir por int&quot;,&quot;o cast não pode existir nessa posição&quot;,&quot;N não foi declarado&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;(double) força a divisão real; sem ele, a média sairia truncada.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: CalcEstudo: seu interpretador de comandos</h2>
+  <p>Construa <code>calc_estudo.exe</code>, um interpretador de comandos numéricos que rode em loop: comandos <code>s</code> (soma de 2 números), <code>m</code> (média de 3), <code>f</code> (fatorial de um número via função recursiva ou iterativa), <code>h</code> (mostra quantas operações foram executadas até agora, usando variável estática), <code>?</code> (menu) e <code>q</code> (sai). Siga o passo a passo da seção "projeto final", compilando e testando a cada comando adicionado. Baseie-se no interpretador de referência da seção e estenda-o com o comando f e o histórico h.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Roda em loop até o comando q, com o menu ?.</li><li>Implementa soma (s), média (m), fatorial (f) e histórico (h) com funções próprias.</li><li>Histórico usa variável estática (estado interno sem global).</li><li>Valida entradas: fatorial de 0 ou 1 = 1; valores negativos rejeitados.</li><li>Compila com <code>gcc -Wall -Wextra -std=c11 calc_estudo.c -o calc_estudo</code> sem erros nem avisos.</li><li>Você consegue explicar, para outra pessoa, cada função do seu programa</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="erros-comuns-e-depuracao.html">← 1.11 Erros comuns e depuração</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t1-m12">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

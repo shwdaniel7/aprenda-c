@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.02 — Variáveis, tipos e atribuição — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="1">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t1">Trilha 1 — Fundamentos</a> / Variáveis, tipos e atribuição</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">1.02</div>
+    <h1>Variáveis, tipos e atribuição</h1>
+    <p class="subtitulo">declarando, nomeando e dando valores</p>
+    <div class="chips">
+      <span class="chip">Nível: Iniciante</span>
+      <span class="chip">Duração: ~35 min</span>
+      <span class="chip">Pré-requisitos: T1.01</span>
+    </div>
+    <button class="btn btn-done" data-mod="t1-m02">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Aprender o conceito de variável como "caixa nomeada e tipada" de memória, conhecer os tipos básicos int/char/float/double, dominar atribuição e inicialização, respeitar as regras de nomenclatura e entender a diferença entre constante literal e macro #define.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Seção 3.1 — Variables</p>
+  <p><strong>King (livro em PDF):</strong> Seções 2.4–2.7 — Variáveis, atribuição e leitura de entrada</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, foque nas primeiras páginas de variáveis (declaração, tipos e atribuição). No King, leia as seções sobre tipos básicos e inicialização; pule as partes de scanf (que é só no nosso módulo 03).</p>
+</section>
+  <section class="card secao">
+  <h2>Variáveis: caixas nomeadas com tipo</h2>
+  <p>Uma <strong>variável</strong> é um espaço de memória que você dá um nome e um <strong>tipo</strong>. O tipo diz quantos bytes aquela "caixa" ocupa e como interpretar o conteúdo. Você manipula variáveis pelo nome; quem cuida de "onde na memória ela vive" é o compilador.</p>
+  <ul><li><code>int</code> — número inteiro (ex.: <code>-42</code>, <code>0</code>, <code>1000</code>).</li>
+<li><code>char</code> — um único caractere (ex.: <code>'A'</code>, <code>'7'</code>, <code>'¥'</code>).</li>
+<li><code>float</code> — número de ponto flutuante (ex.: <code>3.14f</code>).</li>
+<li><code>double</code> — ponto flutuante com mais precisão (é o mais usado para "números reais").</li>
+<li>Há ainda <code>short</code>, <code>long</code>, <code>unsigned</code> etc. — todos serão explorados a fundo no módulo 07.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Declarar, atribuir, inicializar</h2>
+  <p><strong>Declarar</strong> é criar a variável: <code>tipo nome;</code>. <strong>Atribuir</strong> é guardar um valor nela: <code>nome = valor;</code>. <strong>Inicializar</strong> é fazer os dois de uma vez: <code>int idade = 25;</code>. O programa abaixo mostra os quatro tipos básicos em ação:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — primeiro programa de tipos</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int idade = 25;
+    char inicial = 'D';
+    float altura = 1.75f;
+    double precisao = 3.141592653589793;
+
+    printf(&quot;idade: %d\n&quot;, idade);
+    printf(&quot;inicial: %c\n&quot;, inicial);
+    printf(&quot;altura: %.2f\n&quot;, altura);
+    printf(&quot;precisao: %.12f\n&quot;, precisao);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>idade: 25
+inicial: D
+altura: 1.75
+precisao: 3.141592653590</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Regras para nomes (identificadores)</h2>
+  <p>O nome de uma variável é um <strong>identificador</strong>, e obedece a regras rígidas:</p>
+  <ul><li>Letras (<code>a–z</code>, <code>A–Z</code>), dígitos (<code>0–9</code>) e sublinhado <code>_</code>, mas o primeiro caractere não pode ser dígito.</li>
+<li>Não pode ser uma palavra reservada (veja a próxima seção).</li>
+<li>Maiúsculas e minúsculas são diferentes: <code>Nota</code> e <code>nota</code> são variáveis distintas.</li>
+<li>Por convenção, variáveis em C usam letras minúsculas: <code>mediaFinal</code> ou <code>media_final</code> (escolha um estilo e seja consistente).</li>
+<li>Nomes que começam com <code>_</code> ou com <code>__</code> são reservados ao sistema — evite.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Palavras reservadas e constante &quot;não nomeada&quot;</h2>
+  <p>A linguagem reserva certo conjunto de palavras — você não pode usá-las como nome de variável:</p>
+  <ul><li><code>auto</code> <code>break</code> <code>case</code> <code>char</code> <code>const</code> <code>continue</code> <code>default</code> <code>do</code> <code>double</code> <code>else</code> <code>enum</code> <code>extern</code> <code>float</code> <code>for</code> <code>goto</code> <code>if</code> <code>int</code> <code>long</code> <code>register</code> <code>return</code> <code>short</code> <code>signed</code> <code>sizeof</code> <code>static</code> <code>struct</code> <code>switch</code> <code>typedef</code> <code>union</code> <code>unsigned</code> <code>void</code> <code>volatile</code> <code>while</code></li>
+<li>O padrão C11 ainda reserva palavras com sublinhado (<code>_Bool</code>, <code>_Complex</code>, <code>_Static_assert</code>...).</li>
+<li>Uma <strong>constante literal</strong> é um valor escrito direto no código: <code>25</code>, <code>3.14</code>, <code>'A'</code>. Ela não é uma variável.</li>
+<li><strong>Não confunda</strong> constantes com <code>#define</code>: <code>#define MAX 100</code> é uma <em>macro do pré-processador</em>, um "troca-texto" que acontece antes de compilar — não é uma constante da linguagem. Ela é útil, mas é outra categoria (a veremos a fundo na Trilha 2).</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Programa: média simples</h2>
+  <p>Vamos calcular a média de duas notas. A divisão por <code>2.0</code> (com vírgula e zero) garante que a operação é de ponto flutuante — se dividíssemos por <code>2</code>, com inteiros, o resultado seria truncado (assunto do módulo 04):</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — media.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double nota1 = 7.5;
+    double nota2 = 8.0;
+    double media = (nota1 + nota2) / 2.0;
+
+    printf(&quot;nota 1: %.1f\n&quot;, nota1);
+    printf(&quot;nota 2: %.1f\n&quot;, nota2);
+    printf(&quot;media: %.2f\n&quot;, media);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>nota 1: 7.5
+nota 2: 8.0
+media: 7.75</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Programa: troca de valores</h2>
+  <p>Trocar o conteúdo de duas variáveis é uma operação clássica. A intuição errada é fazer <code>a = b;</code> logo de cara — isso destruiria o valor original de <code>a</code>. A receita certa usa uma <strong>variável temporária</strong>:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — troca.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int a = 10;
+    int b = 20;
+    int temp;
+
+    printf(&quot;antes: a=%d b=%d\n&quot;, a, b);
+
+    temp = a;
+    a = b;
+    b = temp;
+
+    printf(&quot;depois: a=%d b=%d\n&quot;, a, b);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>antes: a=10 b=20
+depois: a=20 b=10</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t1-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.02.1</p>
+  <p class="enunciado">Declare variáveis para sua idade (<code>int</code>), a letra inicial do seu nome (<code>char</code>), sua altura em metros (<code>double</code>) e imprima as três com <code>printf</code>.</p>
+  <p class="dica"><strong>Dica:</strong> Inicialize cada uma na declaração e use <code>%d</code>, <code>%c</code> e <code>%.2f</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int idade = 30;
+    char inicial = 'M';
+    double altura = 1.72;
+
+    printf(&quot;idade: %d\n&quot;, idade);
+    printf(&quot;inicial: %c\n&quot;, inicial);
+    printf(&quot;altura: %.2f m\n&quot;, altura);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t1-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.02.2</p>
+  <p class="enunciado">Calcule a média de quatro notas (7.0, 8.5, 6.25, 9.0) guardadas em quatro variáveis <code>double</code> e imprima a média com duas casas decimais.</p>
+  <p class="dica"><strong>Dica:</strong> Lembre de dividir por <code>4.0</code>, não por <code>4</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double n1 = 7.0;
+    double n2 = 8.5;
+    double n3 = 6.25;
+    double n4 = 9.0;
+    double media = (n1 + n2 + n3 + n4) / 4.0;
+
+    printf(&quot;media: %.2f\n&quot;, media);
+    return 0;
+}</code></pre>
+        <p class="obs">7.0 + 8.5 + 6.25 + 9.0 = 30.75; 30.75 / 4 = 7.6875.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t1-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.02.3</p>
+  <p class="enunciado">Escreva um programa que troca os valores de <code>x</code> e <code>y</code> <em>sem</em> declarar variável temporária: use apenas somas e subtrações entre eles (<code>x = x + y</code>). Teste com <code>x = 3</code>, <code>y = 5</code>.</p>
+  <p class="dica"><strong>Dica:</strong> Depois de <code>x = x + y</code>, faça <code>y = x - y</code> e por fim <code>x = x - y</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int x = 3;
+    int y = 5;
+
+    printf(&quot;antes: x=%d y=%d\n&quot;, x, y);
+
+    x = x + y;
+    y = x - y;
+    x = x - y;
+
+    printf(&quot;depois: x=%d y=%d\n&quot;, x, y);
+    return 0;
+}</code></pre>
+        <p class="obs">Funciona para inteiros, mas cuidado com overflow para valores muito grandes — a variável temporária é mais segura e legível.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t1-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.02.4</p>
+  <p class="enunciado">Um produto custa 120.00 e recebe 10% de desconto. Declare preço, percentual e desconto em <code>double</code>; calcule e imprima o valor do desconto e o preço final, ambos com duas casas.</p>
+  <p class="dica"><strong>Dica:</strong> desconto = preco * percentual / 100.0.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double preco = 120.00;
+    double percentual = 10.0;
+    double desconto = preco * percentual / 100.0;
+    double final = preco - desconto;
+
+    printf(&quot;desconto: R$ %.2f\n&quot;, desconto);
+    printf(&quot;preco final: R$ %.2f\n&quot;, final);
+    return 0;
+}</code></pre>
+        </details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual a declaração + inicialização correta de uma variável do tipo inteiro?&quot;,&quot;opcoes&quot;:[&quot;int idade = 19;&quot;,&quot;integer idade = 19;&quot;,&quot;int idade = 19&quot;,&quot;var idade := 19;&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Em C: &lt;code&gt;tipo nome = valor;&lt;/code&gt;. A opção C esquece o ponto e vírgula.&quot;},{&quot;pergunta&quot;:&quot;Qual destes NÃO é um nome de variável válido em C?&quot;,&quot;opcoes&quot;:[&quot;_temp&quot;,&quot;temp2&quot;,&quot;2temp&quot;,&quot;Temp_2&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;Um identificador não pode começar com dígito.&quot;},{&quot;pergunta&quot;:&quot;Qual afirmativa sobre &lt;code&gt;#define MAX 100&lt;/code&gt; está correta?&quot;,&quot;opcoes&quot;:[&quot;É uma macro do pré-processador que troca texto antes de compilar&quot;,&quot;É uma variável constante do tipo int&quot;,&quot;Cria uma variável que ocupa memória&quot;,&quot;Só pode ser usada dentro de funções&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;&lt;code&gt;#define&lt;/code&gt; é substituição textual feita pelo pré-processador; não é uma constante/variável da linguagem.&quot;},{&quot;pergunta&quot;:&quot;Com &lt;code&gt;int a = 10; int b = 20; int temp = a; a = b; b = temp;&lt;/code&gt;, ao final tem-se:&quot;,&quot;opcoes&quot;:[&quot;a=20, b=10&quot;,&quot;a=10, b=20&quot;,&quot;a=20, b=20&quot;,&quot;a=10, b=10&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;A troca clássica: temp guarda a (10), a recebe b (20), b recebe o valor guardado (10).&quot;},{&quot;pergunta&quot;:&quot;Qual tipo devo usar para guardar o número 3.141592653589793 com precisão?&quot;,&quot;opcoes&quot;:[&quot;double&quot;,&quot;int&quot;,&quot;char&quot;,&quot;não é possível em C&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O &lt;code&gt;double&lt;/code&gt; é o tipo de ponto flutuante de alta precisão padrão do C para \&quot;reais\&quot;.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Crachá digital</h2>
+  <p>Crie um programa <code>cracha.c</code> que representa "você" com variáveis dos quatro tipos básicos: a letra inicial do nome (<code>char</code>), a idade (<code>int</code>), a altura (<code>double</code>) e uma "nota de motivação" 0–10 (<code>double</code>). Imprima um crachá em várias linhas usando <code>printf</code>, com o nome do projeto centrado e cada dado em sua linha. Depois, troque os valores das variáveis para representar outra pessoa e mostre que o mesmo código "atualiza" o crachá.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Declara as 4 variáveis com tipos corretos, inicializadas.</li><li>Imprime um crachá legível com os dados em linhas separadas.</li><li>A troca para a "segunda pessoa" usa novas atribuições às mesmas variáveis.</li><li>Compila com <code>gcc -Wall -Wextra -std=c11 cracha.c -o cracha</code> sem erros nem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="introducao-a-linguagem-c.html">← 1.01 Introdução à linguagem C</a><a class="btn nav-next" href="entrada-e-saida-formatada-printf-e-scanf.html">1.03 Entrada e saída formatada: printf e scanf →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t1-m02">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

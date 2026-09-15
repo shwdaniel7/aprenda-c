@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.12 — Estruturas de dados: listas encadeadas e recursão — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / Estruturas de dados: listas encadeadas e recursão</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.12</div>
+    <h1>Estruturas de dados: listas encadeadas e recursão</h1>
+    <p class="subtitulo">nós, inserir/remover/buscar/destruir, pilhas, filas e recursão</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~35 min</span>
+      <span class="chip">Pré-requisitos: T1.08 (funções/recursão), T2.02 e T2.06</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m12">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Montar listas encadeadas dinâmicas sem vazar memória, implementar pilha e fila sobre elas, revisitar recursão em problemas clássicos, e decidir com critério quando usar vetor vs lista.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> — (ver referências em sala e a matriz de EAD)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulos 9.6 (Recursion) e 17.5 (Linked Lists/Coding a linked list)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, 9.6 para recursão com exemplos clássicos e 17.5 para a implementação de lista: ponteiros encadeados, inserção e percurso. No Beej, procure na seção de linked list dentro dos capítulos avançados.</p>
+</section>
+  <section class="card secao">
+  <h2>Recursão revisitada</h2>
+  <p>Recursão brilha onde o problema se define em termos de si mesmo. Dois casos clássicos: a soma dos primeiros naturais e inverter uma string "de dentro para fora". Todo caso recursivo tem caso base (para) e caso recursivo (encolhe o problema).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — recursao.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int soma_positivos(int n)
+{
+    if (n == 0) {
+        return 0;
+    }
+    return n + soma_positivos(n - 1);
+}
+
+void inverter(char s[], int ini, int fim)
+{
+    if (ini &gt;= fim) {
+        return;
+    }
+    char tmp = s[ini];
+    s[ini] = s[fim];
+    s[fim] = tmp;
+    inverter(s, ini + 1, fim - 1);
+}
+
+int main(void)
+{
+    char texto[] = &quot;abcde&quot;;
+
+    printf(&quot;soma(1..5) = %d\n&quot;, soma_positivos(5));
+    inverter(texto, 0, (int)strlen(texto) - 1);
+    printf(&quot;invertida  = %s\n&quot;, texto);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>soma(1..5) = 15
+invertida  = edcba</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Nó, inserção no início, percurso, busca</h2>
+  <p>Uma lista encadeada é uma corrente de <strong>nós</strong> alocados no heap; cada nó tem o dado e um ponteiro para o próximo. O último nó aponta para NULL, marcando o fim. A cabeça da fila é um ponteiro para o primeiro nó (ou NULL se vazia).</p>
+<p>Inserir no início é O(1): alocamos um nó e o apontamos para a cabeça atual.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — lista.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+struct No {
+    int valor;
+    struct No *proximo;
+};
+
+struct No *inserir_inicio(struct No *lista, int valor)
+{
+    struct No *novo = malloc(sizeof *novo);
+    if (novo == NULL) {
+        return lista;
+    }
+    novo-&gt;valor = valor;
+    novo-&gt;proximo = lista;
+    return novo;
+}
+
+void imprimir(const struct No *lista)
+{
+    for (const struct No *p = lista; p != NULL; p = p-&gt;proximo) {
+        printf(&quot;%d &quot;, p-&gt;valor);
+    }
+    printf(&quot;\n&quot;);
+}
+
+int buscar(const struct No *lista, int alvo)
+{
+    for (const struct No *p = lista; p != NULL; p = p-&gt;proximo) {
+        if (p-&gt;valor == alvo) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void destruir(struct No *lista)
+{
+    while (lista != NULL) {
+        struct No *prox = lista-&gt;proximo;
+        free(lista);
+        lista = prox;
+    }
+}
+
+int main(void)
+{
+    struct No *lista = NULL;
+
+    lista = inserir_inicio(lista, 10);
+    lista = inserir_inicio(lista, 20);
+    lista = inserir_inicio(lista, 30);
+
+    imprimir(lista);
+    printf(&quot;tem 20? %s\n&quot;, buscar(lista, 20) ? &quot;sim&quot; : &quot;nao&quot;);
+    printf(&quot;tem 99? %s\n&quot;, buscar(lista, 99) ? &quot;sim&quot; : &quot;nao&quot;);
+
+    destruir(lista);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>30 20 10
+tem 20? sim
+tem 99? nao</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Remover um nó (sem vazar memória)</h2>
+  <p>Remover exige achar o nó anterior ao alvo para religar a corrente. O truque do <strong>ponteiro-para-ponteiro</strong> (<code>&&lista</code>) resolve elegante: percorremos um <code>struct No **p</code> que aponta para "a ligação atual" — seja a cabeça, seja um <code>-&gt;proximo</code> — e o free do nó removido é sempre o mesmo código:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — remover.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+struct No {
+    int valor;
+    struct No *proximo;
+};
+
+struct No *criar_no(int v)
+{
+    struct No *n = malloc(sizeof *n);
+    if (n == NULL) {
+        return NULL;
+    }
+    n-&gt;valor = v;
+    n-&gt;proximo = NULL;
+    return n;
+}
+
+struct No *remover_valor(struct No *lista, int alvo)
+{
+    struct No **p = &amp;lista;
+    while (*p != NULL &amp;&amp; (*p)-&gt;valor != alvo) {
+        p = &amp;(*p)-&gt;proximo;
+    }
+    if (*p != NULL) {
+        struct No *removido = *p;
+        *p = removido-&gt;proximo;   /* religa a corrente sem o nó */
+        free(removido);
+    }
+    return lista;
+}
+
+void imprimir(const struct No *lista)
+{
+    for (const struct No *q = lista; q != NULL; q = q-&gt;proximo) {
+        printf(&quot;%d &quot;, q-&gt;valor);
+    }
+    printf(&quot;\n&quot;);
+}
+
+void destruir(struct No *lista)
+{
+    while (lista != NULL) {
+        struct No *q = lista-&gt;proximo;
+        free(lista);
+        lista = q;
+    }
+}
+
+int main(void)
+{
+    struct No *lista = criar_no(10);
+    lista-&gt;proximo = criar_no(20);
+    lista-&gt;proximo-&gt;proximo = criar_no(30);
+
+    imprimir(lista);
+    lista = remover_valor(lista, 20);
+    imprimir(lista);
+    lista = remover_valor(lista, 10);
+    imprimir(lista);
+    lista = remover_valor(lista, 99);
+    imprimir(lista);
+
+    destruir(lista);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>10 20 30
+10 30
+30
+30</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Pilha (stack) com lista</h2>
+  <p>Uma <strong>pilha</strong> é LIFO (último a entrar, primeiro a sair). Com lista encadeada, empilhar = inserir no início; desempilhar = remover o início. Encapsulamos tudo em uma struct <code>Pilha</code>:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — pilha.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+struct No {
+    int valor;
+    struct No *proximo;
+};
+
+struct Pilha {
+    struct No *topo;
+};
+
+void empilhar(struct Pilha *p, int v)
+{
+    struct No *novo = malloc(sizeof *novo);
+    if (novo == NULL) {
+        return;
+    }
+    novo-&gt;valor = v;
+    novo-&gt;proximo = p-&gt;topo;
+    p-&gt;topo = novo;
+}
+
+int desempilhar(struct Pilha *p)
+{
+    if (p-&gt;topo == NULL) {
+        return -1;   /* vazia */
+    }
+    struct No *removido = p-&gt;topo;
+    int v = removido-&gt;valor;
+    p-&gt;topo = removido-&gt;proximo;
+    free(removido);
+    return v;
+}
+
+int main(void)
+{
+    struct Pilha p = {NULL};
+
+    empilhar(&amp;p, 1);
+    empilhar(&amp;p, 2);
+    empilhar(&amp;p, 3);
+
+    printf(&quot;desempilha: %d\n&quot;, desempilhar(&amp;p));
+    printf(&quot;desempilha: %d\n&quot;, desempilhar(&amp;p));
+    printf(&quot;desempilha: %d\n&quot;, desempilhar(&amp;p));
+    printf(&quot;desempilha (vazia): %d\n&quot;, desempilhar(&amp;p));
+
+    while (p.topo != NULL) {
+        (void)desempilhar(&amp;p);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>desempilha: 3
+desempilha: 2
+desempilha: 1
+desempilha (vazia): -1</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Vetor ou lista?</h2>
+  <p><strong>Vetor (array)</strong> ganha quando o tamanho é estável e o acesso é por índice: <code>arr[i]</code> é O(1), tem localidade de cache excelente e ocupa pouco. <strong>Lista</strong> ganha quando há muitas inserções/remoções longe do fim e o tamanho é imprevisível — sem redimensionamentos caros.</p>
+<p>Boas práticas: sempre destruir (free) do primeiro nó até NULL ao fim; nunca perder a referência da cabeça (ex.: leve <code>copia = lista</code> antes de percorrer); testar NULL em cada malloc.</p>
+  
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m12">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.12.1</p>
+  <p class="enunciado">Escreva <code>long long fatorial(int n)</code> recursiva (com caso base 0! = 1). Imprima fatorial(0..6).</p>
+  <p class="dica"><strong>Dica:</strong> <code>if (n <= 1) return 1; return n * fatorial(n-1);</code></p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+long long fatorial(int n)
+{
+    if (n &lt;= 1) {
+        return 1;
+    }
+    return n * fatorial(n - 1);
+}
+
+int main(void)
+{
+    for (int i = 0; i &lt;= 6; i++) {
+        printf(&quot;%d! = %lld\n&quot;, i, fatorial(i));
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado: 0,1,2,6,24,120,720. Use long long para não estourar tão cedo.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m12">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.12.2</p>
+  <p class="enunciado">Implemente <code>inserir_ordenado</code>: insere um valor já em ordem crescente na lista. Teste inserindo 30, 10, 20, 25 e imprima após cada inserção (deve terminar em 10 20 25 30).</p>
+  <p class="dica"><strong>Dica:</strong> Caminhe com um ponteiro duplo até achar o lugar onde o novo nó encaixa.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+struct No {
+    int valor;
+    struct No *proximo;
+};
+
+struct No *inserir_ordenado(struct No *lista, int v)
+{
+    struct No **p = &amp;lista;
+    while (*p != NULL &amp;&amp; (*p)-&gt;valor &lt; v) {
+        p = &amp;(*p)-&gt;proximo;
+    }
+
+    struct No *novo = malloc(sizeof *novo);
+    if (novo == NULL) {
+        return lista;
+    }
+    novo-&gt;valor = v;
+    novo-&gt;proximo = *p;
+    *p = novo;
+    return lista;
+}
+
+void imprimir(const struct No *lista)
+{
+    for (const struct No *q = lista; q != NULL; q = q-&gt;proximo) {
+        printf(&quot;%d &quot;, q-&gt;valor);
+    }
+    printf(&quot;\n&quot;);
+}
+
+void destruir(struct No *lista)
+{
+    while (lista != NULL) {
+        struct No *q = lista-&gt;proximo;
+        free(lista);
+        lista = q;
+    }
+}
+
+int main(void)
+{
+    struct No *lista = NULL;
+
+    lista = inserir_ordenado(lista, 30);
+    lista = inserir_ordenado(lista, 10);
+    imprimir(lista);
+    lista = inserir_ordenado(lista, 20);
+    lista = inserir_ordenado(lista, 25);
+    imprimir(lista);
+
+    destruir(lista);
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado: 10 30 na primeira impressão e 10 20 25 30 na final.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m12">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.12.3</p>
+  <p class="enunciado">Escreva <code>remover_valor</code> (como no exemplo do módulo) e <code>destruir</code>. Teste montando a lista 5→15→25→35, removendo 15 e 35, imprimindo a cada passo, e garantindo que a lista fica 5→25. Depois destrua.</p>
+  <p class="dica"><strong>Dica:</strong> A remoção religa usando ponteiro para ponteiro; o free é do nó desligado.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+struct No {
+    int valor;
+    struct No *proximo;
+};
+
+struct No *criar(int v)
+{
+    struct No *n = malloc(sizeof *n);
+    if (n == NULL) {
+        return NULL;
+    }
+    n-&gt;valor = v;
+    n-&gt;proximo = NULL;
+    return n;
+}
+
+struct No *remover_valor(struct No *lista, int alvo)
+{
+    struct No **p = &amp;lista;
+    while (*p != NULL &amp;&amp; (*p)-&gt;valor != alvo) {
+        p = &amp;(*p)-&gt;proximo;
+    }
+    if (*p != NULL) {
+        struct No *r = *p;
+        *p = r-&gt;proximo;
+        free(r);
+    }
+    return lista;
+}
+
+void imprimir(const struct No *lista)
+{
+    for (const struct No *q = lista; q != NULL; q = q-&gt;proximo) {
+        printf(&quot;%d &quot;, q-&gt;valor);
+    }
+    printf(&quot;\n&quot;);
+}
+
+void destruir(struct No *lista)
+{
+    while (lista != NULL) {
+        struct No *q = lista-&gt;proximo;
+        free(lista);
+        lista = q;
+    }
+}
+
+int main(void)
+{
+    struct No *lista = criar(5);
+    lista-&gt;proximo = criar(15);
+    lista-&gt;proximo-&gt;proximo = criar(25);
+    lista-&gt;proximo-&gt;proximo-&gt;proximo = criar(35);
+
+    lista = remover_valor(lista, 15);
+    lista = remover_valor(lista, 35);
+    imprimir(lista);
+
+    destruir(lista);
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado: 5 25. Remover a cabeça (5) também funcionaria com a mesma lógica.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m12">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.12.4</p>
+  <p class="enunciado">Escreva <code>int tamanho(struct No *lista)</code> <strong>recursiva</strong> que conta os nós: caso base NULL → 0; senão 1 + tamanho(proximo). Teste com 4 nós.</p>
+  <p class="dica"><strong>Dica:</strong> <code>if (n == NULL) return 0; return 1 + tamanho(n-&gt;proximo);</code></p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+struct No {
+    int valor;
+    struct No *proximo;
+};
+
+struct No *criar(int v)
+{
+    struct No *n = malloc(sizeof *n);
+    if (n == NULL) {
+        return NULL;
+    }
+    n-&gt;valor = v;
+    n-&gt;proximo = NULL;
+    return n;
+}
+
+int tamanho(struct No *lista)
+{
+    if (lista == NULL) {
+        return 0;
+    }
+    return 1 + tamanho(lista-&gt;proximo);
+}
+
+void destruir(struct No *lista)
+{
+    while (lista != NULL) {
+        struct No *q = lista-&gt;proximo;
+        free(lista);
+        lista = q;
+    }
+}
+
+int main(void)
+{
+    struct No *lista = criar(1);
+    lista-&gt;proximo = criar(2);
+    lista-&gt;proximo-&gt;proximo = criar(3);
+    lista-&gt;proximo-&gt;proximo-&gt;proximo = criar(4);
+
+    printf(&quot;tamanho = %d\n&quot;, tamanho(lista));
+
+    destruir(lista);
+    return 0;
+}</code></pre>
+        <p class="obs">A recursão percorre a corrente até o NULL e "sobe" somando 1 por nó.</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t2-m12">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.12.5</p>
+  <p class="enunciado">Implemente uma <strong>fila</strong> (FIFO: primeiro a entrar, primeiro a sair) com lista encadeada: struct <code>Fila</code> com ponteiros <code>ini</code> e <code>fim</code>; <code>enfileirar</code> adiciona no fim (O(1) graças ao ponteiro fim), <code>desenfileirar</code> remove do início. Teste enfileirando 1,2,3 e desenfileirando tudo.</p>
+  <p class="dica"><strong>Dica:</strong> O fim é também um nó; ao enfileirar, o atual fim-&gt;proximo aponta para o novo nó.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+struct No {
+    int valor;
+    struct No *proximo;
+};
+
+struct Fila {
+    struct No *ini;
+    struct No *fim;
+};
+
+void enfileirar(struct Fila *f, int v)
+{
+    struct No *novo = malloc(sizeof *novo);
+    if (novo == NULL) {
+        return;
+    }
+    novo-&gt;valor = v;
+    novo-&gt;proximo = NULL;
+
+    if (f-&gt;fim != NULL) {
+        f-&gt;fim-&gt;proximo = novo;
+    } else {
+        f-&gt;ini = novo;
+    }
+    f-&gt;fim = novo;
+}
+
+int desenfileirar(struct Fila *f)
+{
+    if (f-&gt;ini == NULL) {
+        return -1;   /* vazia */
+    }
+    struct No *r = f-&gt;ini;
+    int v = r-&gt;valor;
+    f-&gt;ini = r-&gt;proximo;
+    if (f-&gt;ini == NULL) {
+        f-&gt;fim = NULL;
+    }
+    free(r);
+    return v;
+}
+
+int main(void)
+{
+    struct Fila f = {NULL, NULL};
+
+    enfileirar(&amp;f, 1);
+    enfileirar(&amp;f, 2);
+    enfileirar(&amp;f, 3);
+
+    for (int i = 0; i &lt; 4; i++) {
+        printf(&quot;%d &quot;, desenfileirar(&amp;f));
+    }
+    printf(&quot;\n&quot;);
+
+    while (f.ini != NULL) {
+        (void)desenfileirar(&amp;f);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado: 1 2 3 -1 (a fifo respeita a ordem de entrada). O print final esvazia qualquer nó remanescente.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que marca o fim de uma lista encadeada?&quot;,&quot;opcoes&quot;:[&quot;O índice máximo do array&quot;,&quot;Um nó cujo proximo é NULL&quot;,&quot;Um contador de bytes&quot;,&quot;o tamanho armazenado no nó&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O percurso segue proximo até encontrar NULL, o sentinela de fim.&quot;},{&quot;pergunta&quot;:&quot;Qual o custo de inserir no início de uma lista encadeada?&quot;,&quot;opcoes&quot;:[&quot;O(n)&quot;,&quot;O(log n)&quot;,&quot;O(1)&quot;,&quot;O(n²)&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;Cria o nó e ajusta um ponteiro — independente do tamanho da lista.&quot;},{&quot;pergunta&quot;:&quot;Por que é criticamente importante executar &lt;code&gt;destruir&lt;/code&gt; em listas?&quot;,&quot;opcoes&quot;:[&quot;Para imprimir mais rápido&quot;,&quot;Para liberar os nós alocados e não vazar memória&quot;,&quot;Para ordenar os valores&quot;,&quot;Não é necessário&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Cada nó vem de malloc/free; esquecer a destruição vaza memória.&quot;},{&quot;pergunta&quot;:&quot;Em uma pilha (stack), quem sai primeiro?&quot;,&quot;opcoes&quot;:[&quot;O primeiro a entrar (FIFO)&quot;,&quot;O último a entrar (LIFO)&quot;,&quot;O de menor valor&quot;,&quot;Aleatório&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Pilha é LIFO: como empilhar pratos, o último colocado é o primeiro retirado.&quot;},{&quot;pergunta&quot;:&quot;Quando a lista encadeada tende a vencer do vetor?&quot;,&quot;opcoes&quot;:[&quot;Acesso aleatório por índice&quot;,&quot;Muitas inserções/remoções no meio e tamanho imprevisível&quot;,&quot;Menor uso de memória sempre&quot;,&quot;Quando o programa é pequeno&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Vetor brilha em índice O(1) e cache; lista brilha em inserções/remoções frequentes sem reallocs.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Agenda de contatos com lista encadeada</h2>
+  <p>Construa uma agenda com nós de lista encadeada (nome, telefone, struct No *proximo). Menu: (1) adicionar no fim, (2) listar, (3) buscar por nome (reportando o índice do nó), (4) remover por nome, (5) sair. Ao sair, destrua TODA a lista. Desafio extra: decidir e justificar se um vetor dinâmico serviria melhor aqui.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Estrutura de nó com struct e ponteiros encadeados corretos.</li><li>Todas as operações do menu funcionando (adicionar no fim com ponteiro fim, buscar, remover religando).</li><li>Garantia de que a lista é destruída no fim (sem vazamentos).</li><li>Menus com enum/switch e leitura robusta com fgets.</li><li>Compila com -Wall -Wextra sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="ponteiros-para-funcoes-e-ponteiros-para-ponteiros.html">← 2.11 Ponteiros para funções e ponteiros para ponteiros</a><a class="btn nav-next" href="arquivos-texto-e-binario.html">2.13 Arquivos: texto e binário →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m12">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

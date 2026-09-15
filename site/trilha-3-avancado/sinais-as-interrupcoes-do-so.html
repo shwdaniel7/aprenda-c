@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3.05 — Sinais: as interrupções do SO — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="3">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t3">Trilha 3 — Avançado</a> / Sinais: as interrupções do SO</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">3.05</div>
+    <h1>Sinais: as interrupções do SO</h1>
+    <p class="subtitulo">signal(), SIG_DFL/SIG_IGN, sig_atomic_t e a armadilha do reset</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado</span>
+      <span class="chip">Duração: ~35 min</span>
+      <span class="chip">Pré-requisitos: T2.01 (funções), T2.04 (ponteiros e volatile ainda não, mas ter feito o T3.03 ajuda)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t3-m05">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Entender o que são sinais assíncronos, capturar SIGINT com signal(), diferenciar handler, SIG_DFL e SIG_IGN, comunicar-se com o handler via volatile sig_atomic_t, e conhecer a diferença crítica: no Windows/UCRT o handler volta a SIG_DFL após cada disparo (precisa ser reinstalado), enquanto no Linux isso não acontece com signal().</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 29 (sinais)</p>
+  <p><strong>King (livro em PDF):</strong> Referência do seu sistema para signal/sigaction</p>
+  <p class="foco"><strong>Foco da leitura:</strong> O Beej cobre handler global, sig_atomic_t e as armadilhas. Teste você mesmo os exemplos deste módulo: a mensagem sobre reinstalar o handler vale especialmente no Windows.</p>
+</section>
+  <section class="card secao">
+  <h2>Sinais: o que são e os principais</h2>
+  <p>Um <strong>sinal</strong> é uma interrupção assíncrona que o sistema operacional entrega a um processo — Ctrl+C no terminal gera SIGINT, um ponteiro inválido gera SIGSEGV, uma divisão por zero gera SIGFPE. O tratamento padrão (SIG_DFL) na maioria deles é encerrar o processo. Você pode substituir esse comportamento com <code>signal(sig, funcao)</code>, ignorá-lo com <code>SIG_IGN</code> ou restaurar o padrão. Um sinal pode chegar a qualquer instante, <em>no meio de quase qualquer instrução</em> — por isso o que se faz dentro do handler precisa ser mínimo.</p>
+  <ul><li><code>SIGINT</code> (2) — Ctrl+C ou raise(SIGINT); padrão: terminar.</li>
+<li><code>SIGSEGV</code> (11) — acesso a memória inválida; padrão: terminar (com dumps).</li>
+<li><code>SIGFPE</code> (8) — erro aritmético como divisão por zero.</li>
+<li><code>SIGTERM</code> (15) — pedido de término (o "kill" educado).</li>
+<li><code>SIGABRT</code> (6) — abort() ou falha de assert().</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Capturando e ignorando com signal()</h2>
+  <p>Uso básico: <code>signal(SIGINT, trata)</code> instala <code>trata</code>; <code>signal(SIGINT, SIG_IGN)</code> faz o sinal ser descartado. Neste exemplo, <code>raise()</code> simula o que Ctrl+C faz. Como <code>raise</code> é síncrono, conseguimos uma saída determinística para demonstrar; num terminal real seria o seu dedo no Ctrl+C.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — panel.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;signal.h&gt;
+
+static void trata(int sig)
+{
+    (void)sig;
+    printf(&quot;sinal %d capturado!\n&quot;, sig);
+}
+
+int main(void)
+{
+    signal(SIGINT, trata);
+    printf(&quot;disparando SIGINT com raise()...\n&quot;);
+    raise(SIGINT);
+    signal(SIGINT, SIG_IGN);
+    printf(&quot;agora ignoro SIGINT; disparando de novo...\n&quot;);
+    raise(SIGINT);
+    printf(&quot;o segundo sinal foi ignorado\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; panel
+disparando SIGINT com raise()...
+sinal 2 capturado!
+agora ignoro SIGINT; disparando de novo...
+o segundo sinal foi ignorado</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>volatile sig_atomic_t: a ponte entre handler e programa</h2>
+  <p>O padrão mais comum: o handler apenas "acende um sinal" numa flag e o loop principal a observa. A flag precisa de duas coisas: <code>volatile</code> (o compilador jura que sempre confere a memória, sem cachear em registro — ver módulo 03) e o tipo <code>sig_atomic_t</code> (int garantido atômico para sinais; pode ser escrito no meio de qualquer coisa). A regra de ouro: no handler, só atribuição a sig_atomic_t;, não use printf (não é async-signal-safe) — o printf aqui serve só para você ver o que acontece.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — tick.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;signal.h&gt;
+
+static volatile sig_atomic_t rodando = 1;
+
+static void trata(int sig)
+{
+    (void)sig;
+    rodando = 0;
+}
+
+int main(void)
+{
+    signal(SIGINT, trata);
+    printf(&quot;simulando trabalho (no terminal, Ctrl+C dispara SIGINT)...\n&quot;);
+    long tick = 0;
+    while (rodando &amp;&amp; tick &lt; 5) {
+        tick++;
+        printf(&quot;tick %ld\n&quot;, tick);
+        if (tick == 3) {
+            printf(&quot;(simulando um Ctrl+C disparado pelo sistema)\n&quot;);
+            raise(SIGINT);
+        }
+    }
+    printf(&quot;trabalho interrompido: %ld ticks concluidos\n&quot;, tick);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; tick
+simulando trabalho (no terminal, Ctrl+C dispara SIGINT)...
+tick 1
+tick 2
+tick 3
+(simulando um Ctrl+C disparado pelo sistema)
+trabalho interrompido: 3 ticks concluidos</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Duas passadas no Ctrl+C e a armadilha do reset</h2>
+  <p>O padrão "aperte Ctrl+C de novo para sair" é elegante para programas que fazem trabalho real. Mas há uma <strong>armadilha do Windows/UCRT</strong>: depois de entregar o sinal, o handler volta sozinho para SIG_DFL — se você não reinstalar <code>signal(SIGINT, trata)</code> dentro do próprio handler, o segundo Ctrl+C encerra o processo no meio da "fila de despedida". No Linux (semantics POSIX de signal()), a reinstalação é opcional. Escrever o handler reinstalando-se a si mesmo funciona nos dois. Repare também no <code>atexit</code>: se o processo terminar de modo controlado, a despedida roda uma vez.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — duas.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;signal.h&gt;
+#include &lt;stdlib.h&gt;
+
+static volatile sig_atomic_t vez = 0;
+
+static void trata(int sig)
+{
+    (void)sig;
+    signal(SIGINT, trata);   /* Windows/UCRT cai para SIG_DFL apos o disparo */
+    vez++;
+}
+
+static void despedida(void)
+{
+    printf(&quot;recursos limpos; saida limpa (%d Ctrl+C)\n&quot;, (int)vez);
+}
+
+int main(void)
+{
+    atexit(despedida);
+    signal(SIGINT, trata);
+    printf(&quot;aperte Ctrl+C 2x para encerrar (simulacao com raise abaixo)\n&quot;);
+    long long n = 0;
+    int avisou = 0;
+    while (vez &lt; 2) {
+        n++;
+        if (vez == 1 &amp;&amp; !avisou) {
+            printf(&quot;primeiro Ctrl+C recebido no tick %lld ---- aperte de novo\n&quot;, n);
+            avisou = 1;
+        }
+        if (n == 5000000LL) {
+            printf(&quot;(simulando o 1o Ctrl+C)\n&quot;);
+            raise(SIGINT);
+        }
+        if (n == 15000000LL) {
+            printf(&quot;(simulando o 2o Ctrl+C)\n&quot;);
+            raise(SIGINT);
+        }
+    }
+    printf(&quot;encerrando voluntariamente apos %lld ticks\n&quot;, n);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; duas
+aperte Ctrl+C 2x para encerrar (simulacao com raise abaixo)
+(simulando o 1o Ctrl+C)
+primeiro Ctrl+C recebido no tick 5000001 ---- aperte de novo
+(simulando o 2o Ctrl+C)
+encerrando voluntariamente apos 15000000 ticks
+recursos limpos; saida limpa (2 Ctrl+C)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O que funciona e o que NÃO funciona dentro de um handler</h2>
+  <p>Um handler roda como se fosse um "eclipse" no meio da execução: as funções que você chama ali precisam ser <strong>async-signal-safe</strong>. Chamar printf dentro de um handler é tecnicamente indefinido (é a pressa de sempre) — nas plataformas comuns acaba funcionando, mas não é garantido: se SEGFAULT acontecer no meio de outra printf, o buffer pode simplesmente não sair. O que é seguro: escrever em <code>sig_atomic_t</code>, chamar <code>signal()</code> para reinstalar, <code>_Exit()</code>/<code>_exit()</code> (não <code>exit()</code>), <code>raise()</code>. O que não é garantido: quase tudo com FILE*, malloc/free, funções que bloqueiam.</p>
+  <ul><li>Seguro: atribuição a <code>volatile sig_atomic_t</code>; <code>signal()</code>, <code>_Exit()</code>, <code>raise()</code>.</li>
+<li>Não garantido: <code>printf</code>, <code>fopen/fwrite/fclose</code>, <code>malloc/free</code>, <code>exit()</code>.</li>
+<li>O truque real: o handler só "acende a flag"; o programa principal faz a parte cara (fechar arquivos, dar free, bailar com <code>_Exit</code>).</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t3-m05">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.05.1</p>
+  <p class="enunciado">Um programa que captura SIGINT na primeira vez ("apanhado 1") e depois restaura SIG_DFL com signal(SIGINT, SIG_DFL). Ao disparar o próximo SIGINT, o processo deve terminar sem imprimir a última linha.</p>
+  <p class="dica"><strong>Dica:</strong> O comportamento padrão de SIGINT é terminar o processo: é isso que "restaurar o padrão" significa.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;signal.h&gt;
+#include &lt;stdlib.h&gt;
+
+static void trata(int s)
+{
+    (void)s;
+    puts(&quot;apanhado 1&quot;);
+}
+
+int main(void)
+{
+    signal(SIGINT, trata);
+    raise(SIGINT);
+    signal(SIGINT, SIG_DFL);
+    puts(&quot;handler removido; o proximo SIGINT segue o comportamento padrao (morrer)&quot;);
+    raise(SIGINT);
+    puts(&quot;essa linha nunca e alcancada&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real: "apanhado 1" e a linha do morrer; depois o processo termina (no Windows com código de saída 3 / sinal). A última linha nunca aparece.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t3-m05">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.05.2</p>
+  <p class="enunciado">Monte um "cofre de sinais": mude para SIG_IGN, dispare 2 sinais com raise e mostre que nenhum é entregue; depois instale um handler que conta via sig_atomic_t e dispara mais um, mostrando o contador.</p>
+  <p class="dica"><strong>Dica:</strong> SIG_IGN não incrementa nada porque o sinal nem chega; o handler incrementa a cada chegada.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;signal.h&gt;
+
+static volatile sig_atomic_t recebidos = 0;
+
+static void conta(int s)
+{
+    (void)s;
+    recebidos++;
+}
+
+int main(void)
+{
+    signal(SIGINT, SIG_IGN);
+    printf(&quot;sinais ignorados (SIG_IGN); sou imune agora\n&quot;);
+    raise(SIGINT);
+    raise(SIGINT);
+    printf(&quot;mandei 2 sinais, mas o contador continua em %d\n&quot;, (int)recebidos);
+    signal(SIGINT, conta);
+    raise(SIGINT);
+    printf(&quot;com handler ativo, recebidos = %d\n&quot;, (int)recebidos);
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real: "sou imune agora", "mandei 2 sinais, mas o contador continua em 0", "com handler ativo, recebidos = 1".</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t3-m05">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.05.3</p>
+  <p class="enunciado">Um programa que, ao receber SIGINT, salva um "estado" num arquivo (escreve o caractere s em estado.bin) e termina com _Exit(0). Ao rodar, deve imprimir uma mensagem e finalizar deixando o arquivo criado.</p>
+  <p class="dica"><strong>Dica:</strong> Use _Exit(0) dentro do handler para terminar imediatamente sem rodar o resto do main. Cheque depois se estado.bin existe.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;signal.h&gt;
+#include &lt;stdlib.h&gt;
+
+static void salvar(int sig)
+{
+    (void)sig;
+    FILE *fp = fopen(&quot;estado.bin&quot;, &quot;w&quot;);
+    if (fp != NULL) {
+        fputc('s', fp);
+        fclose(fp);
+    }
+    _Exit(0);
+}
+
+int main(void)
+{
+    signal(SIGINT, salvar);
+    printf(&quot;salvando estado ao receber SIGINT...\n&quot;);
+    raise(SIGINT);
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real: a mensagem "salvando estado..." é impressa, o processo termina e o arquivo estado.bin é criado no diretório atual.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que significa o tratamento padrão SIG_DFL de SIGINT?&quot;,&quot;opcoes&quot;:[&quot;O sinal é ignorado&quot;,&quot;O processo termina&quot;,&quot;O programa pausa&quot;,&quot;O sinal é reenviado&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O padrão de SIGINT (como de quase todos os sinais de término) é encerrar o processo.&quot;},{&quot;pergunta&quot;:&quot;Por que a flag lida com o handler precisa ser volatile sig_atomic_t?&quot;,&quot;opcoes&quot;:[&quot;Para ficar mais rápida&quot;,&quot;Volatile impede cache em registro e sig_atomic_t é atômico para sinais&quot;,&quot;Para poder usar em thread&quot;,&quot;Para virar ponteiro&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;volatile evita o \&quot;cache\&quot; do compilador; sig_atomic_t garante escrita atômica no contexto de sinal.&quot;},{&quot;pergunta&quot;:&quot;O que acontece no Windows/UCRT após um handler de sinal ser executado?&quot;,&quot;opcoes&quot;:[&quot;Nada muda&quot;,&quot;O handler volta para SIG_DFL e precisa ser reinstalado&quot;,&quot;O programa pausa&quot;,&quot;O sinal é reentregue&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;No Windows/UCRT a reinstalação manual é necessária — sem ela, o segundo sinal usa o comportamento padrão (morte).&quot;},{&quot;pergunta&quot;:&quot;Qual destas operações NÃO é considerada segura dentro de um handler?&quot;,&quot;opcoes&quot;:[&quot;Atribuir a sig_atomic_t&quot;,&quot;Chamar signal()&quot;,&quot;Chamar printf()&quot;,&quot;Chamar _Exit()&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;printf não é async-signal-safe; o handler deve se limitar ao mínimo (flag, reinstalação, término imediato).&quot;},{&quot;pergunta&quot;:&quot;No padrão \&quot;Ctrl+C duas vezes para sair\&quot;, qual é o papel do atexit?&quot;,&quot;opcoes&quot;:[&quot;Capturar o sinal&quot;,&quot;Registrar uma rotina de limpeza que roda só na saída controlada&quot;,&quot;Ignorar sinais&quot;,&quot;Criar threads&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;atexit registra a despedida; ela roda no retorno controlado do main — e por isso só uma vez.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  
+  <nav class="mod-nav"><a class="btn nav-prev" href="unicode-wide-characters-e-localizacao.html">← 3.04 Unicode, wide characters e localização</a><a class="btn nav-next" href="threads-com-pthreads.html">3.06 Threads com pthreads →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t3-m05">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

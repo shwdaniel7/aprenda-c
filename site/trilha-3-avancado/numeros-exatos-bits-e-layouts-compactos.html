@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3.10 — Números exatos, bits e layouts compactos — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="3">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t3">Trilha 3 — Avançado</a> / Números exatos, bits e layouts compactos</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">3.10</div>
+    <h1>Números exatos, bits e layouts compactos</h1>
+    <p class="subtitulo">Inteiros de largura fixa, bit-fields e membros flexíveis: controle preciso da memória para protocolos e formatos binários.</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: Conhecer structs e unions (T2.06, T2.07). Entender representação binária e hexa (T3.02).</span>
+    </div>
+    <button class="btn btn-done" data-mod="t3-m10">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Dominar os tipos inteiros de largura exata de <stdint.h> e <inttypes.h>, usar bit-fields para empacotar flags e cabeçalhos compactos, empregar union e compound literals em código expressivo, aplicar complemento de 2 com segurança e montar estruturas de tamanho previsível — o pão-de-açúcar de protocolos de rede e de arquivos binários.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Beej: &quot;Fixed Width Integer Types&quot; (soon-to-be cap. 37), &quot;Bit-Fields&quot; (cap. 20.8), &quot;Compound Literals&quot; (cap. 32), &quot;The Outside Environment&quot; (cap. 18).</p>
+  <p><strong>King (livro em PDF):</strong> King cap. 20 (structs e unions), cap. 21 (inteiros de largura exata).</p>
+  <p class="foco"><strong>Foco da leitura:</strong> Sublinhe a tabela de tipos (uint8_t, uint16_t, uint32_t, uint64_t), os modificadores de bit-field (:3, :1) e os compound literals (T){...}.</p>
+</section>
+  <section class="card secao">
+  <h2>Inteiros de largura exata: &lt;stdint.h&gt; e &lt;inttypes.h&gt;</h2>
+  <p>O C tradicional manda <code>int</code> ter "pelo menos 16 bits" — e cada plataforma interpreta como quer. Inútil para dados binários que precisam ter o mesmo formato em qualquer máquina (arquivos, protocolos). A solução é <code>&lt;stdint.h&gt;</code>, que define, quando a plataforma oferece, tipos de largura <strong>exata</strong>: <code>uint8_t</code>, <code>uint16_t</code>, <code>uint32_t</code>, <code>uint64_t</code> e suas versões com sinal.</p>
+<p>Por que <code>uint8_t</code> em vez de <code>unsigned char</code> para um byte? Porque o nome documenta a intenção e o tamanho fica garantido. E por que não usar <code>long long</code> direto? Porque até ele tem largura oficialmente só "pelo menos 64 bits" — na prática é 64, mas a especificação do tipo exato remove a ambiguidade.</p>
+<p>No exemplo, veja também o hexa com <code>%x</code> e <code>%llx</code>, e o complemento de 2: o <code>(uint32_t)a</code> com <code>a = -123456</code> vira 0xFFFE1DC0 — os 32 bits do número negativo reinterpretados sem sinal.</p>
+  <ul><li><code>&lt;stdint.h&gt;</code> — define <code>uint8_t</code>, <code>uint16_t</code>, <code>uint32_t</code>, <code>uint64_t</code> e os com sinal, sempre que a plataforma os tiver.</li>
+<li><code>&lt;inttypes.h&gt;</code> — macros de formato: <code>PRIu32</code>, <code>PRIu64</code>, <code>PRIx64</code>, <code>SCNd32</code>...</li>
+<li>Complemento de 2: um <code>int</code> negativo, reinterpretado como <code>uint32_t</code>, vira o padrão de bits correto (ex.: -123456 = 0xFFFE1DC0).</li>
+<li><code>sizeof(uint32_t) == 4</code>, <code>sizeof(uint64_t) == 8</code> — sempre.</li></li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1001</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;inttypes.h&gt;
+
+int main(void) {
+    int a = -123456;
+    uint32_t b = 0xCAFEBABE;
+    uint64_t c = 123456789012345ULL;
+    uint64_t d = UINT64_MAX;
+
+    printf(&quot;a       = %d (padrao de bits %08x)\n&quot;, a, (unsigned int)(uint32_t)a);
+    printf(&quot;b       = %&quot; PRIu32 &quot; (hexa 0x%08&quot; PRIx32 &quot;)\n&quot;, b, b);
+    printf(&quot;c       = %&quot; PRIu64 &quot;\n&quot;, c);
+    printf(&quot;d (max) = %&quot; PRIu64 &quot; (hexa 0x%&quot; PRIx64 &quot;)\n&quot;, d, d);
+    printf(&quot;sizeof: uint32_t = %zu, uint64_t = %zu\n&quot;,
+           sizeof(uint32_t), sizeof(uint64_t));
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .	ipos-fixos.exe
+&gt; a       = -123456 (padrao de bits 0xfffe1dc0)
+&gt; b       = 3405691582 (hexa 0xcafebabe)
+&gt; c       = 123456789012345
+&gt; d (max) = 18446744073709551615 (hexa 0xffffffffffffffff)
+&gt; sizeof: uint32_t = 4, uint64_t = 8
+&gt; 
+&gt; (Os hexadecimais foram impressos em minusculas; com %X ficam em maiusculas.)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Asserções e limites exatos</h2>
+  <p>Quando o programa precisa de garantias de tamanho (um protocolo exige 4 bytes para um campo), o profissional não confia em suposições: ele <strong>verifica em tempo de compilação</strong> com <code>_Static_assert</code> (C11) ou em tempo de execução com <code>assert</code>. As duas têm o mesmo espírito: a falha é detectada o mais cedo possível.</p>
+<p><code>_Static_assert</code> recebe uma expressão constante e uma mensagem; se a condição for falsa, o compilador se recusa a gerar o binário. É ideal para tamanhos de struct que vão para disco ou rede.</p>
+<p>No exemplo, garantimos que o código só compila se <code>CHAR_BIT == 8</code> e <code>sizeof(uint32_t) == 4</code>, e com <code>assert</code> conferimos limites de <code>&lt;limits.h&gt;</code> e <code>&lt;stdint.h&gt;</code>.</p>
+  <ul><li><code>_Static_assert(cond, "mensagem")</code> — falha no compilador se a condição (constante) for falsa.</li>
+<li><code>assert(expr)</code> — aborta em execução (com mensagem) se a expressão for falsa; some com <code>NDEBUG</code>.</li>
+<li><code>CHAR_BIT</code>, <code>UINT_MAX</code> (em <code>&lt;limits.h&gt;</code>) e <code>UINT16_MAX</code>, <code>UINT32_MAX</code> (em <code>&lt;stdint.h&gt;</code>).</li>
+<li>Quando uma struct precisa de layout exato (ex.: 4 bytes), use _Static_assert(sizeof(struct X) == 4).</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1002</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;limits.h&gt;
+#include &lt;assert.h&gt;
+
+_Static_assert(CHAR_BIT == 8, &quot;este programa exige bytes de 8 bits&quot;);
+_Static_assert(sizeof(uint32_t) == 4, &quot;uint32_t precisa ter 4 bytes&quot;);
+
+int main(void) {
+    assert(UINT16_MAX &gt;= 65535);
+    assert(UINT32_MAX &gt;= 4294967295U);
+    assert(sizeof(int) &gt;= 4);
+
+    printf(&quot;todas as assercoes passaram\n&quot;);
+    printf(&quot;CHAR_BIT=%d sizeof(int)=%zu sizeof(uint16_t)=%zu\n&quot;,
+           CHAR_BIT, sizeof(int), sizeof(uint16_t));
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .static-assert.exe
+&gt; todas as assercoes passaram
+&gt; CHAR_BIT=8 sizeof(int)=4 sizeof(uint16_t)=2</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Bit-fields: flags e campos de N bits</h2>
+  <p>Nem todo dado precisa de 32 (ou 8) bits. Uma flag ligado/desligado precisa de 1. Um dia da semana, de 3. Para empacotar vários campos pequenos na mesma memória, o C oferece os <strong>bit-fields</strong>: membros de struct declarados como <code>unsigned tipo : N;</code>.</p>
+<p>O compilador empacota os campos em unidades de armazenamento (aqui, 4 bytes — o <code>unsigned</code> base). O tamanho total do struct no exemplo é 8 bytes porque o alinhamento atua junto; para protocolos com layout rígido, verifique com <code>_Static_assert</code> e, se preciso, reordene os campos ou use <code>_Alignas</code>.</p>
+<p>Para gravar num arquivo binário, imprimimos o struct byte a byte como <code>unsigned char</code> — é assim que se serializa de forma portável: o padding entre campos é definido pelo compilador, então empacote seus bit-fields dentro de um uint32_t/uint64_t para formatos fixos.</p>
+  <ul><li>Bit-field: <code>unsigned vermelho : 1;</code> — reserva exatamente N bits.</li>
+<li>O tipo base (<code>unsigned</code>, <code>int</code> de implementação, ou os exatos) determina a unidade de armazenamento.</li>
+<li>Campos de 1 bit são perfeitos para flags: leitura = 1, escrita = 1, etc.</li>
+<li>Previsibilidade de layout: o padding é definido pela implementação; para formato de arquivo, serialize bit a bit ou use _Static_assert.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1003</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+
+struct Flags {
+    unsigned leitura   : 1;
+    unsigned escrita   : 1;
+    unsigned execucao  : 1;
+    unsigned reservado : 5;
+    unsigned extensao  : 5;
+    unsigned fds       : 1;
+    unsigned seg       : 1;
+    unsigned exts      : 5;
+    unsigned exto      : 5;
+
+};
+
+int main(void) {
+    struct Flags f = {0};
+    f.leitura = 1;
+    f.escrita = 0;
+    f.execucao = 1;
+    f.seg = 0;
+
+    printf(&quot;leitura=%u escrita=%u execucao=%u seg=%u exts=%u exto=%u\n&quot;,
+           f.leitura, f.escrita, f.execucao, f.seg, f.exts, f.exto);
+    printf(&quot;sizeof(struct Flags) = %zu bytes\n&quot;, sizeof f);
+
+    unsigned char *b = (unsigned char *)&amp;f;
+    printf(&quot;bytes: &quot;);
+    for (size_t i = 0; i &lt; sizeof f; i++) {
+        printf(&quot;%02x &quot;, b[i]);
+    }
+    printf(&quot;\n&quot;);
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .it-fields.exe
+&gt; leitura=1 escrita=0 execucao=1 seg=0 exts=0 exto=0
+&gt; sizeof(struct Flags) = 4 bytes
+&gt; bytes: 05 00 00 00
+&gt; 
+&gt; (O byte exibido 0x05 = leitura (bit0) + execucao (bit2) juntos. Conforme o modelo de armazenamento do compilador, o struct pode ocupar 4 ou 8 bytes; sempre confirme com _Static_assert.)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Union: um tipo, vários significados</h2>
+  <p>Uma <code>union</code> faz todos os seus membros ocuparem o <em>mesmo</em> endereço. O tamanho da union é o do maior membro (mais o alinhamento). É a ferramenta certa para dizer "este espaço tem dois significados possíveis", como um valor que ora é inteiro, ora é a união de dois inteiros menores.</p>
+<p>No exemplo, temos um dado de 8 bytes que pode ser lido como um <code>uint64_t</code> ou como um par de <code>float</code>s. Escrevemos pela visão de bytes e lemos pelas duas outras visões — e o mesmo bloco de memória responde às duas leituras.</p>
+<p>O perigo clássico é ler por um membro que você não escreveu. Aí o comportamento é definido pela implementação (daí a recomendação de gravar e ler sempre pelo mesmo campo, ou guardar num campo "tag" qual visão está ativa — ver projeto do módulo).</p>
+  <ul><li><code>union { A; B; }</code> — membros compartilham o mesmo endereço.</li>
+<li><code>sizeof(union)</code> = tamanho do maior membro (alinhado).</li>
+<li>Útil também para reinterpretar bytes: escreva com uint8_t, leia como uint16_t/uint32_t, respeitando o endianness.</li>
+<li>A union não "memoriza" qual membro foi usado: mantenha a disciplina de controle no seu código.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1004</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;inttypes.h&gt;
+
+union Valor {
+    uint64_t bits;
+    float reais[2];
+};
+
+int main(void) {
+    union Valor v;
+
+    v.bits = 0;
+    v.reais[0] = 10.5f;
+    v.reais[1] = 20.0f;
+
+    v.bits = 0xFFFFFFFFC0800000ULL;
+    v.reais[1] = -3.25f;
+
+    printf(&quot;[0]=%.2f [1]=%.2f\n&quot;, v.reais[0], v.reais[1]);
+    printf(&quot;sizeof(union Valor) = %zu\n&quot;, sizeof v);
+    printf(&quot;bits = 0x%016&quot; PRIx64 &quot;\n&quot;, v.bits);
+
+    struct { union Valor x; } emb;
+    emb.x = v;
+    printf(&quot;total membros: %zu bytes\n&quot;, sizeof emb);
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .cabecalho-pacote.exe
+&gt; [0]=-4.00 [1]=-3.25
+&gt; sizeof(union Valor) = 8
+&gt; bits = 0xc0500000c0800000
+&gt; total membros: 8 bytes
+&gt; 
+&gt; (Os dois float compartilham os 8 bytes: [0] é o eco de 0xC0800000 (-4.00) e [1] de 0xC0500000 (-3.25), na ordem em que o código os escreve.)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Compound literals e variáveis temporárias</h2>
+  <p>Às vezes você precisa passar para uma função um valor composto — um struct, um vetor — sem criar uma variável nomeada antes. Os <strong>compound literals</strong> (C99) fazem exatamente isso: <code>(struct Ponto){ x, y }</code> é um valor temporário de tipo <code>struct Ponto</code>.</p>
+<p>Eles valem também para vetores: <code>(int[]){1,2,3}</code>, e até para union: <code>(union X){ .campo = v }</code>. Em Portugol você não tem isso; em C, é uma das formas mais legíveis de montar argumentos compostos.</p>
+<p>No exemplo, somamos dois pontos construídos literalmente e aplicamos uma "transformação" que também recebe um literal. Resultado: 34 / 15, e o deslocamento empilhado vira o ponto (101, -49) — sem nenhuma variável intermediária nomeada.</p>
+  <ul><li><code>(struct Tipo){ a, b }</code> — literal composto de struct no meio da expressão.</li>
+<li>Também funciona com vetores: <code>(int[]){1,2,3}</code> e com union: <code>(union U){ .membro = v }</code>.</li>
+<li>O literal composto tem armazenamento automático (vida até o fim do bloco) se usado dentro de função.</li>
+<li>Ideal para chamar funções com argumentos compostos sem variáveis temporárias.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1005</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+struct Ponto { int x, y; };
+
+struct Ponto soma(struct Ponto a, struct Ponto b) {
+    struct Ponto r = { a.x + b.x, a.y + b.y };
+    return r;
+}
+
+struct Ponto translada(struct Ponto p, struct Ponto delta) {
+    struct Ponto r = { p.x + delta.x, p.y + delta.y };
+    return r;
+}
+
+int main(void) {
+    struct Ponto p1 = soma((struct Ponto){ 13, 7 }, (struct Ponto){ 21, 8 });
+    printf(&quot;p1 = %d / %d\n&quot;, p1.x, p1.y);
+
+    struct Ponto p2 = translada(p1, (struct Ponto){ -10, 5 });
+    printf(&quot;p2 = %d / %d\n&quot;, p2.x, p2.y);
+
+    struct Ponto p3 = translada(
+        translada((struct Ponto){ 100, -50 }, (struct Ponto){ 2, 3 }),
+        (struct Ponto){ -1, -2 });
+    printf(&quot;p3 = %d / %d\n&quot;, p3.x, p3.y);
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .compound-literals.exe
+&gt; p1 = 34 / 15
+&gt; p2 = 24 / 20
+&gt; p3 = 101 / -49</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Lendo números exatos com SCNd32: erros reais</h2>
+  <p>Entrada de dados confiável é um problema à parte: <code>scanf</code> devolve a quantidade de conversões feitas, e é <em>obrigatório</em> conferir. Com tipos exatos, o especificador de leitura vem de <code>&lt;inttypes.h&gt;</code>: <code>SCNd32</code> para <code>int32_t</code>, <code>SCNu16</code> para <code>uint16_t</code>, e assim por diante.</p>
+<p>No exemplo, tentamos ler uma porta (número) da entrada padrão. Se vier "9000", tudo bem. Se vier texto puro ("abc"), o <code>scanf</code> falha na primeira conversão e devolvemos erro — sem crash, sem leitura lixo. Em modo parse de dados, essa checagem de retorno é a diferença entre um parser tolerante e um que aborta.</p>
+<p>Repare que em sistemas Windows o <code>%</code> de <code>SCNd32</code> com <code>fgets</code> como buffer é o máximo de robustez: primeiro lemos a linha inteira, depois tentamos o <code>sscanf</code>.</p>
+  <ul><li><code>SCNd32</code>, <code>SCNu16</code> — especificadores de scanf para tipos exatos.</li>
+<li><code>scanf</code>/<code>sscanf</code> devolvem o nº de conversões; confira sempre.</li>
+<li>Falha: entrada não numérica -> retorno menor que o esperado -> trate como erro.</li>
+<li>Padrão robusto: <code>fgets</code> da linha, depois <code>sscanf</code> da linha lida.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1006</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;inttypes.h&gt;
+
+int main(void) {
+    char linha[64];
+    int32_t porta;
+
+    if (!fgets(linha, sizeof linha, stdin)) {
+        printf(&quot;sem entrada\n&quot;);
+        return 1;
+    }
+
+    if (sscanf(linha, &quot;%&quot; SCNd32, &amp;porta) == 1) {
+        printf(&quot;ok: porta=%&quot; PRId32 &quot;\n&quot;, porta);
+    } else {
+        printf(&quot;erro durante o parse (codigo 3): valor nao numerico\n&quot;);
+        return 3;
+    }
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .setjmp-uso.exe
+&gt; (com entrada &quot;9000&quot;)
+&gt; ok: porta=9000
+&gt; (com entrada &quot;abc&quot;)
+&gt; erro durante o parse (codigo 3): valor nao numerico
+&gt; 
+&gt; O codigo de saida no segundo caso foi 3 (verifique com echo $LASTEXITCODE).</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t3-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel nIntermediário">Nível Intermediário</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.10.1</p>
+  <p class="enunciado">Imprima o valor 0xDEADBEEF em decimal (como uint32_t), em hexa maiúsculo, o mesmo valor reinterpretado como int32_t (em decimal), e o inteiro 42 em uint16_t, em decimal e em hexa com 4 dígitos. Imprima também os sizeof de cada tipo usado.</p>
+  <p class="dica"><strong>Dica:</strong> Use <code>%" PRIu32</code>, <code>%" PRIx32</code> (com X maiúsculo), <code>%" PRId32</code> e <code>%" PRIu16</code>, <code>%" PRIX16</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;inttypes.h&gt;
+
+int main(void) {
+    uint32_t x = 0xDEADBEEFU;
+    int32_t y = (int32_t)x;
+    uint16_t z = 42;
+
+    printf(&quot;x decimal: %&quot; PRIu32 &quot;\n&quot;, x);
+    printf(&quot;x hexa: 0x%&quot; PRIX32 &quot;\n&quot;, x);
+    printf(&quot;y (int32): %&quot; PRId32 &quot;\n&quot;, y);
+    printf(&quot;z: %&quot; PRIu16 &quot;\n&quot;, z);
+    printf(&quot;z hexa: 0x%&quot; PRIX16 &quot;\n&quot;, z);
+    printf(&quot;sizeof: uint32=%zu int32=%zu uint16=%zu\n&quot;,
+           sizeof(uint32_t), sizeof(int32_t), sizeof(uint16_t));
+
+    return 0;
+}</code></pre>
+        <p class="obs">./ex10_1</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t3-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel nIntermediário">Nível Intermediário</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.10.2</p>
+  <p class="enunciado">Crie uma struct Permissao com bit-fields para leitura, escrita e execução (1 bit cada) mais 5 bits de reserva, tudo sobre unsigned. Ative leitura e execução, imprima os três valores e o sizeof. Bytes printados com %%02x.</p>
+  <p class="dica"><strong>Dica:</strong> Declare <code>unsigned leitura : 1; unsigned escrita : 1; unsigned execucao : 1; unsigned reservado : 5;</code>. O struct (4 bytes) guarda os bits; os valores aparecem em 0/1.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+struct Permissao {
+    unsigned leitura   : 1;
+    unsigned escrita   : 1;
+    unsigned execucao  : 1;
+    unsigned reservado : 5;
+};
+
+int main(void) {
+    struct Permissao p = {0};
+    p.leitura = 1;
+    p.execucao = 1;
+
+    printf(&quot;leitura=%u escrita=%u execucao=%u\n&quot;,
+           p.leitura, p.escrita, p.execucao);
+    printf(&quot;bits: &quot;);
+    unsigned char *b = (unsigned char *)&amp;p;
+    for (size_t i = 0; i &lt; sizeof p; i++) {
+        printf(&quot;%02x &quot;, b[i]);
+    }
+    printf(&quot;\n&quot;);
+    printf(&quot;sizeof=%zu\n&quot;, sizeof p);
+
+    return 0;
+}</code></pre>
+        <p class="obs">./ex10_2 — os 4 bytes exibem os bits empacotados; o byte mais baixo vale 0x05 (leitura + execucao ativados).</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t3-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel nAvançado">Nível Avançado</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.10.3</p>
+  <p class="enunciado">Crie uma struct Lista numerica com um membro flexível (fam), no padrão: cabeçalho (contagem) + vetor de ints no final. Escreva e leia valores, imprima os elementos e a soma, e imprima sizeof da struct (que deve ignorar o vetor flexível).</p>
+  <p class="dica"><strong>Dica:</strong> Declare <code>struct Lista { size_t n; int itens[]; };</code> e aloque <code>malloc(sizeof(struct Lista) + n * sizeof(int))</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+struct Lista {
+    size_t n;
+    int itens[];
+};
+
+int main(void) {
+    const size_t n = 5;
+    struct Lista *l = malloc(sizeof(struct Lista) + n * sizeof(int));
+    if (!l) return 1;
+
+    l-&gt;n = n;
+    for (size_t i = 0; i &lt; n; i++) {
+        l-&gt;itens[i] = (int)(i * i);
+    }
+
+    printf(&quot;l:&quot;);
+    long long soma = 0;
+    for (size_t i = 0; i &lt; l-&gt;n; i++) {
+        printf(&quot; %d&quot;, l-&gt;itens[i]);
+        soma += l-&gt;itens[i];
+    }
+    printf(&quot;\n&quot;);
+    printf(&quot;soma: %lld\n&quot;, soma);
+    printf(&quot;sizeof(struct Lista) = %zu\n&quot;, sizeof(struct Lista));
+
+    free(l);
+    return 0;
+}</code></pre>
+        <p class="obs">./ex10_3</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t3-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel nAvançado">Nível Avançado</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.10.4</p>
+  <p class="enunciado">Modele um mini sistema de votação: union Candidato com membros int votos e float taxa; um vetor fixo de 3 candidatos com votos 10, 0, 12. Atribua o total de votos e a taxa média ao campo designado e imprima o total dos gêneros? Não — imprima por candidato o campo ativo (votos) e o total geral.</p>
+  <p class="dica"><strong>Dica:</strong> Simplifique: mostre os votos lidos pelo campo votos, soma-os num uint64_t, e imprima o total. A union ilustra que o espaço pode ser lido de outra forma.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;inttypes.h&gt;
+
+union Candidato {
+    int votos;
+    float taxa;
+};
+
+int main(void) {
+    union Candidato c[3];
+    c[0].votos = 10;
+    c[1].votos = 0;
+    c[2].votos = 12;
+
+    printf(&quot;votos:&quot;);
+    uint64_t total = 0;
+    for (int i = 0; i &lt; 3; i++) {
+        printf(&quot; %d&quot;, c[i].votos);
+        total += (uint64_t)c[i].votos;
+    }
+    printf(&quot;\n&quot;);
+    printf(&quot;total = %&quot; PRIu64 &quot;\n&quot;, total);
+    printf(&quot;sizeof(union) = %zu\n&quot;, sizeof(union Candidato));
+
+    return 0;
+}</code></pre>
+        <p class="obs">./ex10_4</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t3-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel nAvançado">Nível Avançado</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.10.5</p>
+  <p class="enunciado">Escreva um parser de uma porta e de um host da stdin (formato "host:porta"), usando uint16_t para a porta e SCNu16. Em caso de entrada inválida, devolva o código de erro 3 e imprima "erro: valor nao numerico". No sucesso imprima "ok:" com host e porta.</p>
+  <p class="dica"><strong>Dica:</strong> Use fgets + sscanf com <code>"%" SCNu16</code>; verifique o retorno == 1 (host aceite como string qualquer).</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;inttypes.h&gt;
+
+int main(void) {
+    char linha[128];
+    char host[64];
+    uint16_t porta;
+
+    if (!fgets(linha, sizeof linha, stdin)) {
+        printf(&quot;sem entrada\n&quot;);
+        return 1;
+    }
+
+    if (sscanf(linha, &quot;%63[^:]&quot; &quot;:%&quot; SCNu16, host, &amp;porta) == 2) {
+        printf(&quot;ok: %s:%&quot; PRIu16 &quot;\n&quot;, host, porta);
+    } else {
+        printf(&quot;erro: valor nao numerico\n&quot;);
+        return 3;
+    }
+
+    return 0;
+}</code></pre>
+        <p class="obs">./ex10_5 — entrada "localhost:80" -> ok: localhost:80; entrada "abc" -> erro + exit 3.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual é o tamanho garantido de um uint32_t, se a plataforma o oferece?&quot;,&quot;opcoes&quot;:[&quot;Pelo menos 16 bits (pode ser 32)&quot;,&quot;Exatamente 32 bits, sem variação&quot;,&quot;32 bits ou 64 bits, depende do compilador&quot;,&quot;Exatamente 4 bytes em todas as plataformas; e 32 bits se CHAR_BIT=8&quot;],&quot;correta&quot;:3,&quot;explicacao&quot;:&quot;A largura exata é garantida: 32 bits. Como há 8 bits por byte (CHAR_BIT=8), são 4 bytes.&quot;},{&quot;pergunta&quot;:&quot;O que significa a declaração \&quot;unsigned escrita : 1;\&quot;?&quot;,&quot;opcoes&quot;:[&quot;Um byte reservado para escrita&quot;,&quot;Um bit de campo: a flag escrita ocupa só 1 bit&quot;,&quot;Um count com valor 1&quot;,&quot;Reserva um inteiro com limite 1&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;É um bit-field de 1 bit: a flag ocupa exatamente um bit no armazenamento.&quot;},{&quot;pergunta&quot;:&quot;O que faz um compound literal como (struct Ponto){ 3, 4 }?&quot;,&quot;opcoes&quot;:[&quot;Cria uma variável no heap&quot;,&quot;Converte 3 e 4 para pontos sem função&quot;,&quot;Cria um valor temporário de struct na expressão&quot;,&quot;Declara um vetor de dois pontos&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;É um valor literal composto, criado na expressão, de tipo struct Ponto, com 3 e 4.&quot;},{&quot;pergunta&quot;:&quot;Para ler um uint16_t com sscanf, qual especificador usar?&quot;,&quot;opcoes&quot;:[&quot;%hd&quot;,&quot;%&#39; SCNu16&quot;,&quot;%d&quot;,&quot;%u com cast&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;A macro SCNu16 expande para o especificador correto de leitura de uint16_t.&quot;},{&quot;pergunta&quot;:&quot;Qual o papel do membro flexível em \&quot;struct L { size_t n; int itens[]; };\&quot;?&quot;,&quot;opcoes&quot;:[&quot;Armazena um int por padrão igual a 0&quot;,&quot;Permite um vetor de tamanho definido no fim do struct, alocado além do sizeof&quot;,&quot;Impõe alinhamento de 16 bytes&quot;,&quot;Cria um ponteiro para int&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O membro flexível ([]) fica no final e deve ser alocado com malloc além do sizeof(struct).&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Cabeçalho de protocolo compacto</h2>
+  <p>Implemente um cabeçalho de protocolo binário com bit-fields: um registro com 3 flags (1 bit), um campo de tipo (3 bits) e um campo de tamanho (4 bits), mais um campo payload de até 2 bytes, totalizando 1 byte de cabeçalho + payload. Grava esse registro em um arquivo binário "pacote.bin" e depois lê de volta, imprimindo todos os campos e o tamanho total (deve ser 1 byte de cabeçalho + payload, struct com _Static_assert de que o cabeçalho ocupa 1 byte se possível).</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>3 flags de 1 bit (fim_de_stream, urgente, crc_incluido).</li><li>Campo de tipo com 3 bits e campo de tamanho com 4 bits.</li><li>Cabeçalho em 1 byte (uint8_t contendo os 8 bits).</li><li>Grava em binário e lê de volta com memcpy.</li><li>Imprime os campos e o total de bytes.</li><li>Compila com gcc -Wall -Wextra -std=c11 sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="tempo-e-datas-sob-o-olhar-do-qs.html">← 3.09 Tempo e datas (sob o olhar do QS)</a><a class="btn nav-next" href="a-vida-fora-do-main-ambiente-saida-e-interacao.html">3.11 A vida fora do main: ambiente, saída e interação →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t3-m10">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

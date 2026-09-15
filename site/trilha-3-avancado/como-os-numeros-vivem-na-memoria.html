@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3.02 — Como os números vivem na memória — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="3">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t3">Trilha 3 — Avançado</a> / Como os números vivem na memória</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">3.02</div>
+    <h1>Como os números vivem na memória</h1>
+    <p class="subtitulo">complemento de 2, IEEE 754, NaN/Infinity e sizes</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado</span>
+      <span class="chip">Duração: ~35 min</span>
+      <span class="chip">Pré-requisitos: T3.01; T2.09 (arrays e ponteiros) ajuda</span>
+    </div>
+    <button class="btn btn-done" data-mod="t3-m02">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Descer até o bit: entender por que ~x+1 == -x, ler um float como sinal+expoente+mantissa, explicar a inexatidão de 0.1, reconhecer NaN/Infinity, e saber que sizeof/limits mudam de plataforma para plataforma.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulos 14–15 (typecasting e bitwise) e 37 (floating point obs.)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 7 (Tipos básicos) e seção 20.1 (nível de bits)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, o capítulo 7 é o lar dos tipos; a seção 20.1 é onde você vê bits, bytes e palavras. No Beej, foque nos operadores de bits (<<, >>, &, |, ~) porque vamos usá-los para inspecionar números.</p>
+</section>
+  <section class="card secao">
+  <h2>Inteiros e o complemento de 2</h2>
+  <p>Praticamente todos os processadores modernos representam inteiros negativos em <strong>complemento de 2</strong>: o negativo de um número é <code>~x + 1</code> (inverte todos os bits e soma 1). Isso faz com que a soma <code>x + (~x + 1)</code> vire exatamente zero sem lógica especial, e que o bit mais significativo funcione como sinal. Consequências práticas: a faixa é assimétrica (num int de 32 bits vai de -2147483648 a 2147483647), estouro de sinal é um undefined behavior teórico (embora na prática ele "dê a volta"), e <code>INT_MIN</code> é o único cujo negativo não cabe.</p>
+  <ul><li>Em complemento de 2, <code>~x + 1</code> é sempre igual a <code>-x</code> — teste no exercício 2.</li>
+<li>O bit mais à esquerda = 0 para positivos, 1 para negativos.</li>
+<li>Somador de hardware não diferencia positivo/negativo: a matemática "simplesmente funciona".</li>
+<li>Nunca desloque um valor negativo para a direita esperando o sinal se propagar — comportamento de implementação.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Lendo os bits de um float</h2>
+  <p>Um <code>float</code> IEEE 754 de 32 bits divide-se em três campos: <strong>1 bit de sinal</strong>, <strong>8 bits de expoente</strong> (com viés de 127) e <strong>23 bits de mantissa</strong> (a fração binária, com um 1 implícito). O valor é <code>±1.fração × 2^(expoente−127)</code>. O truque clássico para inspecionar os bits é uma <code>union</code> que enxerga os mesmos 4 bytes como <code>float</code> ou como <code>uint32_t</code>.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — bits.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+
+static void bits_float(float f)
+{
+    union {
+        float f;
+        uint32_t u;
+    } conv;
+    conv.f = f;
+    printf(&quot;%10g = &quot;, (double)f);
+    for (int i = 31; i &gt;= 0; i--) {
+        putchar((conv.u &gt;&gt; i) &amp; 1u ? '1' : '0');
+        if (i == 31 || i == 23) {
+            putchar(' ');
+        }
+    }
+    putchar('\n');
+}
+
+int main(void)
+{
+    bits_float(1.0f);
+    bits_float(0.5f);
+    bits_float(-2.5f);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; bits
+         1 = 0 01111111 00000000000000000000000
+       0.5 = 0 01111110 00000000000000000000000
+      -2.5 = 1 10000000 01000000000000000000000</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Por que 0.1 é inexato</h2>
+  <p>Assim como 1/3 não tem representação finita em decimal, 0.1 em binário é uma dízima periódica. Então <code>0.1</code> guardado num double é o "mais próximo representável" — e não o 0.1 exato. Somar dez vezes esse valor não devolve 1.0, e <code>0.1 + 0.2</code> não é <code>0.3</code>. Isso não é bug do C: é a natureza do ponto flutuante. A comparação correta usa uma tolerância (ex.: <code>fabs(a - b) &lt; 1e-9</code>).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — inexato.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double soma = 0.0;
+    for (int i = 0; i &lt; 10; i++) {
+        soma += 0.1;
+    }
+    printf(&quot;soma = %.20f\n&quot;, soma);
+    printf(&quot;soma == 1.0? %s\n&quot;, soma == 1.0 ? &quot;sim&quot; : &quot;NAO&quot;);
+    printf(&quot;1.0 - soma = %.20g\n&quot;, 1.0 - soma);
+    double a = 0.1 + 0.2;
+    printf(&quot;0.1 + 0.2 = %.20f\n&quot;, a);
+    printf(&quot;0.1 + 0.2 == 0.3? %s\n&quot;, a == 0.3 ? &quot;sim&quot; : &quot;NAO&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; inexato
+soma = 0.99999999999999988898
+soma == 1.0? NAO
+1.0 - soma = 1.1102230246251565404e-16
+0.1 + 0.2 = 0.30000000000000004441
+0.1 + 0.2 == 0.3? NAO</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>NaN e Infinity: os valores especiais</h2>
+  <p>O IEEE 754 reserva valores de expoente para representar <em>infinito</em> e <em>não-número</em> (NaN). Dividir por zero dá <code>inf</code> (ou <code>-inf</code>); 0.0/0.0 dá NaN. A macro <code>isfinite</code> de <code>&lt;math.h&gt;</code> testa se o número é finito, e <code>isnan</code> testa NaN. A regra de ouro: <strong>NaN nunca é igual a nada</strong>, nem a ele mesmo — <code>nan == nan</code> é falso. É por isso que você testa com <code>isnan</code> e não com <code>==</code>.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — especiais.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;math.h&gt;
+
+int main(void)
+{
+    double inf = 1.0 / 0.0;
+    double nan = 0.0 / 0.0;
+    printf(&quot;1.0/0.0 = %g\n&quot;, inf);
+    printf(&quot;0.0/0.0 = %g\n&quot;, nan);
+    printf(&quot;inf e finito? %s\n&quot;, isfinite(inf) ? &quot;sim&quot; : &quot;nao&quot;);
+    printf(&quot;nan e NaN? %s\n&quot;, isnan(nan) ? &quot;sim&quot; : &quot;nao&quot;);
+    printf(&quot;inf == inf? %s\n&quot;, inf == inf ? &quot;sim&quot; : &quot;nao&quot;);
+    printf(&quot;nan == nan? %s\n&quot;, nan == nan ? &quot;sim&quot; : &quot;nao&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; especiais
+1.0/0.0 = inf
+0.0/0.0 = -nan(ind)
+inf e finito? nao
+nan e NaN? sim
+inf == inf? sim
+nan == nan? nao</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>sizeof, limits.h e a verdade das plataformas</h2>
+  <p>O C garante faixas <em>mínimas</em>, não tamanhos exatos. O mesmo código compilado em Windows e Linux pode mudar: no Windows (modelo LLp64) <code>long</code> tem 4 bytes; no Linux (LP64) <code>long</code> tem 8 bytes. <code>int</code>, <code>float</code> e <code>double</code> costumam ser 4/4/8 em ambos, mas você nunca deve confiar — confie em <code>sizeof</code> e nas constantes de <code>&lt;limits.h&gt;</code>/<code>&lt;float.h&gt;</code>. Para inteiros com tamanho garantido use os tipos de <code>&lt;stdint.h&gt;</code> (<code>int32_t</code>, <code>int64_t</code>).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — sizes.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;limits.h&gt;
+#include &lt;float.h&gt;
+
+int main(void)
+{
+    printf(&quot;char:     %2zu bytes  (%d ate %d)\n&quot;, sizeof(char), CHAR_MIN, CHAR_MAX);
+    printf(&quot;int:      %2zu bytes  (%d ate %d)\n&quot;, sizeof(int), INT_MIN, INT_MAX);
+    printf(&quot;long:     %2zu bytes  (%ld ate %ld)\n&quot;, sizeof(long), LONG_MIN, LONG_MAX);
+    printf(&quot;long long:%2zu bytes  (%lld ate %lld)\n&quot;, sizeof(long long), LLONG_MIN, LLONG_MAX);
+    printf(&quot;float:    %2zu bytes  (epsilon ~%g)\n&quot;, sizeof(float), FLT_EPSILON);
+    printf(&quot;double:   %2zu bytes  (epsilon ~%g)\n&quot;, sizeof(double), DBL_EPSILON);
+    printf(&quot;ponteiro: %2zu bytes\n&quot;, sizeof(void *));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; sizes     (Windows / MinGW 64 bits)
+char:      1 bytes  (-128 ate 127)
+int:       4 bytes  (-2147483648 ate 2147483647)
+long:      4 bytes  (-2147483648 ate 2147483647)
+long long: 8 bytes  (-9223372036854775808 ate 9223372036854775807)
+float:     4 bytes  (epsilon ~1.19209e-07)
+double:    8 bytes  (epsilon ~2.22045e-16)
+ponteiro:  8 bytes</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t3-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.02.1</p>
+  <p class="enunciado">Escreva um programa que guarda o <code>uint32_t</code> 0x01020304 na memória e imprime os 4 bytes em ordem de endereço. Com base na saída, diga se a máquina é little-endian ou big-endian.</p>
+  <p class="dica"><strong>Dica:</strong> Faça um cast de <code>unsigned char*</code> sobre o endereço do inteiro e imprima p[0], p[1], p[2], p[3].</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+
+int main(void)
+{
+    uint32_t x = 0x01020304u;
+    unsigned char *p = (unsigned char *)&amp;x;
+    printf(&quot;bytes em memoria: %02x %02x %02x %02x\n&quot;, p[0], p[1], p[2], p[3]);
+    if (p[0] == 0x04) {
+        printf(&quot;little-endian (x86, x86-64)\n&quot;);
+    } else if (p[0] == 0x01) {
+        printf(&quot;big-endian\n&quot;);
+    } else {
+        printf(&quot;ordem inesperada\n&quot;);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Saída neste computador (x86-64): "bytes em memoria: 04 03 02 01" e "little-endian". O byte menos significativo vem primeiro.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t3-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.02.2</p>
+  <p class="enunciado">Prove em C que <code>~x + 1 == -x</code> para vários valores (0, 1, -1, 42, -42, 100000, -100000) e imprima a comparação para cada um.</p>
+  <p class="dica"><strong>Dica:</strong> Use um array de ints e um loop; compare <code>(~x + 1) == -x</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int vals[] = {0, 1, -1, 42, -42, 100000, -100000};
+    for (size_t i = 0; i &lt; sizeof vals / sizeof vals[0]; i++) {
+        int x = vals[i];
+        int neg = ~x + 1;
+        printf(&quot;x=%7d  ~x+1=%7d  igual a -x? %s\n&quot;, x, neg,
+               neg == -x ? &quot;sim&quot; : &quot;nao&quot;);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real: para todos os valores testados a igualdade é "sim" — é o complemento de 2 funcionando.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t3-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.02.3</p>
+  <p class="enunciado">Escreva um "decodificador de float": com uma union, leia os bits de um float, extraia sinal, expoente e mantissa, e reconstrua o valor <code>±(1.fração) × 2^(expoente−127)</code> usando <code>ldexp</code>. Use -13.25f como caso de teste.</p>
+  <p class="dica"><strong>Dica:</strong> A fração é a mantissa lida do bit 22 ao bit 0: se o bit k está ligado, soma <code>ldexp(1.0, -(k+1))</code> à fração (que começa em 1.0).</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;math.h&gt;
+
+int main(void)
+{
+    union {
+        float f;
+        uint32_t u;
+    } c;
+    c.f = -13.25f;
+    uint32_t u = c.u;
+    unsigned sinal = u &gt;&gt; 31;
+    unsigned expo = (u &gt;&gt; 23) &amp; 0xffu;
+    uint32_t mant = u &amp; 0x7fffffu;
+
+    double fracao = 1.0;
+    for (unsigned i = 0; i &lt; 23; i++) {
+        if (mant &amp; (1u &lt;&lt; (22 - i))) {
+            fracao += ldexp(1.0, -(int)(i + 1));
+        }
+    }
+    double valor = ldexp(fracao, (int)expo - 127);
+    if (sinal) {
+        valor = -valor;
+    }
+
+    printf(&quot;bits: %08x\n&quot;, (unsigned)u);
+    printf(&quot;sinal=%u expoente=%u mantissa=%06x\n&quot;, sinal, expo, (unsigned)mant);
+    printf(&quot;valor decodificado = %.6g\n&quot;, valor);
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real: <code>bits: c1540000 / sinal=1 expoente=130 mantissa=540000 / valor decodificado = -13.25</code>. Expoente 130−127 = 3 e 1.65625×2³ = 13.25.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Em complemento de 2, quanto vale ~x + 1?&quot;,&quot;opcoes&quot;:[&quot;x - 1&quot;,&quot;-x&quot;,&quot;x + 1&quot;,&quot;Sempre zero&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Inverter os bits e somar 1 é a definição do negativo em complemento de 2.&quot;},{&quot;pergunta&quot;:&quot;Em um float IEEE 754, o campo de 8 bits do expoente usa viés de...&quot;,&quot;opcoes&quot;:[&quot;64&quot;,&quot;127&quot;,&quot;255&quot;,&quot;1023&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O viés do float (32 bits) é 127; o do double (64 bits) é 1023.&quot;},{&quot;pergunta&quot;:&quot;Por que somar 0.1 dez vezes não dá exatamente 1.0?&quot;,&quot;opcoes&quot;:[&quot;Porque o C é impreciso&quot;,&quot;Porque 0.1 não tem representação exata em binário&quot;,&quot;Porque falta a biblioteca math&quot;,&quot;Porque o tipo devia ser float&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;0.1 vira uma dízima periódica em binário; o valor guardado é o mais próximo representável.&quot;},{&quot;pergunta&quot;:&quot;Como você testa se um double é NaN?&quot;,&quot;opcoes&quot;:[&quot;valor == NaN&quot;,&quot;valor != valor dá falso&quot;,&quot;isnan(valor)&quot;,&quot;isinf(valor)&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;NaN nunca é igual a nada, então na prática usa-se a macro &lt;code&gt;isnan&lt;/code&gt; de &lt;code&gt;&amp;lt;math.h&amp;gt;&lt;/code&gt;.&quot;},{&quot;pergunta&quot;:&quot;No Windows (MinGW 64 bits), qual desses NÃO tem 8 bytes?&quot;,&quot;opcoes&quot;:[&quot;long long&quot;,&quot;double&quot;,&quot;ponteiro&quot;,&quot;long&quot;],&quot;correta&quot;:3,&quot;explicacao&quot;:&quot;No modelo LLp64 do Windows, &lt;code&gt;long&lt;/code&gt; tem 4 bytes; &lt;code&gt;long long&lt;/code&gt;, &lt;code&gt;double&lt;/code&gt; e ponteiros têm 8.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Dump de arquivo em hex e binário</h2>
+  <p>Crie <code>hexdump.c</code>: dado um arquivo (ex.: um .txt pequeno), imprime cada byte como hex (offset de 4 dígitos + 16 bytes em hex + os bytes legíveis ao lado). No fim, mostre a contagem de bytes que são ASCII imprimível e a dos que pertencem a sequências multibyte (bit 7 ligado). É o início do seu "olho de baixo nível" — útil para a Trilha 4.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Compila com <code>gcc -Wall -Wextra -std=c11</code> sem avisos.</li><li>Para o arquivo numeros.txt (3 linhas), imprime o offset inicial 0000 e todos os bytes em hex.</li><li>A última coluna mostra os caracteres ASCII legíveis e ponto (.) para os demais.</li><li>Relatório final: total de bytes, ASCII imprimíveis e bytes com bit 7 ligado.</li><li>Trata erro de abertura com strerror e EXIT_FAILURE.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="biblioteca-padrao-e-tratamento-de-erros.html">← 3.01 Biblioteca padrão e tratamento de erros</a><a class="btn nav-next" href="tipos-avancados-storage-classes-e-declaracoes.html">3.03 Tipos avançados, storage classes e declarações →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t3-m02">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.15 — Estruturas de dados fundamentais — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / Estruturas de dados fundamentais</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.15</div>
+    <h1>Estruturas de dados fundamentais</h1>
+    <p class="subtitulo">pilha/fila, busca linear e binária, ordenação, hash table e big-O</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~40 min</span>
+      <span class="chip">Pré-requisitos: T2.05 e T2.12</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m15">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Montar as estruturas que sustentam sistemas de verdade: pilha e fila sobre array, busca linear vs binária, ordenação com contadores de passos (bubble, insertion), hash table com encadeamento — e ganhar intuição prática de big-O para escolher a estrutura certa para cada problema.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulos 5–6 (arrays e ponteiros) para revisar o substrato das implementações</p>
+  <p><strong>King (livro em PDF):</strong> Capítulos 8–9 (arrays e funções) e 17 (ponteiros avançados e estruturas)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, use os capítulos 8–9 como referência de arrays/funções e o 17 para as structs dinâmicas. Os algoritmos de busca e ordenação não estão no livro — implemente-os nos exercícios deste módulo.</p>
+</section>
+  <section class="card secao">
+  <h2>Pilha e fila sobre array</h2>
+  <p>No T2.12 você viu pilha e fila sobre <em>lista encadeada</em>. A mesma lógica vive sobre um <strong>array dinâmico</strong>: a pilha guarda um índice <code>topo</code> (o próximo lugar livre) e a posição 0 é o fundo; a fila de tamanho fixo usa a <em>fila circular</em> — índices <code>ini</code> e <code>cont</code> que "dão a volta" no array com <code>%</code>.</p>
+<p>Vetor ganha em cache e acesso O(1) por índice; lista encadeada ganha quando o tamanho é imprevisível e há remoção no meio. Veja a pilha com array abaixo; a fila circular fica para você no exercício.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — pilha-array.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+typedef struct {
+    int *dados;
+    int topo;
+    int cap;
+} Pilha;
+
+int pilha_inicia(Pilha *p, int cap)
+{
+    p-&gt;dados = malloc((size_t)cap * sizeof *p-&gt;dados);
+    if (p-&gt;dados == NULL) {
+        return 0;
+    }
+    p-&gt;topo = 0;
+    p-&gt;cap = cap;
+    return 1;
+}
+
+int pilha_vazia(const Pilha *p) { return p-&gt;topo == 0; }
+int pilha_cheia(const Pilha *p) { return p-&gt;topo == p-&gt;cap; }
+
+int empilhar(Pilha *p, int v)
+{
+    if (pilha_cheia(p)) {
+        return 0;
+    }
+    p-&gt;dados[p-&gt;topo++] = v;
+    return 1;
+}
+
+int desempilhar(Pilha *p, int *saida)
+{
+    if (pilha_vazia(p)) {
+        return 0;
+    }
+    *saida = p-&gt;dados[--p-&gt;topo];
+    return 1;
+}
+
+int topo(const Pilha *p, int *saida)
+{
+    if (pilha_vazia(p)) {
+        return 0;
+    }
+    *saida = p-&gt;dados[p-&gt;topo - 1];
+    return 1;
+}
+
+void pilha_destroi(Pilha *p)
+{
+    free(p-&gt;dados);
+    p-&gt;dados = NULL;
+    p-&gt;topo = 0;
+    p-&gt;cap = 0;
+}
+
+int main(void)
+{
+    Pilha p;
+    if (!pilha_inicia(&amp;p, 4)) {
+        return 1;
+    }
+
+    empilhar(&amp;p, 10);
+    empilhar(&amp;p, 20);
+    empilhar(&amp;p, 30);
+
+    int v;
+    topo(&amp;p, &amp;v);
+    printf(&quot;topo sem remover: %d\n&quot;, v);
+
+    while (desempilhar(&amp;p, &amp;v)) {
+        printf(&quot;desempilhou: %d\n&quot;, v);
+    }
+    printf(&quot;vazia? %s\n&quot;, pilha_vazia(&amp;p) ? &quot;sim&quot; : &quot;nao&quot;);
+
+    pilha_destroi(&amp;p);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 pilha-array.c -o pilha
+&gt; .\pilha.exe
+
+topo sem remover: 30
+desempilhou: 30
+desempilhou: 20
+desempilhou: 10
+vazia? sim</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Busca: linear vs binária</h2>
+  <p><strong>Busca linear</strong> anda do início ao fim sem assumir nada: funciona até em array desordenado, mas custa até n passos. <strong>Busca binária</strong> exige array <strong>ordenado</strong>: compara com o elemento do meio e descarta metade do array a cada passo — custa cerca de log2(n) passos.</p>
+<p>Regra prática: poucos elementos ou dados desordenados → linear (simples e sem custo de ordenação prévia); dados já ordenados e muitos elementos → binária.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — busca.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int busca_linear(const int v[], int n, int alvo)
+{
+    int passos = 0;
+    for (int i = 0; i &lt; n; i++) {
+        passos++;
+        if (v[i] == alvo) {
+            printf(&quot;linear: %d no indice %d em %d passos\n&quot;, alvo, i, passos);
+            return i;
+        }
+    }
+    printf(&quot;linear: %d nao existe (levou %d passos)\n&quot;, alvo, passos);
+    return -1;
+}
+
+int busca_binaria(const int v[], int n, int alvo, int *passos)
+{
+    int ini = 0, fim = n - 1;
+    *passos = 0;
+    while (ini &lt;= fim) {
+        (*passos)++;
+        int meio = ini + (fim - ini) / 2;
+        if (v[meio] == alvo) {
+            return meio;
+        }
+        if (v[meio] &lt; alvo) {
+            ini = meio + 1;
+        } else {
+            fim = meio - 1;
+        }
+    }
+    return -1;
+}
+
+int main(void)
+{
+    int v[] = {2, 5, 8, 12, 16, 23, 38, 56, 72, 91};
+    int n = 10;
+    int passos;
+
+    busca_linear(v, n, 23);
+    int idx = busca_binaria(v, n, 23, &amp;passos);
+    printf(&quot;binaria: %d no indice %d em %d passos\n&quot;, 23, idx, passos);
+
+    busca_linear(v, n, 100);
+    idx = busca_binaria(v, n, 100, &amp;passos);
+    printf(&quot;binaria: %d nao existe (levou %d passos)\n&quot;, 100, passos);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 busca.c -o busca
+&gt; .\busca.exe
+
+linear: 23 no indice 5 em 6 passos
+binaria: 23 no indice 5 em 3 passos
+linear: 100 nao existe (levou 10 passos)
+binaria: 100 nao existe (levou 4 passos)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Ordenação: bubble (didático) e insertion vs comparação por contadores</h2>
+  <p><strong>Bubble sort</strong> é puramente didático: compara vizinhos e troca se estiverem fora de ordem, "empurrando" o maior para o fim a cada passada. O <strong>insertion sort</strong> constrói uma metade ordenada à esquerda e encaixa cada novo elemento no lugar — bom para arrays pequenos e quase ordenados.</p>
+<p>A forma de <em>medir</em> um algoritmo nesta fase é contar: quantas comparações e quantas trocas ele fez? A saída abaixo traz os números reais do bubble sobre 6 elementos — guarde essas contagens na cabeça para a seção de big-O.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — bubble.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void imprimir(const int v[], int n)
+{
+    for (int i = 0; i &lt; n; i++) {
+        printf(&quot;%d &quot;, v[i]);
+    }
+    printf(&quot;\n&quot;);
+}
+
+int main(void)
+{
+    int v[] = {7, 2, 9, 4, 3, 8};
+    int n = 6;
+    int comparacoes = 0;
+    int trocas = 0;
+
+    printf(&quot;original: &quot;);
+    imprimir(v, n);
+
+    for (int i = 0; i &lt; n - 1; i++) {
+        for (int j = 0; j &lt; n - 1 - i; j++) {
+            comparacoes++;
+            if (v[j] &gt; v[j + 1]) {
+                int tmp = v[j];
+                v[j] = v[j + 1];
+                v[j + 1] = tmp;
+                trocas++;
+            }
+        }
+        printf(&quot;apos passada %d: &quot;, i + 1);
+        imprimir(v, n);
+    }
+
+    printf(&quot;comparacoes=%d trocas=%d\n&quot;, comparacoes, trocas);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 bubble.c -o bubble
+&gt; .\bubble.exe
+
+original: 7 2 9 4 3 8 
+apos passada 1: 2 7 4 3 8 9 
+apos passada 2: 2 4 3 7 8 9 
+apos passada 3: 2 3 4 7 8 9 
+apos passada 4: 2 3 4 7 8 9 
+apos passada 5: 2 3 4 7 8 9 
+comparacoes=15 trocas=7
+
+(15 = n·(n-1)/2 com n=6: o bubble sempre faz o pior número de comparações)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Hash table simples: encadeamento separado</h2>
+  <p>Uma <strong>hash table</strong> usa uma função hash para converter a chave em um índice de array e guarda o dado lá. Colisões (duas chaves caindo no mesmo índice) são resolvidas com <strong>encadeamento separado</strong>: cada posição guarda uma lista encadeada de chaves. Inserir, buscar e remover ficam O(1) na média.</p>
+<p>O custo de verdade depende da <em>qualidade da função hash</em> e do tamanho da tabela. Abaixo usamos a clássica djb2 sobre strings — simples e suficiente para aprender.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — hash.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+#define TAM 5
+
+typedef struct No {
+    char *palavra;
+    struct No *proximo;
+} No;
+
+typedef struct {
+    No *buckets[TAM];
+} Hash;
+
+unsigned hash_djb2(const char *s)
+{
+    unsigned h = 5381;
+    for (const unsigned char *p = (const unsigned char *)s; *p; p++) {
+        h = h * 33u + *p;
+    }
+    return h;
+}
+
+void hash_inserir(Hash *ht, const char *s)
+{
+    unsigned idx = hash_djb2(s) % TAM;
+
+    No *novo = malloc(sizeof *novo);
+    if (novo == NULL) {
+        return;
+    }
+    novo-&gt;palavra = malloc(strlen(s) + 1);
+    if (novo-&gt;palavra == NULL) {
+        free(novo);
+        return;
+    }
+    strcpy(novo-&gt;palavra, s);
+    novo-&gt;proximo = ht-&gt;buckets[idx];
+    ht-&gt;buckets[idx] = novo;
+}
+
+int hash_buscar(const Hash *ht, const char *s)
+{
+    unsigned idx = hash_djb2(s) % TAM;
+    for (const No *p = ht-&gt;buckets[idx]; p != NULL; p = p-&gt;proximo) {
+        if (strcmp(p-&gt;palavra, s) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void hash_destroi(Hash *ht)
+{
+    for (int i = 0; i &lt; TAM; i++) {
+        No *atual = ht-&gt;buckets[i];
+        while (atual != NULL) {
+            No *prox = atual-&gt;proximo;
+            free(atual-&gt;palavra);
+            free(atual);
+            atual = prox;
+        }
+        ht-&gt;buckets[i] = NULL;
+    }
+}
+
+int main(void)
+{
+    Hash ht = {{NULL}};
+    const char *palavras[] = {
+        &quot;gato&quot;, &quot;cachorro&quot;, &quot;peixe&quot;, &quot;passaro&quot;,
+        &quot;cobra&quot;, &quot;gato&quot;, &quot;tartaruga&quot;
+    };
+    int n = 7;
+
+    for (int i = 0; i &lt; n; i++) {
+        hash_inserir(&amp;ht, palavras[i]);
+    }
+
+    for (int i = 0; i &lt; TAM; i++) {
+        int cont = 0;
+        for (const No *p = ht.buckets[i]; p != NULL; p = p-&gt;proximo) {
+            cont++;
+        }
+        printf(&quot;bucket %d: %d itens\n&quot;, i, cont);
+    }
+
+    printf(&quot;buscar 'peixe': %s\n&quot;, hash_buscar(&amp;ht, &quot;peixe&quot;) ? &quot;achou&quot; : &quot;nao achou&quot;);
+    printf(&quot;buscar 'leao':  %s\n&quot;, hash_buscar(&amp;ht, &quot;leao&quot;) ? &quot;achou&quot; : &quot;nao achou&quot;);
+
+    hash_destroi(&amp;ht);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 hash.c -o hash
+&gt; .\hash.exe
+
+bucket 0: 0 itens
+bucket 1: 1 itens
+bucket 2: 1 itens
+bucket 3: 4 itens
+bucket 4: 1 itens
+buscar 'peixe': achou
+buscar 'leao':  nao achou
+
+(4 das 7 chaves caíram no bucket 3: hash simples + tabela pequena. O encadeamento resolveu; uma hash melhor distribuiria melhor.)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Big-O em palavras simples</h2>
+  <p>Big-O descreve como o trabalho cresce quando a entrada cresce — "o que domina". Não é sobre segundos, é sobre <em>escala</em>:</p>
+  <ul><li><code>O(1)</code> — trabalho constante: acessar <code>arr[i]</code>, push/pop de pilha, ler um registro com fseek.</li>
+<li><code>O(log n)</code> — divide o problema pela metade a cada passo: busca binária.</li>
+<li><code>O(n)</code> — uma passada: percorrer um array, busca linear.</li>
+<li><code>O(n log n)</code> — ordenar bem feito (merge sort, qsort da stdlib).</li>
+<li><code>O(n²)</code> — loops aninhados sobre tudo: bubble/insertion no pior caso.</li>
+<li>Regra de bolso: identifique o trecho que domina. Busca binária em array ordenado vence uma hash de má qualidade; e nunca subestime o <strong>custo de inserir/remover no meio</strong>.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Teste de contadores na prática</h2>
+  <p>Fechando: um experimento que junta as peças — ordenar com bubble contando comparações e trocas, depois buscar binariamente contando passos. Os números saem do próprio programa, que é a sua "medição mental" com valores reais.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — medir.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void imprimir(const int v[], int n)
+{
+    for (int i = 0; i &lt; n; i++) {
+        printf(&quot;%d &quot;, v[i]);
+    }
+    printf(&quot;\n&quot;);
+}
+
+int main(void)
+{
+    int v[] = {5, 1, 4, 2, 3, 0};
+    int n = 6;
+    int comp = 0;
+    int trocas = 0;
+
+    printf(&quot;antes : &quot;);
+    imprimir(v, n);
+
+    for (int i = 0; i &lt; n - 1; i++) {
+        for (int j = 0; j &lt; n - 1 - i; j++) {
+            comp++;
+            if (v[j] &gt; v[j + 1]) {
+                int tmp = v[j];
+                v[j] = v[j + 1];
+                v[j + 1] = tmp;
+                trocas++;
+            }
+        }
+    }
+    printf(&quot;depois: &quot;);
+    imprimir(v, n);
+    printf(&quot;bubble: %d comparacoes, %d trocas\n&quot;, comp, trocas);
+
+    int passos = 0;
+    int alvo = 3;
+    int ini = 0, fim = n - 1, achado = -1;
+    while (ini &lt;= fim) {
+        passos++;
+        int meio = ini + (fim - ini) / 2;
+        if (v[meio] == alvo) {
+            achado = meio;
+            break;
+        }
+        if (v[meio] &lt; alvo) {
+            ini = meio + 1;
+        } else {
+            fim = meio - 1;
+        }
+    }
+    printf(&quot;busca binaria por %d: indice %d em %d passos\n&quot;, alvo, achado, passos);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 medir.c -o medir
+&gt; .\medir.exe
+
+antes : 5 1 4 2 3 0 
+depois: 0 1 2 3 4 5 
+bubble: 15 comparacoes, 11 trocas
+busca binaria por 3: indice 3 em 3 passos</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m15">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.15.1</p>
+  <p class="enunciado">Implemente a pilha com array dinâmico que <strong>cresce sozinha</strong> — dobre a capacidade com realloc quando lotar — com <code>push</code>, <code>pop</code>, <code>is_empty</code> e <code>peek</code>. Empilhe 10, 20, ..., 60 e imprima a capacidade a cada empilhada.</p>
+  <p class="dica"><strong>Dica:</strong> Comece com cap 2; o realloc pode mover o bloco, então atualize o ponteiro e a capacidade ao mesmo tempo.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+typedef struct {
+    int *dados;
+    int topo;
+    int cap;
+} Pilha;
+
+int pilha_inicia(Pilha *p)
+{
+    p-&gt;cap = 2;
+    p-&gt;topo = 0;
+    p-&gt;dados = malloc((size_t)p-&gt;cap * sizeof *p-&gt;dados);
+    return p-&gt;dados != NULL;
+}
+
+int pilha_vazia(const Pilha *p) { return p-&gt;topo == 0; }
+
+int empilhar(Pilha *p, int v)
+{
+    if (p-&gt;topo == p-&gt;cap) {
+        int novo_cap = p-&gt;cap * 2;
+        int *novo = realloc(p-&gt;dados, (size_t)novo_cap * sizeof *novo);
+        if (novo == NULL) {
+            return 0;
+        }
+        p-&gt;dados = novo;
+        p-&gt;cap = novo_cap;
+    }
+    p-&gt;dados[p-&gt;topo++] = v;
+    return 1;
+}
+
+int desempilhar(Pilha *p, int *out)
+{
+    if (pilha_vazia(p)) {
+        return 0;
+    }
+    *out = p-&gt;dados[--p-&gt;topo];
+    return 1;
+}
+
+int espiar(const Pilha *p, int *out)
+{
+    if (pilha_vazia(p)) {
+        return 0;
+    }
+    *out = p-&gt;dados[p-&gt;topo - 1];
+    return 1;
+}
+
+int main(void)
+{
+    Pilha p;
+    if (!pilha_inicia(&amp;p)) {
+        return 1;
+    }
+
+    for (int i = 10; i &lt;= 60; i += 10) {
+        if (empilhar(&amp;p, i)) {
+            printf(&quot;empilhou %d (cap %d)\n&quot;, i, p.cap);
+        } else {
+            printf(&quot;falha ao empilhar %d\n&quot;, i);
+        }
+    }
+
+    int v;
+    if (espiar(&amp;p, &amp;v)) {
+        printf(&quot;espiar (topo): %d\n&quot;, v);
+    }
+
+    while (desempilhar(&amp;p, &amp;v)) {
+        printf(&quot;desempilhou %d\n&quot;, v);
+    }
+    printf(&quot;vazia? %s\n&quot;, pilha_vazia(&amp;p) ? &quot;sim&quot; : &quot;nao&quot;);
+
+    free(p.dados);
+    return 0;
+}</code></pre>
+        <p class="obs">A capacidade dobra 2 → 4 → 8 conforme o topo encosta no limite; isso é a "pilha que cresce".</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m15">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.15.2</p>
+  <p class="enunciado">Implemente a <strong>fila circular</strong> FIFO com array de tamanho fixo <code>TAM 5</code>: campos <code>ini</code> e <code>cont</code>, e o índice do próximo buraco <code>(ini + cont) % TAM</code>. Enfileire 10..50 (deve encher), tente 60 (deve falhar), remova um, insira 70 no buraco e esvazie tudo.</p>
+  <p class="dica"><strong>Dica:</strong> Remover avança <code>ini</code> com <code>%</code>; a fila "dá a volta" no array sem mover nada.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+#define TAM 5
+
+typedef struct {
+    int dados[TAM];
+    int ini;
+    int cont;
+} Fila;
+
+int fila_vazia(const Fila *f) { return f-&gt;cont == 0; }
+int fila_cheia(const Fila *f) { return f-&gt;cont == TAM; }
+
+int enfileirar(Fila *f, int v)
+{
+    if (fila_cheia(f)) {
+        return 0;
+    }
+    int pos = (f-&gt;ini + f-&gt;cont) % TAM;
+    f-&gt;dados[pos] = v;
+    f-&gt;cont++;
+    return 1;
+}
+
+int desenfileirar(Fila *f, int *out)
+{
+    if (fila_vazia(f)) {
+        return 0;
+    }
+    *out = f-&gt;dados[f-&gt;ini];
+    f-&gt;ini = (f-&gt;ini + 1) % TAM;
+    f-&gt;cont--;
+    return 1;
+}
+
+int main(void)
+{
+    Fila f = {0};
+
+    for (int i = 1; i &lt;= 5; i++) {
+        printf(&quot;enfileirar %2d: %d\n&quot;, i * 10, enfileirar(&amp;f, i * 10));
+    }
+    printf(&quot;enfileirar 60 (cheia): %d\n&quot;, enfileirar(&amp;f, 60));
+
+    int v;
+    desenfileirar(&amp;f, &amp;v);
+    printf(&quot;saiu %d\n&quot;, v);
+    printf(&quot;entrou 70 no lugar: %d\n&quot;, enfileirar(&amp;f, 70));
+
+    while (desenfileirar(&amp;f, &amp;v)) {
+        printf(&quot;saiu %d\n&quot;, v);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Saiu o 10 e entrou o 70 no mesmo espaço: essa é a vantagem da circular — nenhum dado é deslocado.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m15">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.15.3</p>
+  <p class="enunciado">Implemente <code>int busca_binaria_rec(int v[], int ini, int fim, int alvo)</code> <strong>recursiva</strong> que devolve o índice do alvo ou -1. Teste no array {2, 5, 8, 12, 16, 23, 38, 56, 72, 91} com os alvos 2, 16, 91, 100 e 7.</p>
+  <p class="dica"><strong>Dica:</strong> Caso base: ini > fim → -1. Senão compare com o meio e desça em uma das metades.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int busca_binaria_rec(const int v[], int ini, int fim, int alvo)
+{
+    if (ini &gt; fim) {
+        return -1;
+    }
+    int meio = ini + (fim - ini) / 2;
+    if (v[meio] == alvo) {
+        return meio;
+    }
+    if (v[meio] &lt; alvo) {
+        return busca_binaria_rec(v, meio + 1, fim, alvo);
+    }
+    return busca_binaria_rec(v, ini, meio - 1, alvo);
+}
+
+int main(void)
+{
+    int v[] = {2, 5, 8, 12, 16, 23, 38, 56, 72, 91};
+    int alvos[] = {2, 16, 91, 100, 7};
+
+    for (int i = 0; i &lt; 5; i++) {
+        int idx = busca_binaria_rec(v, 0, 9, alvos[i]);
+        if (idx &gt;= 0) {
+            printf(&quot;%d esta no indice %d\n&quot;, alvos[i], idx);
+        } else {
+            printf(&quot;%d nao encontrado\n&quot;, alvos[i]);
+        }
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado: índices 0, 4, 9 e os dois "nao encontrado".</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m15">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.15.4</p>
+  <p class="enunciado">Implemente <strong>insertion sort decrescente</strong> com um contador de comparações de chave. Ordene {4, 2, 9, 1, 7, 3} do maior para o menor e imprima antes, depois e o total de comparações.</p>
+  <p class="dica"><strong>Dica:</strong> Enquanto o elemento à esquerda for <em>menor</em> que a chave, desloque (no crescente, seria "maior que a chave").</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int v[] = {4, 2, 9, 1, 7, 3};
+    int n = 6;
+    int comparacoes = 0;
+    int deslocamentos = 0;
+
+    printf(&quot;antes:  &quot;);
+    for (int i = 0; i &lt; n; i++) {
+        printf(&quot;%d &quot;, v[i]);
+    }
+    printf(&quot;\n&quot;);
+
+    for (int i = 1; i &lt; n; i++) {
+        int chave = v[i];
+        int j = i - 1;
+        while (j &gt;= 0 &amp;&amp; v[j] &lt; chave) {
+            comparacoes++;
+            v[j + 1] = v[j];
+            deslocamentos++;
+            j--;
+        }
+        if (j &gt;= 0) {
+            comparacoes++;
+        }
+        v[j + 1] = chave;
+    }
+
+    printf(&quot;depois: &quot;);
+    for (int i = 0; i &lt; n; i++) {
+        printf(&quot;%d &quot;, v[i]);
+    }
+    printf(&quot;\n&quot;);
+    printf(&quot;comparacoes=%d deslocamentos=%d\n&quot;, comparacoes, deslocamentos);
+    return 0;
+}</code></pre>
+        <p class="obs">Depois: 9 7 4 3 2 1. O contador inclui a comparação final que encerra cada encaixe.</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t2-m15">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.15.5</p>
+  <p class="enunciado">Monte a hash table de strings com encadeamento separado (TAM 4): <code>hash_inserir</code> (evita duplicatas), <code>hash_buscar</code> e <code>hash_destroi</code> (free de cada palavra e de cada nó). Insira {sol, lua, estrela, ceu, nuvem, ar, sol, mar}, liste todos os buckets e libere tudo no fim.</p>
+  <p class="dica"><strong>Dica:</strong> Na destruição, percorra cada bucket guardando o próximo nó antes do free. "sol" inserido duas vezes deve retornar 0 na segunda tentativa.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+#define TAM 4
+
+typedef struct No {
+    char *palavra;
+    struct No *proximo;
+} No;
+
+typedef struct {
+    No *buckets[TAM];
+} Hash;
+
+unsigned hash_fn(const char *s)
+{
+    unsigned h = 0;
+    for (const unsigned char *p = (const unsigned char *)s; *p; p++) {
+        h = h * 31u + *p;
+    }
+    return h;
+}
+
+int hash_inserir(Hash *ht, const char *s)
+{
+    unsigned idx = hash_fn(s) % TAM;
+
+    for (const No *p = ht-&gt;buckets[idx]; p != NULL; p = p-&gt;proximo) {
+        if (strcmp(p-&gt;palavra, s) == 0) {
+            return 0;
+        }
+    }
+
+    No *novo = malloc(sizeof *novo);
+    if (novo == NULL) {
+        return 0;
+    }
+    novo-&gt;palavra = malloc(strlen(s) + 1);
+    if (novo-&gt;palavra == NULL) {
+        free(novo);
+        return 0;
+    }
+    strcpy(novo-&gt;palavra, s);
+    novo-&gt;proximo = ht-&gt;buckets[idx];
+    ht-&gt;buckets[idx] = novo;
+    return 1;
+}
+
+int hash_buscar(const Hash *ht, const char *s)
+{
+    unsigned idx = hash_fn(s) % TAM;
+    for (const No *p = ht-&gt;buckets[idx]; p != NULL; p = p-&gt;proximo) {
+        if (strcmp(p-&gt;palavra, s) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void hash_destroi(Hash *ht)
+{
+    for (int i = 0; i &lt; TAM; i++) {
+        No *atual = ht-&gt;buckets[i];
+        while (atual != NULL) {
+            No *prox = atual-&gt;proximo;
+            free(atual-&gt;palavra);
+            free(atual);
+            atual = prox;
+        }
+        ht-&gt;buckets[i] = NULL;
+    }
+}
+
+int main(void)
+{
+    Hash ht = {{NULL}};
+    const char *palavras[] = {
+        &quot;sol&quot;, &quot;lua&quot;, &quot;estrela&quot;, &quot;ceu&quot;, &quot;nuvem&quot;, &quot;ar&quot;, &quot;sol&quot;, &quot;mar&quot;
+    };
+    int n = (int)(sizeof palavras / sizeof palavras[0]);
+
+    for (int i = 0; i &lt; n; i++) {
+        printf(&quot;inserir %-8s -&gt; %d\n&quot;, palavras[i], hash_inserir(&amp;ht, palavras[i]));
+    }
+
+    printf(&quot;buscar 'lua':  %s\n&quot;, hash_buscar(&amp;ht, &quot;lua&quot;) ? &quot;achou&quot; : &quot;nao achou&quot;);
+    printf(&quot;buscar 'chao': %s\n&quot;, hash_buscar(&amp;ht, &quot;chao&quot;) ? &quot;achou&quot; : &quot;nao achou&quot;);
+
+    for (int i = 0; i &lt; TAM; i++) {
+        printf(&quot;bucket %d:&quot;, i);
+        for (const No *p = ht.buckets[i]; p != NULL; p = p-&gt;proximo) {
+            printf(&quot; %s&quot;, p-&gt;palavra);
+        }
+        printf(&quot;\n&quot;);
+    }
+
+    hash_destroi(&amp;ht);
+    printf(&quot;memoria liberada\n&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">"sol" entra uma vez (a segunda inserção retorna 0). No fim, cada palavra e cada nó ganham seu free — o padrão sem vazamento do projeto.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Num array ordenado com 1.000.000 de elementos, a busca binária faz no máximo...&quot;,&quot;opcoes&quot;:[&quot;1.000.000 passos&quot;,&quot;cerca de 20 passos&quot;,&quot;cerca de 1.000 passos&quot;,&quot;nunca termina&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;log2(1.000.000) ≈ 20: cada passo descarta metade do array.&quot;},{&quot;pergunta&quot;:&quot;O que deixa push/pop em O(1) numa pilha sobre array?&quot;,&quot;opcoes&quot;:[&quot;uma fila circular&quot;,&quot;um índice de topo (e realloc quando a capacidade acaba)&quot;,&quot;uma hash table&quot;,&quot;percorrer até o fim do array&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Empilhar/desempilhar mexe só no topo: O(1). O realloc ocasional amortiza o crescimento.&quot;},{&quot;pergunta&quot;:&quot;O que distingue a busca binária da linear?&quot;,&quot;opcoes&quot;:[&quot;a binária exige array ordenado&quot;,&quot;a linear é sempre mais rápida&quot;,&quot;a binária precisa de uma função hash&quot;,&quot;nada: são sinônimas&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;A binária compara com o meio e descarta metade a cada passo — mas só funciona em dados ordenados.&quot;},{&quot;pergunta&quot;:&quot;Numa hash table com encadeamento separado, colisões são resolvidas...&quot;,&quot;opcoes&quot;:[&quot;redimensionando o array a cada inserção&quot;,&quot;guardando uma lista encadeada em cada bucket&quot;,&quot;apagando a chave antiga&quot;,&quot;lançando um erro em tempo de execução&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Quando duas chaves caem no mesmo índice, os nós entram numa lista nesse bucket; a busca caminha pela lista.&quot;},{&quot;pergunta&quot;:&quot;Qual operação custa O(n²) no pior caso?&quot;,&quot;opcoes&quot;:[&quot;acessar arr[i]&quot;,&quot;busca binária&quot;,&quot;bubble/insertion sort&quot;,&quot;push numa pilha&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;Bubble e insertion têm pior caso O(n²) pelos loops aninhados. Acesso por índice é O(1); binária, O(log n).&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Minidicionário com hash table</h2>
+  <p>Construa um dicionário palavra → definição com hash table de encadeamento separado (struct no com palavra e significado). Menu: (1) inserir palavra e definição (fgets, limites respeitados), (2) buscar e imprimir a definição, (3) listar tudo bucket a bucket, (4) remover uma palavra (religando a lista e com free da palavra e do nó), (5) sair — liberando TODA a memória. Desafio extra: rode o valgrind se tiver WSL2, ou faça a auditoria manual "todo malloc × free".</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Hash table própria (função hash + encadeamento separado): inserir, buscar e remover implementados do zero.</li><li>Remoção religa a lista sem perder o restante e libera palavra + nó.</li><li>Listagem reproduz a tabela bucket por bucket, na ordem das listas.</li><li>Destruição total no fim da execução: zero vazamentos (cada malloc tem seu free).</li><li>Entrada com fgets e limites de tamanho de palavra/definição — nada de scanf %s solto.</li><li>Compila com gcc -Wall -Wextra -std=c11 sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="funcoes-variadicas-va-list.html">← 2.14 Funções variádicas: va_list</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m15">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

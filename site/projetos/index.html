@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projetos — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="landing"><section class="hero small"><h1>🏗️ Projetos</h1><p>Projetos consolidadores espalhados pelas trilhas. Faça todos com o gcc.</p></section><section class="card projeto">
+  <h2>🏗️ Cartão de visita em C <span class="proj-mod">(0.01 — Preparando o ambiente de desenvolvimento)</span></h2>
+  <p>Crie um programa <code>cartao.c</code> que imprime um "cartão de visita" ASCII: seu nome, papel/objetivo de estudo e um dos seus hobbies. Use <code>printf</code> com <code>\n</code> e pelo menos um caractere de borda (ex.: <code>+---o---</code>). Compile com <code>-Wall -Wextra -std=c11</code> e garanta zero avisos.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Programa compila com <code>gcc -Wall -Wextra -std=c11 cartao.c -o cartao</code> sem erros nem avisos.</li><li>Saída contém seu nome, objetivo e um hobby, formatada com bordas ou separadores.</li><li>Função <code>main</code> retorna 0.</li><li>Você consegue explicar cada linha para outra pessoa.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Crachá digital <span class="proj-mod">(1.02 — Variáveis, tipos e atribuição)</span></h2>
+  <p>Crie um programa <code>cracha.c</code> que representa "você" com variáveis dos quatro tipos básicos: a letra inicial do nome (<code>char</code>), a idade (<code>int</code>), a altura (<code>double</code>) e uma "nota de motivação" 0–10 (<code>double</code>). Imprima um crachá em várias linhas usando <code>printf</code>, com o nome do projeto centrado e cada dado em sua linha. Depois, troque os valores das variáveis para representar outra pessoa e mostre que o mesmo código "atualiza" o crachá.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Declara as 4 variáveis com tipos corretos, inicializadas.</li><li>Imprime um crachá legível com os dados em linhas separadas.</li><li>A troca para a "segunda pessoa" usa novas atribuições às mesmas variáveis.</li><li>Compila com <code>gcc -Wall -Wextra -std=c11 cracha.c -o cracha</code> sem erros nem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Conta de restaurante <span class="proj-mod">(1.03 — Entrada e saída formatada: printf e scanf)</span></h2>
+  <p>Crie <code>conta.c</code> que lê o valor do consumo (double), a taxa de serviço em % (ex.: 10) e o número de pessoas (int); o programa calcula e imprime o total com serviço e o valor por pessoa, formatados em uma "nota" com larguras e 2 casas decimais. Persona: você é o sistema de um restaurante simples.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Lê os três dados com <code>scanf</code> (com <code>&</code> na variável certa).</li><li>Calcula serviço, total e divisão por pessoa.</li><li>Imprime como uma nota: cada item em uma linha, valores em colunas alinhadas (largura fixa).</li><li>Compila com <code>-Wall -Wextra -std=c11</code> sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Um &quot;relógio&quot; que avança minutos <span class="proj-mod">(1.04 — Operadores e expressões)</span></h2>
+  <p>Crie <code>relogio.c</code>: leia uma hora no formato "HH MM" (ex.: 23 58) e a quantidade de minutos a avançar; calcule a nova hora corretamente (incluindo a virada de 23:59 para 00:00). Use <code>/</code>, <code>%</code>, <code>+=</code> e variáveis intermediárias. Imprima a hora de saída no formato <code>HH:MM</code> com largura fixa (<code>%02d</code>).</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Lê hora, minuto e avanço com scanf.</li><li>Trata a virada do dia: saídas como 23:58 + 5 = 00:03.</li><li>Usa pelo menos um <code>=</code> / <code>%</code> e uma atribuição composta.</li><li>Imprime com <code>%02d:%02d</code> e compila sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Calculadora de IMC completa <span class="proj-mod">(1.05 — Seleção: if, else if, switch)</span></h2>
+  <p>Melhore o classificador de IMC: leia peso e altura, calcule o IMC com 2 casas e, além de classificar em 4 faixas (abaixo/normal/sobrepeso/obesidade), informe o peso ideal aproximado para uma altura "normal" (IMC 22) e uma dica simples (aumentar ou reduzir peso) em função da faixa. Use if/else if e pelo menos um switch ou ternário em algum ponto.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Lê peso e altura como double.</li><li>Classifica em pelo menos 4 faixas de IMC com mensagens diferentes.</li><li>Calcula o peso que daria IMC 22 para a altura informada.</li><li>Trata entrada inválida (peso ou altura ≤ 0).</li><li>Compila com <code>-Wall -Wextra -std=c11</code> sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Tabela de quadrados e cubos <span class="proj-mod">(1.06 — Loops: while, do-while e for)</span></h2>
+  <p>Crie <code>tabela.c</code>: um programa que imprime uma tabela de n de 1 até N (N lido do teclado, máximo 100): colunas "n", "n^2", "n^3" e "soma acumulada" (dos n^2 até aquela linha). Use loops, largura fixa (<code>%6d</code>) e algumas formatações. Ao final, imprima o total geral dos quadrados.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Lê N e valida (rejeita N > 100 ou N < 1 com loop do-while).</li><li>Imprime o cabeçalho e as linhas com colunas alinhadas.</li><li>Calcula a soma acumulada dos quadrados e o total geral.</li><li>Compila com <code>-Wall -Wextra -std=c11</code> sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Explorando os limites do seu computador <span class="proj-mod">(1.07 — Tipos básicos a fundo)</span></h2>
+  <p>Crie <code>explora.c</code> que usa <limits.h> e <float.h> para apresentar, em um relatório atrativo: tamanhos (sizeof) de cada tipo inteiro e real, os valores INT_MAX/INT_MIN/UINT_MAX/LONG_MAX, o valor de DBL_MAX e o de FLT_MAX. Na parte "final" do relatório, invente O próprio teste: declare um int com o valor INT_MAX e imprima o resultado de INT_MAX + 1 com um comentário explicando por que o resultado não faz sentido (UB).</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Relatório formatado com cabeçalho e colunas alinhadas.</li><li>Usa <code>%zu</code> para sizeof e <code>%u</code>/<code>%d</code>/<code>%ld</code> para os limites corretos.</li><li>Contém uma demonstração comentada de que a soma INT_MAX + 1 é indefensável (UB).</li><li>Compila sem avisos com <code>-Wall -Wextra -std=c11</code>.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Quadro de velha (padrões em matriz) <span class="proj-mod">(1.08 — Arrays)</span></h2>
+  <p>Crie <code>padrao.c</code> que preenche uma matriz 6x6 (ou tabuleiro 6x6) com um padrão seu: por exemplo, "x" nas bordas, "o" na diagonal e "." no interior. Imprima o tabuleiro com espaço entre as células. Depois adicione uma segunda matriz que gira 90° da primeira (linha vira coluna de trás para a frente) e imprima as duas lado a lado.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Usa array 2D com inicializador {0} e atribuições por índices.</li><li>Imprime o tabuleiro com loops aninhados e formatação.</li><li>A "rotação" usa loops para copiar m1 para m2 (não atribuição direta).</li><li>Compila com <code>-Wall -Wextra -std=c11</code> sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Painel de estatísticas do jogador <span class="proj-mod">(1.10 — Escopo, duração e organização)</span></h2>
+  <p>Crie <code>painel.c</code>: um "painel" em que várias funções compartilham estado: <code>ganhar(int pts)</code>, <code>perder(int pts)</code>, <code>consultar_pontos()</code>, <code>consultar_partidas()</code> e <code>resetar()</code>. Use <code>static</code> de arquivo para os contadores, funções pequenas e um menu do-while que lê comandos (g de ganhar, p de perder, c consultar, r resetar, s sair).</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Estado compartilhado via static de arquivo (sem globais não estáticos).</li><li>5+ funções pequenas com responsabilidades únicas.</li><li>Menu do-while com scanf e switch/if.</li><li>Sem avisos com <code>-Wall -Wextra -std=c11</code>.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ CalcEstudo: seu interpretador de comandos <span class="proj-mod">(1.12 — Tudo junto: programa de linha de comando)</span></h2>
+  <p>Construa <code>calc_estudo.exe</code>, um interpretador de comandos numéricos que rode em loop: comandos <code>s</code> (soma de 2 números), <code>m</code> (média de 3), <code>f</code> (fatorial de um número via função recursiva ou iterativa), <code>h</code> (mostra quantas operações foram executadas até agora, usando variável estática), <code>?</code> (menu) e <code>q</code> (sai). Siga o passo a passo da seção "projeto final", compilando e testando a cada comando adicionado. Baseie-se no interpretador de referência da seção e estenda-o com o comando f e o histórico h.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Roda em loop até o comando q, com o menu ?.</li><li>Implementa soma (s), média (m), fatorial (f) e histórico (h) com funções próprias.</li><li>Histórico usa variável estática (estado interno sem global).</li><li>Valida entradas: fatorial de 0 ou 1 = 1; valores negativos rejeitados.</li><li>Compila com <code>gcc -Wall -Wextra -std=c11 calc_estudo.c -o calc_estudo</code> sem erros nem avisos.</li><li>Você consegue explicar, para outra pessoa, cada função do seu programa</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Caixa registradora: troco em cédulas <span class="proj-mod">(2.01 — Ponteiros: o coração do C)</span></h2>
+  <p>Implemente a função <code>troco(int valor, int *c100, int *c50, int *c20, int *c10, int *c5, int *c2, int *c1)</code> que preenche a menor quantidade de cédulas/moedas para pagar um valor. No <code>main</code>, teste com 289, 117 e 30 e imprima o "extrato". Vale também validar que a soma das cédulas multiplicadas pelos valores bate com o total.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Função usa ponteiros para "devolver" as sete quantidades.</li><li>Menu/testes cobrem valores variados (incluindo múltiplos de 5 e ímpares).</li><li>Verificação de soma: 100*c100 + 50*c50 + ... + 1*c1 == valor informado.</li><li>Compila com <code>gcc -Wall -Wextra -std=c11</code> sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Leitor de frases amigável <span class="proj-mod">(2.03 — Strings em C)</span></h2>
+  <p>Crie um programa que pergunta três frases (uma por linha, com fgets), remove as quebras de linha, e depois imprime: a frase mais longa (com posição), a frase mais curta, e a soma total de caracteres. Faça sem usar strlen em pelo menos uma parte (uma função própria de tamanho) e com ponteiros para comparar.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Entrada 100% com fgets (sem scanf %s no texto final).</li><li>Função própria de tamanho + uso de strlen em outro trecho.</li><li>Impressão das frases na ordem digitada e dos resultados pedidos.</li><li>Compila com -Wall -Wextra sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Gravador de perfil de usuário <span class="proj-mod">(2.04 — Manipulando strings)</span></h2>
+  <p>Crie um programa que pergunta nome, e-mail e cidade (fgets), monta com strncpy/strncat/snprintf um "cartão" formatado, remove o @ do nome para gerar um login, e por fim conta palavras no nome completo. Combina copiar, concatenar, buscar e separar.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Todos os buffers com limites (strncpy/strncat/snprintf); nenhum estouro possível.</li><li>Gera campo "login" removendo espaços e vírgulas do nome.</li><li>Imprime o cartão formatado e a contagem de palavras.</li><li>Compila com -Wall -Wextra sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Cadastro de alunos <span class="proj-mod">(2.06 — Structs)</span></h2>
+  <p>Construa um mini-cadastro com struct <code>Aluno</code> (nome, nota1, nota2, media) e um array fixo de até 30 alunos. O programa apresenta um menu: (1) incluir aluno (lê nome e notas, calcula média), (2) listar, (3) buscar por nome, (4) melhor e pior média, (5) encerrar. Reuse funções com ponteiros e arrays de structs dos módulos anteriores.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Menu funcionando com switch e enum (T2.07 já à frente — pode usar int por enquanto).</li><li>Cálculo de média armazenado no próprio struct.</li><li>Busca por nome retornando "não encontrado" quando não existir.</li><li>Nenhum buffer estourado (fgets + limites).</li><li>Compila com -Wall -Wextra sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Logger com macros <span class="proj-mod">(2.08 — O pré-processador)</span></h2>
+  <p>Construa um mini-logger: um cabeçalho <code>log.h</code> com guarda de inclusão definindo <code>LOG_INFO</code>, <code>LOG_AVISO</code> e <code>LOG_ERRO</code> que imprimem nível, função e linha (usa __func__/__LINE__), e um programa principal que simula uma "sessão" (iniciar, processar nota, encerrar) gravando no terminal. Crie também um modo com -DDEBUG que imprime valores extras.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>log.h com include guard e macros com parênteses.</li><li>Três níveis de log chamados em funções diferentes, mostrando localização.</li><li>Bloco #ifdef DEBUG adicionando saída extra sem quebrar o normal.</li><li>Compila sem e com -DDEBUG, sempre -Wall -Wextra limpos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Permissões estilo chmod <span class="proj-mod">(2.10 — Operações bit a bit)</span></h2>
+  <p>Crie um programa que trabalha com um <code>int permissoes</code> de 9 bits (leitura/escrita/execução do dono, do grupo e de outros) usando macros <code>U_LEITURA</code> etc. (ex.: dono rwx = 7 = 700 em octal). O menu: 1) mostrar em formato rwxr-xr-x, 2) adicionar permissão (recebe "u+x", "g-r" ...), 3) remover, 4) sair. A interpretação do rwxr-xr-x usa os bits na ordem certa.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Formatação rwxr-xr-x correta a partir dos 9 bits.</li><li>Pelo menos um comando de adicionar e um de remover (u/g/o com + ou - e r/w/x).</li><li>Validação de comando inválido.</li><li>Compila com -Wall -Wextra sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Agenda de contatos com lista encadeada <span class="proj-mod">(2.12 — Estruturas de dados: listas encadeadas e recursão)</span></h2>
+  <p>Construa uma agenda com nós de lista encadeada (nome, telefone, struct No *proximo). Menu: (1) adicionar no fim, (2) listar, (3) buscar por nome (reportando o índice do nó), (4) remover por nome, (5) sair. Ao sair, destrua TODA a lista. Desafio extra: decidir e justificar se um vetor dinâmico serviria melhor aqui.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Estrutura de nó com struct e ponteiros encadeados corretos.</li><li>Todas as operações do menu funcionando (adicionar no fim com ponteiro fim, buscar, remover religando).</li><li>Garantia de que a lista é destruída no fim (sem vazamentos).</li><li>Menus com enum/switch e leitura robusta com fgets.</li><li>Compila com -Wall -Wextra sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Agenda de contatos binária <span class="proj-mod">(2.13 — Arquivos: texto e binário)</span></h2>
+  <p>Construa uma agenda persistente em <code>agenda.bin</code> com a struct Contato (nome, telefone, idade) gravada via <code>fwrite</code>. O programa abre o arquivo (cria se não existir), lê os registros existentes com <code>fread</code> para um vetor em memória e apresenta um menu: (1) adicionar contato, (2) listar todos, (3) buscar por posição (índice) usando <code>fseek</code> sem ler os anteriores, (4) sair — reescrevendo o vetor inteiro com fwrite antes de fechar.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Leitura inicial e gravação final sempre via fwrite/fread sobre a mesma struct; nada de texto.</li><li>Adicionar respeita um teto definido por você (ex.: 100 contatos) com mensagem clara.</li><li>Buscar por posição usa fseek com N * sizeof(Contato) e confirma o resultado; índice fora do intervalo é tratado.</li><li>Todos os fopen conferem NULL e todos os fclose conferem o retorno.</li><li>Compila com gcc -Wall -Wextra -std=c11 sem avisos e trabalha com o arquivo na pasta atual.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Mini-biblioteca de logging <span class="proj-mod">(2.14 — Funções variádicas: va_list)</span></h2>
+  <p>Implemente <code>log.h</code>/<code>log.c</code> e um <code>main.c</code> de teste. A biblioteca expõe <code>void log_msg(int nivel, const char *fmt, ...)</code> com níveis ERROR/WARN/INFO via enum; a função grava em <code>app.log</code> uma linha com timestamp (<code>time.h</code>), o texto do nível e a mensagem formatada por <code>vfprintf</code>. Suporte também um limiar configurável: mensagens de nível abaixo do mínimo são descartadas.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>log.h com include guard (T2.08) e log.c com a implementação real de log_msg.</li><li>Níveis ERROR/WARN/INFO via enum; a linha impressa traz o nome do nível por extenso.</li><li>Timestamp com time.h (strftime) no formato "YYYY-MM-DD HH:MM:SS".</li><li>Limiar configurável (ex.: log_set_level) — nível abaixo do limiar não grava.</li><li>Várias execuções anexam ao mesmo app.log sem corromper nada (modo "a" + fclose conferido).</li><li>Compila com gcc -Wall -Wextra -std=c11 log.c main.c -o app sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Minidicionário com hash table <span class="proj-mod">(2.15 — Estruturas de dados fundamentais)</span></h2>
+  <p>Construa um dicionário palavra → definição com hash table de encadeamento separado (struct no com palavra e significado). Menu: (1) inserir palavra e definição (fgets, limites respeitados), (2) buscar e imprimir a definição, (3) listar tudo bucket a bucket, (4) remover uma palavra (religando a lista e com free da palavra e do nó), (5) sair — liberando TODA a memória. Desafio extra: rode o valgrind se tiver WSL2, ou faça a auditoria manual "todo malloc × free".</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Hash table própria (função hash + encadeamento separado): inserir, buscar e remover implementados do zero.</li><li>Remoção religa a lista sem perder o restante e libera palavra + nó.</li><li>Listagem reproduz a tabela bucket por bucket, na ordem das listas.</li><li>Destruição total no fim da execução: zero vazamentos (cada malloc tem seu free).</li><li>Entrada com fgets e limites de tamanho de palavra/definição — nada de scanf %s solto.</li><li>Compila com gcc -Wall -Wextra -std=c11 sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ wc-lite: contador de linhas, palavras e bytes <span class="proj-mod">(3.01 — Biblioteca padrão e tratamento de erros)</span></h2>
+  <p>Crie um utilitário tipo o <code>wc</code> do Linux: <code>wclite arquivo.txt</code> imprime o número de linhas, de palavras (separadas por espaço/tab/nova linha) e de bytes do arquivo. Trate TODOS os erros: argumento ausente (uso), arquivo inexistente (strerror), erro no meio da leitura (ferror). Use EXIT_SUCCESS/EXIT_FAILURE corretamente e registre um atexit que imprime o tempo total gasto.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Compila sem avisos com <code>gcc -Wall -Wextra -std=c11</code>.</li><li>Sem o argumento de arquivo, mostra a mensagem de uso e retorna EXIT_FAILURE.</li><li>Arquivo inexistente: mensagem com strerror(errno) e EXIT_FAILURE.</li><li>Relatório correto de linhas/palavras/bytes para um arquivo de teste com 3 linhas.</li><li>Saída final ordenada (não embaralhada) quando você o redireciona para um arquivo.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Dump de arquivo em hex e binário <span class="proj-mod">(3.02 — Como os números vivem na memória)</span></h2>
+  <p>Crie <code>hexdump.c</code>: dado um arquivo (ex.: um .txt pequeno), imprime cada byte como hex (offset de 4 dígitos + 16 bytes em hex + os bytes legíveis ao lado). No fim, mostre a contagem de bytes que são ASCII imprimível e a dos que pertencem a sequências multibyte (bit 7 ligado). É o início do seu "olho de baixo nível" — útil para a Trilha 4.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Compila com <code>gcc -Wall -Wextra -std=c11</code> sem avisos.</li><li>Para o arquivo numeros.txt (3 linhas), imprime o offset inicial 0000 e todos os bytes em hex.</li><li>A última coluna mostra os caracteres ASCII legíveis e ponto (.) para os demais.</li><li>Relatório final: total de bytes, ASCII imprimíveis e bytes com bit 7 ligado.</li><li>Trata erro de abertura com strerror e EXIT_FAILURE.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ wc -m: contador de caracteres reais <span class="proj-mod">(3.04 — Unicode, wide characters e localização)</span></h2>
+  <p>Crie <code>conta9.c</code>: dado um arquivo ou entrada padrão, conte e imprima (1) o total de bytes, (2) o total de code points com mbrtowc e (3) a lista dos code points únicos aparecendo no texto com U+XXXX. Use a string do módulo como teste. É o "wc -m" das distribuições, mas com os detalhes abertos na tela.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Compila com <code>gcc -Wall -Wextra -std=c11</code> sem avisos.</li><li>Para "Olá, 😀 mundo!" devolve 17 bytes e 13 code points.</li><li>Lista de U+ única: imprime U+004F, U+006C, U+00E1, U+002C, U+0020, U+FFFD (Windows), U+006D, U+0075, U+006E, U+0064, U+006F, U+0021.</li><li>Usa setlocale com verificação e mbrtowc com tratamento de erro.</li><li>Não usa wprintf para a saída (seria vítima da code page).</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ campo.minado: controle remoto via TCP <span class="proj-mod">(3.08 — Sockets com POSIX (no Linux/WSL))</span></h2>
+  <p>Transforme o Campo Minado (jogo de linha de comando) num servidor controlado por TCP: um servidor <code>m3_serv</code> mantém o tabuleiro e aguarda clientes; o cliente <code>m3_cli</code> envia comandos como "jogar (linha coluna)" e "marcar (linha coluna)". O servidor responde com o estado do tabuleiro a cada jogada. Use thread-per-connection para aceitar vários clientes.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Servidor em socket/listen/accept de onde o jogo roda; usa htons para a porta 9000.</li><li>Cliente conecta em 127.0.0.1:9000, envia os comandos e imprime o tabuleiro retornado.</li><li>Termina com shutdown(SHUT_WR) ao sair e lê o estado final.</li><li>Partida com uma bomba fixa (por exemplo, linha 3 coluna 2): "explodiu" deve aparecer ao clicar na bomba.</li><li>Múltiplos clientes podem entrar na mesma partida (o servidor não pode quebrar ao receber dois clientes de uma vez).</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Registrador de log com carimbo de hora <span class="proj-mod">(3.09 — Tempo e datas (sob o olhar do QS))</span></h2>
+  <p>Construa um pequeno registrador de eventos no estilo Quality System: o programa recebe mensagens pela entrada padrão (uma por linha) e as grava, em ordem, num arquivo "eventos.log", cada linha no formato ISO-8601 com fuso: "2026-09-15T17:20:31-0300 INFO sua mensagem aqui". No final, imprima quantas linhas foram gravadas e o tempo total de CPU gasto (clock()/CLOCKS_PER_SEC). Estrutura sugerida: funcao registrar(nivel, mensagem) que monta o carimbo com strftime, abre o arquivo em modo "a" a cada chamada e fecha na sequencia; o programa principal le linhas com fgets ate EOF.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Carimbo usa strftime com %z e data corrente.</li><li>Mensagens chegam pela stdin (fgets), cada uma vira uma linha com rótulo INFO (ou o nível recebido).</li><li>Arquivo persistente entre execuções (modo "a").</li><li>Total de linhas impresso com printf ao final.</li><li>Tempo de CPU impresso em segundos com 3 casas.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Cabeçalho de protocolo compacto <span class="proj-mod">(3.10 — Números exatos, bits e layouts compactos)</span></h2>
+  <p>Implemente um cabeçalho de protocolo binário com bit-fields: um registro com 3 flags (1 bit), um campo de tipo (3 bits) e um campo de tamanho (4 bits), mais um campo payload de até 2 bytes, totalizando 1 byte de cabeçalho + payload. Grava esse registro em um arquivo binário "pacote.bin" e depois lê de volta, imprimindo todos os campos e o tamanho total (deve ser 1 byte de cabeçalho + payload, struct com _Static_assert de que o cabeçalho ocupa 1 byte se possível).</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>3 flags de 1 bit (fim_de_stream, urgente, crc_incluido).</li><li>Campo de tipo com 3 bits e campo de tamanho com 4 bits.</li><li>Cabeçalho em 1 byte (uint8_t contendo os 8 bits).</li><li>Grava em binário e lê de volta com memcpy.</li><li>Imprime os campos e o total de bytes.</li><li>Compila com gcc -Wall -Wextra -std=c11 sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Seu mini-conjunto de utilitários <span class="proj-mod">(3.11 — A vida fora do main: ambiente, saída e interação)</span></h2>
+  <p>Empacote as ferramentas em um único programa "util.c" que interpreta a primeira palavra de argv como subcomando e executa: "grep palavra", "head N", "wc" e "reverse" sobre a stdin. Formato de saída igual ao dos exercícios. Imprima no stderr as mensagens de erro quando o subcomando não existir, e de uso quando faltar argumento; devolva 1 nesses casos e 0 no sucesso.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Um único binário que lê o subcomando via strcmp sobre argv[1].</li><li>Implementa grep-lite, head-lite, wc-lite e reverse reutilizando as mesmas lógicas.</li><li>Trata caso de subcomando desconhecido com stderr + exit 1.</li><li>Trata ausência de argumento obrigatório (ex.: grep sem palavra) com uso + exit 1.</li><li>Cada subcomando devolve 0 em sucesso.</li><li>Testável com Get-Content notas.txt | .\util.exe grep caneta.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Gestor de inventário CLI com persistência binária <span class="proj-mod">(3.12 — Sistema de arquivos e persistência (projeto final))</span></h2>
+  <p>Construa o projeto final completo da trilha: um Gestor de Inventário com menu de texto e persistência em arquivo binário. Comandos: (1) adicionar item, (2) listar, (3) buscar por código, (4) alterar quantidade, (5) remover, (0) sair. Um arquivo "inventario.bin" guarda o cabeçalho (int contagem) seguido de N registros (struct: codigo int, nome char[32], qtd int, preco double). O menu é um loop com a leitura segura de fgets+strtol; toda alteração reescreve o arquivo do zero (padrão simples e robusto). Testes: um arquivo main de teste ativa as funções (busca existe/não existe, salvar+carregar round-trip) e imprime PASS/FAIL com resumo.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Menu funcional com os 6 comandos e validação de entrada (não trava com texto).</li><li>Persistência: salvar/carregar com cabeçalho+registros; round-trip sem perda de campos.</li><li>registro_exibe única para tudo.</li><li>Busca devolve 0/1 e preenche saida.</li><li>Remoção compacta (reordena, decrementa contagem).</li><li>main de teste com PASS/FAIL e resumo, saída 0 se 0 falhas.</li><li>Código organizado em arquivos (inventario.h/inventario.c/main.c) na entrega.</li><li>Compila com gcc -Wall -Wextra -std=c11 sem avisos.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Laboratório completo da trilha Cyber <span class="proj-mod">(4.01 — Visão do atacante × defensor e montagem do laboratório)</span></h2>
+  <p>Deixe o laboratório pronto para os módulos 02–10: WSL2 ou VM atualizada, gcc/gdb/valgrind/python3 instalados, peda E pwndbg (ou só um deles, mas configurado), pastas ~/labs/4.01..4.10 criadas, e um ~/notas_gdb.txt com os comandos essenciais do gdb que você já conhece da Trilha 0. Dentro de cada pasta labs/4.XX crie um README.md de uma linha descrevendo o que será estudado ali (pode escrever depois, conforme avança).</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li><code>uname -a</code>, <code>gcc --version</code>, <code>gdb --version</code> e <code>valgrind --version</code> respondem no terminal Linux.</li><li><code>~/labs/4.01</code>…<code>4.10</code> existem e a seção 4.01 contém o hello_lab compilado e rodando.</li><li>peda OU pwndbg carregam no gdb sem erro.</li><li>Você consegue abrir o gdb, carregar um binário, dar break, run e sair.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Mini-biblioteca strsafe <span class="proj-mod">(4.02 — Codificação segura em C (defensiva))</span></h2>
+  <p>Escreva <code>strsafe.h/.c</code> com três funções defensivas: (1) <code>strs_copiar(dest, n, src)</code>, (2) <code>strs_anexar(dest, n, src)</code> e (3) <code>strs_escrever(dest, n, fmt, …)</code> (wrapper de vsnprintf). Todas garantem NUL final e retornam <code>-1</code> em truncamento (com errno = ENAMETOOLONG se quiser sofisticar). Depois escreva um teste main que tenta estourar cada função com entradas de 10x o tamanho do buffer e comprove: nada estoura, tudo termina em 0. Compile o projeto com as flags defensivas da seção.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>As três funções aceitam (destino, tamanho, fonte/args) — o tamanho do alvo é sempre explícito.</li><li>Nenhuma função usa gets/strcpy/strcat/sprintf sem limite.</li><li>Compila com o combo defensivo sem warnings: <code>gcc -Wall -Wextra -Wformat-security -Werror=format-security -fstack-protector-all</code>.</li><li>O teste com entradas gigantes não gera nenhum estouro (ASan silencioso no WSL ou valgrind limpo).</li><li>Cada função retorna uma indicação (0 ok / -1 truncou).</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Poster da memória de um processo <span class="proj-mod">(4.03 — Anatomia da memória de um processo)</span></h2>
+  <p>Crie um arquivo <code>memoria.md</code> na pasta <code>~/labs/4.03</code> com um diagrama ASCII do mapa de memória (texto, data, bss, heap, mmap, pilha), e ao lado uma explicação do stack frame (args, return address, saved RBP, locais, temporários) com um exemplo de endereço real tirado do seu <code>addr.c</code>. Inclua também o resultado do exercício de endianness e um parágrafo "onde o buffer overflow atua" ligando os dois conceitos.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Diagrama com as 5-6 regiões e seta de crescimento de cada uma.</li><li>Desenho do stack frame com os 4-5 campos e indicação de onde o overflow escala.</li><li>Um endereço real de cada região copiado da saída do addr.c.</li><li>Explicação correta do 44 33 22 11 (little-endian).</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Cartão de análise de um binário <span class="proj-mod">(4.04 — Ferramentas de análise: gdb, objdump, readelf, strings e strace)</span></h2>
+  <p>Compile o <code>analise.c</code> com flags reais (<code>-O2 -fstack-protector-all -pie</code>) e com o flag de estudo (<code>-O0 -fno-stack-protector -no-pie</code>), e monte um cartão comparativo em markdown: para cada binário registre (a) checksec (NX, PIE, canário, RELRO), (b) endereço de <code>main</code> e de <code>processa</code> no objdump -t, (c) o endereço do buffer dentro de processa em 2 execuções (mudou? por quê?), (d) se o return address está a offset fixo do buffer. Feche com a pergunta: "em qual dos dois binários um overflow de buffer controlaria o fluxo com mais facilidade?"</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Dois cartões (um por build) com NX/PIE/canário/RELRO registrados.</li><li>Endereços de main/processa e do buffer, com a variação (ou não) entre execuções explicada.</li><li>Offset buffer→return address medido no gdb.</li><li>Conclusão comparando a dificuldade de exploração nas duas builds.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Laboratório 05: exploit documentado <span class="proj-mod">(4.05 — Buffer overflow clássico (stack): ret2shellcode em 32 bits)</span></h2>
+  <p>No lab, reproduza o fluxo completo e escreva <code>exploit_4.05.md</code> com: (1) o programa vulnerável e o comando de compilação; (2) os valores que você mediu no gdb (offset e &buf); (3) o payload gerado e o comando setarch; (4) a saída obtida ("recebido: …"; prompt de shell; id/whoami); (5) uma sessão "exploit inerte" no gdb provando o pulo para os NOPs e o deslize até o shellcode; (6) os comandos para reativar a ASLR e apagar os binários ao final. Termine com um parágrafo: "o que esta sessão me ensina para escrever código defensivo real?"</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Compilação com -m32 -fno-stack-protector -z execstack -no-pie documentada e funcionando.</li><li>Offset e &buf medidos (não chutados) e compatíveis com o exploit.</li><li>Exploit executado com setarch i686 -R e shell obtida.</li><li>Sessão gdb mostrando o EIP no sled e no shellcode.</li><li>Reativação da ASLR e limpeza dos binários indicados no final.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Matriz mitigação × bypass × defesa <span class="proj-mod">(4.06 — Mitigações e bypasses: NX→ret2libc, ASLR, PIE, canário e ROP)</span></h2>
+  <p>Crie <code>matriz.md</code> com uma tabela de 5 linhas (NX, ASLR, PIE, canário, RELRO/GOT) e colunas: "o que protege" / "como o atacante contorna" / "o que você liga no seu build" / "comando de verificação". Preencha com o que você estudou e teste os comandos de verificação (<code>checksec</code> no pwndbg) nos dois binários reais que você compilou nos módulos 05-06. Feche com um parágrafo: qual mitigação você considera mais barata e mais eficaz de manter sempre ligada, e por quê.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Tabela com as 5 mitigações e as 4 colunas preenchidas.</li><li>checksec rodado e transcrito para os dois binários (com e sem proteções).</li><li>Cada "como contorna" coerente com o módulo (sem invenções).</li><li>Parágrafo final justificando uma mitigação "básica" para adotar sempre.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Relatório: do leak ao %n (32-bit) <span class="proj-mod">(4.07 — Format string bugs: leak, escrita e a regra da format string explícita)</span></h2>
+  <p>Em <code>~/labs/4.07</code>, produza um relatório <code>format.md</code> (no WSL) contendo: (1) o fmt_leak 64-bit com a varredura de posicionamento e o índice onde os AAAA aparecem; (2) o fmt_write 32-bit com antes/depois de <code>alvo</code> e o endereço usado; (3) um parágrafo explicando como esse <em>leak</em> alimenta o ret2libc do módulo 06 (base = valor_vazado − offset_na_libc); (4) a prova de que <code>-Werror=format-security</code> falha o build com o padrão perigoso; (5) a correção final do código com diff (before/after).</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Índice do posicionamento determinado e documentado (seu, não o do texto).</li><li>Escrita de alvo com %N$n demonstrada com endereço real.</li><li>Cálculo base da libc a partir de um valor vazado coerente.</li><li>Build com -Werror=format-security falhando e a correção aplicada.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Três bugs corrigidos, um post mortem <span class="proj-mod">(4.08 — Heap, integer overflow e use-after-free)</span></h2>
+  <p>Monte a pasta <code>~/labs/4.08</code> com os três "bugs-crime" (intbug, heap_of, uaf) e para cada um: (1) o código original marcado com a CWE (CWE-190 integer overflow, CWE-122 heap overflow, CWE-416 use-after-free); (2) a saída bugada; (3) o diagnóstico via valgrind/ASan (recorte); (4) a correção com diff antes/depois; (5) um parágrafo "como isso vira ataque na vida real" (ex.: UAF em verificação de privilégio, integer overflow em contador de comprimento de pacote) e como a defesa (módulos 02 + sanitizers) mitiga.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Três entradas completas (bug, saída, sanitizer, fix).</li><li>CWE correta em cada caso.</li><li>Diff antes/depois coerente (não apenas comentário removido).</li><li>Sanitizer/valgrind limpo nas versões corrigidas.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Demonstração de rede em loopback + guia para o defensor <span class="proj-mod">(4.09 — Redes ofensivas em C: shells, shellcode e packet crafting)</span></h2>
+  <p>Monte a pasta <code>~/labs/4.09</code> com: (1) uma demonstração completa rodando — listener nc e reverse_shell conectando, com output capturado dos dois lados; (2) o bind_shell com registro de tcpdump (<code>sudo tcpdump -i lo -w cap.pcap</code>) e uma decodificação mínima mostrando o handshake; (3) o sniffer imprimindo os pacotes do seu próprio teste; (4) um arquivo <code>defensor.md</code> com o "playbook": comandos (ss -tlnp, ss -tpn, lsof -i, tcpdump), o que olhar em cada um e as 3 features que você monitoraria num endpoint para detectar esses padrões.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>reverse_shell + nc funcionando no lab com output dos dois terminais.</li><li>bind_shell testado via nc e pacotes capturados com tcpdump/analisados.</li><li>sniffer imprimindo TCP do próprio teste (ou do exercício 3).</li><li>Playbook defensor.md com comandos e sinais de detecção.</li></ul></div>
+</section>
+<section class="card projeto">
+  <h2>🏗️ Capstone completo: 2 writeups + 1 relatório de auditoria <span class="proj-mod">(4.10 — Capstone: CTF pwn + auditoria definitiva)</span></h2>
+  <p>Consolide em <code>~/labs/4.10</code>: (1) <code>writeup_challA.md</code> e <code>writeup_challB.md</code> dos dois binários de CTF que você resolveu (checksec, análise, exploit, prova, defesa); (2) <code>auditoria_ctf1.md</code> e <code>auditoria_ctf2.md</code> com a tabela de achados (CWE, linha, impacto, explotabilidade, correção) + diffs aplicados; (3) <code>versao_corrigida_ctf1.c</code> e <code>ctf2.c</code> compilando com o combo defensivo e checksec mostrando as proteções ligadas; (4) um README.md de epílogo com 3 lições pessoais da trilha. Lembre: nada de explorer nada fora do lab.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>2 writeups completos com exploit reproduzível (ou flag capturada nas plataformas).</li><li>2 relatórios de auditoria com no mínimo 3 achados cada (totais) e tabela CWE/linha/impacto/explotabilidade/correção.</li><li>Versões corrigidas compilando com flags defensivas e checksec com NX/PIE/canário/RELRO adequados.</li><li>README final com as 3 lições pessoais.</li><li>Nenhuma evidência de atividade fora do lab (endereços = loopback/plataformas de CTF).</li></ul></div>
+</section></main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

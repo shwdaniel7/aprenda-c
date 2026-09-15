@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.01 — Introdução à linguagem C — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="1">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t1">Trilha 1 — Fundamentos</a> / Introdução à linguagem C</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">1.01</div>
+    <h1>Introdução à linguagem C</h1>
+    <p class="subtitulo">história, filosofia e o porquê de o C continuar relevante</p>
+    <div class="chips">
+      <span class="chip">Nível: Iniciante</span>
+      <span class="chip">Duração: ~30 min</span>
+      <span class="chip">Pré-requisitos: Trilha 0 (Setup)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t1-m01">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Entender de onde vem o C, por que ele segue dominando sistemas, kernels e embarcados, e o que significa a filosofia de "confiar no programador". Você também reapresenta seu primeiro programa completo e revisa a jornada do código ao executável.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulos 1 e 2 — Getting Started, Hello World e o que esperar da linguagem</p>
+  <p><strong>King (livro em PDF):</strong> Capítulos 1 e 2.1–2.2 — Programação em C e ciclo compilar–linkar</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, leia os dois primeiros capítulos de leve, rode o Hello World e folheie as seções "Quick Start". No King, vá direto à estrutura de um programa e à diferença entre compilação e linkagem—sem se preocupar com detalhes de sintaxe ainda.</p>
+</section>
+  <section class="card secao">
+  <h2>Uma linguagem de 1972 que roda o mundo</h2>
+  <p>O C nasceu nos <strong>Bell Labs</strong>, nos Estados Unidos, durante os anos 1970. <strong>Dennis Ritchie</strong> o criou a partir do B (que deriva do BCPL), com um objetivo bem prático: reescrever o sistema operacional <strong>Unix</strong>, que até então era escrito em assembly. Para escrever um SO portátil, Ritchie precisava de uma linguagem que fosse rápida quanto assembly, mas legível e portável como as linguagens de alto nível.</p>
+<p>O C "decolou" junto com o Unix: como o SO era escrito em C, qualquer máquina que tivesse um compilador C podia rodar o Unix. Da Bell Labs, a linguagem se espalhou pelas universidades e depois pela indústria inteira.</p>
+  <ul><li><strong>1972</strong> — primeiras versões do C, ainda junto ao Unix (PDP-11).</li>
+<li><strong>1978</strong> — livro clássico de Kernighan &amp; Ritchie (<em>The C Programming Language</em>), o famoso "K&amp;R".</li>
+<li><strong>1989/1990</strong> — padronização oficial (ANSI C / C89, depois ISO C90).</li>
+<li><strong>1999</strong> — padrão C99 (designated initializers, <code>//</code> para comentário, variantes de tipos).</li>
+<li><strong>2011</strong> — padrão C11, o que usamos neste curso (<code>_Bool</code>, <code>_Static_assert</code>).</li>
+<li><strong>2018 / 2023</strong> — C17 (correções) e C23 (última revisão).</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Por que C segue na frente</h2>
+  <p>Décadas depois, o C continua entre as linguagens mais usadas do mundo — ocupa regularmente o topo de rankings como o <strong>TIOBE</strong>. O motivo é que ele resolve, com precisão e previsibilidade, problemas que quase nenhuma outra linguagem resolve:</p>
+  <ul><li><strong>Kernels de sistemas operacionais</strong> — Linux, Windows, macOS: o núcleo é escrito em C.</li>
+<li><strong>Embarcados e IoT</strong> — microcontroladores com KB de memória não suportam máquina virtual; sobra espaço só para C (e assembly).</li>
+<li><strong>Compiladores e interpretadores</strong> — inclusive vários compiladores de linguagens "modernas".</li>
+<li><strong>Bibliotecas de alto desempenho</strong> — de banco de dados a motores de jogo, os "miolos" caros são C/C++.</li>
+<li><strong>Camadas de baixo nível</strong> — drivers, firmware, protocolos de rede. É onde "a borracha pega".</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Filosofia: &quot;o C confia em você&quot;</h2>
+  <p>Ao contrário de linguagens que seguram sua mão (Java, Python, Go), o C <em>assume que você sabe o que está fazendo</em>. Ele permite acessar a memória diretamente, não cria "garbage collector" e não esconde o que o processador realmente faz. Consequência: você ganha <strong>velocidade e controle</strong>, e paga com <strong>responsabilidade</strong>.</p>
+<p>Na prática, isso aparece em situações como: escrever além do fim de um vetor <del>compila</del>? não: <strong>compila, mas o comportamento é indefinido</strong>; somar dois inteiros que estouram o limite "silenciosamente"; comparar com <code>=</code> em vez de <code>==</code>. O C não vai te impedir — cabe a você se cuidar (e a nós, ensiná-lo a se cuidar).</p>
+<p>Essa é a mesma razão pela qual a <em>Trilha 4 (Cyber)</em> deste curso existe: bugs de C se tornam vulnerabilidades. Entender bem o C é entender segurança ofensiva e defensiva.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>O que você consegue fazer com C</h2>
+  <p>Neste curso você vai do "olá, mundo" a um utilitário de linha de comando completo no módulo 1.12 — tudo com o gcc e o terminal que você já configurou na Trilha 0.</p>
+  <ul><li>Escrever utilitários de linha de comando (o que você fará até o fim desta trilha).</li>
+<li>Programar microcontroladores e robôs (Arduino, ESP32, ...).</li>
+<li>Implementar estruturas de dados e algoritmos do zero, sem depender de frameworks.</li>
+<li>Ler e manipular dados brutos: arquivos, rede (sockets), formatos binários.</li>
+<li>Construir sua própria linguagem, emulador ou sistema operacional.</li>
+<li>Entrar a fundo em segurança: análise de binários, exploits, engenharia reversa.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Seu programa de novo, agora com atenção</h2>
+  <p>Compile e rode o programa abaixo. Repare que ele é idêntico em estrutura a qualquer outro programa C: a diretiva <code>#include</code> traz a biblioteca, a função <code>main</code> é o ponto de entrada, as instruções terminam com <code>;</code> e o <code>return 0</code> sinaliza sucesso para o sistema operacional.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — hello de novo</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;Olá, mundo!\n&quot;);
+    printf(&quot;Trilha 1 começa aqui\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Olá, mundo!
+Trilha 1 começa aqui</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Do código ao executável (recapitulando)</h2>
+  <p>Você já viu isso na Trilha 0, mas vale fixar o ciclo. C é uma linguagem <strong>compilada</strong>: você escreve o texto em um arquivo <code>.c</code>, o gcc traduz tudo para código de máquina e <em>então</em> você executa o resultado. Diferente de linguagens interpretadas, que leem e executam linha a linha "na hora".</p>
+  <ul><li><code>gcc -Wall -Wextra -std=c11 hello.c -o hello</code> — compila e linka, gerando <code>hello.exe</code>.</li>
+<li><code>.\hello.exe</code> — executa o programa, que roda a função <code>main</code>.</li>
+<li>Erros de sintaxe aparecem <em>na compilação</em>; erros de lógica aparecem <em>na execução</em>. Esta distinção será vital no módulo 1.11.</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t1-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.01.1</p>
+  <p class="enunciado">Modifique o programa <code>hello.c</code> para imprimir seu primeiro nome na primeira linha e a cidade onde você mora na segunda. Compile com <code>-Wall -Wextra</code> e garanta zero avisos.</p>
+  <p class="dica"><strong>Dica:</strong> Dois <code>printf</code> separados bastam; só não esqueça o <code>\n</code> de cada linha.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;Maria\n&quot;);
+    printf(&quot;Recife\n&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">Troque os nomes por você mesmo(a). O importante é o fluxo: editar, compilar, executar, ver a saída.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t1-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.01.2</p>
+  <p class="enunciado">Escreva um programa que imprime um triângulo de quatro linhas de asteriscos: começa com 1 e termina com 4 asteriscos.</p>
+  <p class="dica"><strong>Dica:</strong> Cada linha é um <code>printf</code> com o número certo de <code>*</code> seguido de <code>\n</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;*\n&quot;);
+    printf(&quot;**\n&quot;);
+    printf(&quot;***\n&quot;);
+    printf(&quot;****\n&quot;);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t1-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.01.3</p>
+  <p class="enunciado">Use <code>printf</code> para montar uma mini tabela de preços com duas colunas (item e preço) separadas por um caractere de tabulação <code>\t</code>. Ex.: <code>Caneta\t2.50</code>.</p>
+  <p class="dica"><strong>Dica:</strong> O caractere de tabulação é escrito em C como <code>\t</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;Item\tPreco\n&quot;);
+    printf(&quot;Caneta\t2.50\n&quot;);
+    printf(&quot;Lapis\t1.90\n&quot;);
+    printf(&quot;Total\t4.40\n&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">A tabulação alinha as colunas sem você contar espaços na mão.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t1-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.01.4</p>
+  <p class="enunciado">Sem rodar, escreva no papel a saída do programa abaixo. Depois compile, rode e compare: <code>printf("2 + 2 = %d\n", 4);</code> e <code>printf("%d + %d = %d\n", 2, 2, 4);</code>.</p>
+  <p class="dica"><strong>Dica:</strong> <code>%d</code> é o lugar onde o número entra no texto.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;2 + 2 = %d\n&quot;, 4);
+    printf(&quot;%d + %d = %d\n&quot;, 2, 2, 4);
+    return 0;
+}</code></pre>
+        <p class="obs">Os dois <code>printf</code> produzem exatamente a mesma linha. <code>%d</code> substitui o valor do argumento no texto.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Quem é considerado o principal criador da linguagem C?&quot;,&quot;opcoes&quot;:[&quot;Dennis Ritchie&quot;,&quot;Ken Thompson&quot;,&quot;Brian Kernighan&quot;,&quot;Bjarne Stroustrup&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Dennis Ritchie criou o C nos Bell Labs nos anos 1970, a partir do B de Ken Thompson.&quot;},{&quot;pergunta&quot;:&quot;Onde e quando o C nasceu?&quot;,&quot;opcoes&quot;:[&quot;Nos Bell Labs, nos anos 1970&quot;,&quot;Na Microsoft, nos anos 1980&quot;,&quot;No MIT, nos anos 1960&quot;,&quot;No Google, nos anos 1990&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Bell Labs, anos 1970, com objetivos ligados ao sistema Unix.&quot;},{&quot;pergunta&quot;:&quot;Por que o C continua tão usado hoje?&quot;,&quot;opcoes&quot;:[&quot;É a base de kernels, embarcados e bibliotecas de alto desempenho&quot;,&quot;É a linguagem mais nova do mercado&quot;,&quot;Substituiu completamente o assembly em drivers críticos&quot;,&quot;Só existe por motivos históricos&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;C domina onde importa velocidade e controle de baixo nível: SOs, microcontroladores e bibliotecas rápidas.&quot;},{&quot;pergunta&quot;:&quot;A filosofia \&quot;confiar no programador\&quot; significa que...&quot;,&quot;opcoes&quot;:[&quot;o C permite acesso de baixo nível e assume que você sabe o que faz&quot;,&quot;o compilador corrige sozinho todos os seus erros&quot;,&quot;o C impede qualquer erro de memória em tempo de execução&quot;,&quot;o C exige um garbage collector para rodar&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O C não segura sua mão: acesso direto à memória, sem coletor de lixo, com consequências nas suas mãos.&quot;},{&quot;pergunta&quot;:&quot;O que significa dizer que C é uma linguagem compilada?&quot;,&quot;opcoes&quot;:[&quot;o código é traduzido para código de máquina antes de executar&quot;,&quot;o código é executado linha a linha por um interpretador&quot;,&quot;o código precisa de um navegador para rodar&quot;,&quot;o código não precisa de compilador&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O gcc traduz o .c para código de máquina e então o executável roda.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  
+  <nav class="mod-nav"><a class="btn nav-next" href="variaveis-tipos-e-atribuicao.html">1.02 Variáveis, tipos e atribuição →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t1-m01">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

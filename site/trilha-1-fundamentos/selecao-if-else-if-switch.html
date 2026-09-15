@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.05 — Seleção: if, else if, switch — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="1">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t1">Trilha 1 — Fundamentos</a> / Seleção: if, else if, switch</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">1.05</div>
+    <h1>Seleção: if, else if, switch</h1>
+    <p class="subtitulo">decisões e caminhos alternativos</p>
+    <div class="chips">
+      <span class="chip">Nível: Iniciante</span>
+      <span class="chip">Duração: ~40 min</span>
+      <span class="chip">Pré-requisitos: T1.04</span>
+    </div>
+    <button class="btn btn-done" data-mod="t1-m05">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Aprender a controlar o fluxo por condições: if/else e cadeias de else if, a representação de "verdade" em C (qualquer valor não nulo), o problema do "dangling else", o operador ternário ?: e o switch com break e default.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Seção 3.3 — if/else e switch</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 5 — Seleção</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, capítulo 5 inteiro é dedicado a isso: estude a tabela de expressões lógicas, a seção do dangling else e os exemplos de switch. No Beej, a seção 3.3 dá o panorama prático.</p>
+</section>
+  <section class="card secao">
+  <h2>if e else: dois caminhos</h2>
+  <p>O <code>if</code> decide se um bloco roda com base em uma condição. A regra de "verdade" em C é simples: <strong>a condição é falsa se a expressão vale 0, e verdadeira para qualquer outro valor</strong>. O <code>else</code> pega o caso contrário.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — primeiro if</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n;
+
+    printf(&quot;Digite um numero: &quot;);
+    scanf(&quot;%d&quot;, &amp;n);
+
+    if (n % 2 == 0) {
+        printf(&quot;%d e par\n&quot;, n);
+    } else {
+        printf(&quot;%d e impar\n&quot;, n);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Digite um numero: 7
+7 e impar</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>else if: mais de dois caminhos</h2>
+  <p>Quando as opções são várias, encadeie <code>else if</code>. Cada condição só é testada se todas as anteriores falharem. A última avaliação (a que não tem condição) é o "senão" final.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — cadeia de decisões</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double nota;
+
+    printf(&quot;Nota (0 a 10): &quot;);
+    scanf(&quot;%lf&quot;, &amp;nota);
+
+    if (nota &gt;= 9.0) {
+        printf(&quot;conceito A\n&quot;);
+    } else if (nota &gt;= 7.0) {
+        printf(&quot;conceito B\n&quot;);
+    } else if (nota &gt;= 5.0) {
+        printf(&quot;conceito C\n&quot;);
+    } else {
+        printf(&quot;reprovado\n&quot;);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Nota (0 a 10): 8.5
+conceito B</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Verdade em C: qualquer coisa diferente de zero</h2>
+  <p>Como a verdade é "não-zero", o C aceita atalhos que em outras linguagens dão erro. <code>if (x)</code> é o mesmo que <code>if (x != 0)</code>; <code>if (!x)</code> é o mesmo que <code>if (x == 0)</code>. Graças ao curto-circuito, dá até para escrever <code>if (n &gt; 0 && n % 2 == 0)</code> e ter "n positivo e par" numa condição só.</p>
+<p>Cuidado: o atalho <code>if (x)</code> é o que leva o iniciante a escrever <code>if (x = 5)</code> em vez de <code>if (x == 5)</code> — a atribuição vale 5, que é "verdadeiro", e o bug passa despercebido (módulo 1.11 ataca isso a fundo).</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>O &quot;dangling else&quot;</h2>
+  <p>Quando um <code>if</code> está dentro de outro e só há um <code>else</code>, a quem ele pertence? O C responde: <strong>o <code>else</code> se associa ao <code>if</code> mais próximo</strong> ainda sem par. O programa abaixo parece "óbvio", mas o <code>else</code> pertence ao <code>if interno</code>:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — else perdido</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int x = 1;
+    int y = 1;
+
+    if (x &gt; 1)
+        /* BUG: sem chaves, o else fica ambiguo */
+        if (y &gt; 1)
+            printf(&quot;os dois sao grandes\n&quot;);
+        /* este else pertence ao if de cima! */
+        else
+            printf(&quot;entrei: x &gt; 1, mas y nao\n&quot;);
+
+    printf(&quot;fim do programa\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>dangling.c:8:8: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+    8 |     if (x &gt; 1)
+      |        ^
+
+fim do programa</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>switch: quando comparar com muitos valores</h2>
+  <p>O <code>switch</code> compara uma expressão inteira (ou <code>char</code>) com uma série de <code>case</code>. Cada <code>case</code> deve terminar com <code>break</code>, senão ocorre o <strong>fall-through</strong> — a execução "vaza" para o próximo caso. O <code>default</code> é opcional e pega nada que nenhum caso cubra.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — switch</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int mes;
+
+    printf(&quot;Numero do mes (1-12): &quot;);
+    scanf(&quot;%d&quot;, &amp;mes);
+
+    switch (mes) {
+        case 1:
+        case 3:
+        case 5:
+        case 7:
+        case 8:
+        case 10:
+        case 12:
+            printf(&quot;31 dias\n&quot;);
+            break;
+        case 4:
+        case 6:
+        case 9:
+        case 11:
+            printf(&quot;30 dias\n&quot;);
+            break;
+        case 2:
+            printf(&quot;28 ou 29 dias (fevereiro)\n&quot;);
+            break;
+        default:
+            printf(&quot;mes invalido\n&quot;);
+            break;
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Numero do mes (1-12): 6
+30 dias</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O operador ternário ?:</h2>
+  <p>Para "if que escolhe um valor", existe o operador ternário: <code>cond ? valorSe : valorNao</code>. Ele é ótimo como abreviação, e péssimo quando vira "coding golf". Use para escolhas curtas.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — ternário</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int idade = 17;
+    char *status = idade &gt;= 18 ? &quot;maior de idade&quot; : &quot;menor de idade&quot;;
+
+    printf(&quot;%d anos: %s\n&quot;, idade, status);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>17 anos: menor de idade</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t1-m05">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.05.1</p>
+  <p class="enunciado">Leia um número inteiro e diga se ele é positivo, negativo ou zero.</p>
+  <p class="dica"><strong>Dica:</strong> Três caminhos: if (n > 0), else if (n < 0), else.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n;
+
+    printf(&quot;Digite um numero: &quot;);
+    scanf(&quot;%d&quot;, &amp;n);
+
+    if (n &gt; 0) {
+        printf(&quot;positivo\n&quot;);
+    } else if (n &lt; 0) {
+        printf(&quot;negativo\n&quot;);
+    } else {
+        printf(&quot;zero\n&quot;);
+    }
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t1-m05">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.05.2</p>
+  <p class="enunciado">Leia três números inteiros e imprima o maior deles (use a técnica do "maior até agora": comece com o primeiro e vá atualizando).</p>
+  <p class="dica"><strong>Dica:</strong> Não precisa de &&: atualize o maior na hora com dois ifs simples.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int a, b, c, maior;
+
+    printf(&quot;Digite tres numeros: &quot;);
+    scanf(&quot;%d %d %d&quot;, &amp;a, &amp;b, &amp;c);
+
+    maior = a;
+    if (b &gt; maior) {
+        maior = b;
+    }
+    if (c &gt; maior) {
+        maior = c;
+    }
+
+    printf(&quot;maior: %d\n&quot;, maior);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t1-m05">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.05.3</p>
+  <p class="enunciado">Leia altura (m) e peso (kg) e classifique o IMC: abaixo de 18.5 "abaixo", de 18.5 a 24.9 "normal", de 25 a 29.9 "sobrepeso" e 30+ "obesidade". IMC = peso / altura².</p>
+  <p class="dica"><strong>Dica:</strong> altura² = altura * altura. Teste os limites em cada faixa com >=.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double altura, peso, imc;
+
+    printf(&quot;Peso (kg): &quot;);
+    scanf(&quot;%lf&quot;, &amp;peso);
+    printf(&quot;Altura (m): &quot;);
+    scanf(&quot;%lf&quot;, &amp;altura);
+
+    imc = peso / (altura * altura);
+
+    printf(&quot;IMC: %.2f -&gt; &quot;, imc);
+    if (imc &lt; 18.5) {
+        printf(&quot;abaixo do peso\n&quot;);
+    } else if (imc &lt; 25.0) {
+        printf(&quot;peso normal\n&quot;);
+    } else if (imc &lt; 30.0) {
+        printf(&quot;sobrepeso\n&quot;);
+    } else {
+        printf(&quot;obesidade\n&quot;);
+    }
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t1-m05">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.05.4</p>
+  <p class="enunciado">Use switch para imprimir o nome do dia da semana a partir de um número 1–7 (1 = domingo ... 7 = sábado). Se o número for inválido, imprima "dia invalido".</p>
+  <p class="dica"><strong>Dica:</strong> Cada case com seu break; o default lida com o resto.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int dia;
+
+    printf(&quot;Dia da semana (1-7): &quot;);
+    scanf(&quot;%d&quot;, &amp;dia);
+
+    switch (dia) {
+        case 1: printf(&quot;domingo\n&quot;); break;
+        case 2: printf(&quot;segunda\n&quot;); break;
+        case 3: printf(&quot;terca\n&quot;); break;
+        case 4: printf(&quot;quarta\n&quot;); break;
+        case 5: printf(&quot;quinta\n&quot;); break;
+        case 6: printf(&quot;sexta\n&quot;); break;
+        case 7: printf(&quot;sabado\n&quot;); break;
+        default: printf(&quot;dia invalido\n&quot;); break;
+    }
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t1-m05">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.05.5</p>
+  <p class="enunciado">Leia um ano e diga se é bissexto: divisível por 4, exceto os divisíveis por 100 (mas os divisíveis por 400 são bissextos). Combine as regras com && e ||.</p>
+  <p class="dica"><strong>Dica:</strong> Regra completa: (ano % 4 == 0 && ano % 100 != 0) || ano % 400 == 0.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int ano;
+
+    printf(&quot;Ano: &quot;);
+    scanf(&quot;%d&quot;, &amp;ano);
+
+    if ((ano % 4 == 0 &amp;&amp; ano % 100 != 0) || ano % 400 == 0) {
+        printf(&quot;%d e bissexto\n&quot;, ano);
+    } else {
+        printf(&quot;%d nao e bissexto\n&quot;, ano);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">1900 não é bissexto (÷100 mas não ÷400); 2000 é (÷400).</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Em C, uma condição é VERDADEIRA quando a expressão vale:&quot;,&quot;opcoes&quot;:[&quot;qualquer valor diferente de zero&quot;,&quot;apenas o valor 1&quot;,&quot;apenas valores positivos&quot;,&quot;o valor 0&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Tudo que não é zero é verdadeiro em C — o 0 é o único \&quot;falso\&quot;.&quot;},{&quot;pergunta&quot;:&quot;No \&quot;dangling else\&quot;, o else se liga a qual if?&quot;,&quot;opcoes&quot;:[&quot;ao if mais próximo que ainda não tem else&quot;,&quot;ao primeiro if do programa&quot;,&quot;ao if com mais chaves&quot;,&quot;a nenhum — dá erro de compilação&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O else é associado ao if mais próximo sem par; use chaves para evitar a armadilha.&quot;},{&quot;pergunta&quot;:&quot;O que printa &lt;code&gt;switch&lt;/code&gt; para &lt;code&gt;case 5: ... break;&lt;/code&gt; e valor 5?&quot;,&quot;opcoes&quot;:[&quot;executa o case 5 e para no break&quot;,&quot;executa o case 5 e todos os seguintes&quot;,&quot;nem executa o case 5&quot;,&quot;dá erro, porque case só aceita char&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O break encerra o switch logo após o case 5. Sem break, haveria fall-through.&quot;},{&quot;pergunta&quot;:&quot;O que acontece quando um switch não tem &lt;code&gt;break&lt;/code&gt; no fim de um case?&quot;,&quot;opcoes&quot;:[&quot;o código \&quot;vaza\&quot; para o próximo case (fall-through)&quot;,&quot;o switch encerra automaticamente&quot;,&quot;o programa reinicia&quot;,&quot;ocorre erro de compilação&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Fall-through é a execução continuar no próximo case; às vezes é útil (meses de 31 dias), às vezes é bug.&quot;},{&quot;pergunta&quot;:&quot;&lt;code&gt;int x = 7; double r = x &gt; 5 ? 1.5 : 2.5;&lt;/code&gt; — qual o valor de r?&quot;,&quot;opcoes&quot;:[&quot;1.5&quot;,&quot;2.5&quot;,&quot;7&quot;,&quot;true&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;x &gt; 5 é verdadeiro, então o ternário retorna o primeiro valor: 1.5.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Calculadora de IMC completa</h2>
+  <p>Melhore o classificador de IMC: leia peso e altura, calcule o IMC com 2 casas e, além de classificar em 4 faixas (abaixo/normal/sobrepeso/obesidade), informe o peso ideal aproximado para uma altura "normal" (IMC 22) e uma dica simples (aumentar ou reduzir peso) em função da faixa. Use if/else if e pelo menos um switch ou ternário em algum ponto.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Lê peso e altura como double.</li><li>Classifica em pelo menos 4 faixas de IMC com mensagens diferentes.</li><li>Calcula o peso que daria IMC 22 para a altura informada.</li><li>Trata entrada inválida (peso ou altura ≤ 0).</li><li>Compila com <code>-Wall -Wextra -std=c11</code> sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="operadores-e-expressoes.html">← 1.04 Operadores e expressões</a><a class="btn nav-next" href="loops-while-do-while-e-for.html">1.06 Loops: while, do-while e for →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t1-m05">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.06 — Loops: while, do-while e for — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="1">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t1">Trilha 1 — Fundamentos</a> / Loops: while, do-while e for</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">1.06</div>
+    <h1>Loops: while, do-while e for</h1>
+    <p class="subtitulo">repetição com contador e com condição</p>
+    <div class="chips">
+      <span class="chip">Nível: Iniciante</span>
+      <span class="chip">Duração: ~50 min</span>
+      <span class="chip">Pré-requisitos: T1.05</span>
+    </div>
+    <button class="btn btn-done" data-mod="t1-m06">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Dominar os três laços do C (while, do-while, for), saber escolher o mais adequado a cada situação, entender loops infinitos + break/continue, loops aninhados e o papel das vírgulas no for.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Seção 3.3 — loops (while, do-while, for)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 6 — Loops</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, capítulo 6 é o coração da repetição em C: while, do-while, for e a seção "for com vírgulas". No Beej, a seção de loops traz exemplos simples de cada forma.</p>
+</section>
+  <section class="card secao">
+  <h2>while: repita enquanto a condição valer</h2>
+  <p>O <code>while</code> testa a condição <em>antes</em> de cada volta: se for "falso" (zero) logo de cara, o corpo é pulado — pode nem executar uma vez. Note o padrão clássico: variável de controle, teste, e atualização da variável dentro do corpo.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — while</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int contador = 1;
+    int soma = 0;
+
+    while (contador &lt;= 10) {
+        soma += contador;
+        contador++;
+    }
+
+    printf(&quot;soma de 1 a 10: %d\n&quot;, soma);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>soma de 1 a 10: 55</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>do-while: garanta ao menos uma execução</h2>
+  <p>O <code>do-while</code> testa a condição <em>depois</em> do corpo — o corpo roda sempre pelo menos uma vez. É perfeito para menus: você mostra as opções e só pergunta de novo se a resposta foi inválida.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — do-while</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int escolha;
+
+    do {
+        printf(&quot;1) Ver saldo\n&quot;);
+        printf(&quot;2) Depositar\n&quot;);
+        printf(&quot;3) Sair\n&quot;);
+        printf(&quot;Escolha: &quot;);
+        scanf(&quot;%d&quot;, &amp;escolha);
+    } while (escolha != 3);
+
+    printf(&quot;Ate mais!\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>1) Ver saldo
+2) Depositar
+3) Sair
+Escolha: 1
+1) Ver saldo
+2) Depositar
+3) Sair
+Escolha: 2
+1) Ver saldo
+2) Depositar
+3) Sair
+Escolha: 3
+Ate mais!</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>for: o laço com contador</h2>
+  <p>O <code>for</code> concentra a mecânica do contador em uma linha: <code>for (inicialização; condição; passo)</code>. Tudo já é organizado para repetir "das tantas vezes até um valor". Como todos os laços de C aceitam apenas <code>int</code> como condição, o padrão de percorrer <code>0..n</code> fica comum em todo código real.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — for</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int i;
+
+    printf(&quot; i  | i*i\n&quot;);
+    printf(&quot;----+----\n&quot;);
+    for (i = 1; i &lt;= 5; i++) {
+        printf(&quot;%3d | %3d\n&quot;, i, i * i);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code> i  | i*i
+----+----
+  1 |   1
+  2 |   4
+  3 |   9
+  4 |  16
+  5 |  25</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Loops infinitos, break e continue</h2>
+  <p>Um <code>for (;;)</code> roda para sempre — útil quando a saída depende de um sinal lido de fora. Para sair no meio, <code>break</code> encerra o laço imediatamente; <code>continue</code> pula para a próxima volta (pulando o resto do corpo).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — controle do laço</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n, soma = 0;
+
+    printf(&quot;Digite numeros (0 encerra, negativos sao ignorados):\n&quot;);
+    for (;;) {
+        printf(&quot;&gt; &quot;);
+        scanf(&quot;%d&quot;, &amp;n);
+        if (n == 0) {
+            break;
+        }
+        if (n &lt; 0) {
+            continue;
+        }
+        soma += n;
+    }
+
+    printf(&quot;soma: %d\n&quot;, soma);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Digite numeros (0 encerra, negativos sao ignorados):
+&gt; 5
+&gt; -3
+&gt; 2
+&gt; 0
+soma: 7</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Loops aninhados e a tabuada</h2>
+  <p>Um laço dentro de outro forma <strong>loops aninhados</strong>: para cada volta do externo, o interno roda por inteiro. É assim que se percorre linhas × colunas — como a tabuada:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — aninhados</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int i, j;
+
+    for (i = 1; i &lt;= 9; i++) {
+        for (j = 1; j &lt;= 9; j++) {
+            printf(&quot;%3d&quot;, i * j);
+        }
+        printf(&quot;\n&quot;);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>  1  2  3  4  5  6  7  8  9
+  2  4  6  8 10 12 14 16 18
+  3  6  9 12 15 18 21 24 27
+  4  8 12 16 20 24 28 32 36
+  5 10 15 20 25 30 35 40 45
+  6 12 18 24 30 36 42 48 54
+  7 14 21 28 35 42 49 56 63
+  8 16 24 32 40 48 56 64 72
+  9 18 27 36 45 54 63 72 81</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Contador vs condicional — e a vírgula no for</h2>
+  <p>Escolha o laço pelo <em>tipo de repetição</em>, não pela aparência:</p>
+  <ul><li><strong>Número conhecido de voltas</strong> — <code>for</code> (tabuada, percorrer 1..n).</li>
+<li><strong>Repetir enquanto uma condição mudar por dados externos</strong> — <code>while</code> (processar até o 0).</li>
+<li><strong>Garantir ao menos uma passagem</strong> — <code>do-while</code> (menus).</li>
+<li>Quem decide o fim do laço <em>dentro</em> do corpo ou lendo entrada — <code>while</code> ou <code>for (;;)</code> com <code>break</code>.</li>
+<li>No <code>for</code>, vírgulas separam múltiplas instruções na inicialização ou no passo: <code>for (i = 0, j = 10; i &lt; j; i++, j--)</code>.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Programa: soma da série harmônica</h2>
+  <p>Laços fazem o trabalho "pesado" com números de ponto flutuante: somar 1 + 1/2 + 1/3 + ... + 1/n. Repare no <code>1.0 / i</code>: sem o <code>.0</code>, a divisão seria inteira e cada termo viraria 0 (menos o primeiro).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — serie.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int i, n;
+    double soma = 0.0;
+
+    printf(&quot;Quantos termos? &quot;);
+    scanf(&quot;%d&quot;, &amp;n);
+
+    for (i = 1; i &lt;= n; i++) {
+        soma += 1.0 / i;
+    }
+
+    printf(&quot;soma da serie 1 + 1/2 + ... + 1/%d = %.6f\n&quot;, n, soma);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Quantos termos? 5
+soma da serie 1 + 1/2 + ... + 1/5 = 2.283333</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Programa: verificação de número primo</h2>
+  <p>Aqui o laço testa uma propriedade e um <code>break</code> interrompe a busca na primeira evidência. <code>i * i &lt;= n</code> limita o teste à raiz quadrada do número — sem biblioteca matemática.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — primo.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n, i, eh_primo = 1;
+
+    printf(&quot;Digite um numero: &quot;);
+    scanf(&quot;%d&quot;, &amp;n);
+
+    if (n &lt; 2) {
+        eh_primo = 0;
+    } else {
+        for (i = 2; i * i &lt;= n; i++) {
+            if (n % i == 0) {
+                eh_primo = 0;
+                break;
+            }
+        }
+    }
+
+    if (eh_primo) {
+        printf(&quot;%d e primo\n&quot;, n);
+    } else {
+        printf(&quot;%d nao e primo\n&quot;, n);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Digite um numero: 17
+17 e primo</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t1-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.06.1</p>
+  <p class="enunciado">Com um <code>for</code>, imprima todos os números pares de 0 a 20, um por linha.</p>
+  <p class="dica"><strong>Dica:</strong> Comece em 0 e incremente de 2 em 2, ou teste <code>i % 2 == 0</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int i;
+
+    for (i = 0; i &lt;= 20; i += 2) {
+        printf(&quot;%d\n&quot;, i);
+    }
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t1-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.06.2</p>
+  <p class="enunciado">Leia números inteiros e vá somando até que o usuário digite o valor 0 (o 0 não entra na soma). Imprima o total. Use while.</p>
+  <p class="dica"><strong>Dica:</strong> Padrão "sentinela": só pare quando o número digitado for 0.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n, soma = 0;
+
+    printf(&quot;Digite numeros (0 encerra):\n&quot;);
+    printf(&quot;&gt; &quot;);
+    scanf(&quot;%d&quot;, &amp;n);
+
+    while (n != 0) {
+        soma += n;
+        printf(&quot;&gt; &quot;);
+        scanf(&quot;%d&quot;, &amp;n);
+    }
+
+    printf(&quot;total: %d\n&quot;, soma);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t1-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.06.3</p>
+  <p class="enunciado">Leia um número inteiro positivo e imprima quantos dígitos ele tem (ex.: 4528 tem 4 dígitos). Cuidado com o número 0.</p>
+  <p class="dica"><strong>Dica:</strong> Divida por 10 repetidamente até sobrar 0, contando as divisões.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n, qtd = 0;
+
+    printf(&quot;Digite um numero: &quot;);
+    scanf(&quot;%d&quot;, &amp;n);
+
+    if (n == 0) {
+        qtd = 1;
+    } else {
+        if (n &lt; 0) {
+            n = -n;
+        }
+        while (n &gt; 0) {
+            n = n / 10;
+            qtd++;
+        }
+    }
+
+    printf(&quot;digitos: %d\n&quot;, qtd);
+    return 0;
+}</code></pre>
+        <p class="obs">O 0 é um caso especial: com 1 dígito, o while nem rodaria.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t1-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.06.4</p>
+  <p class="enunciado">Calcule e imprima uma aproximação do número de Euler e: some 1 + 1/1! + 1/2! + 1/3! + ... até o termo 1/n! ficar menor que 0.000001 (use um double para o fatorial).</p>
+  <p class="dica"><strong>Dica:</strong> Mantenha <code>fat</code> multiplicando por i a cada volta: fat = fat * i.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double e = 1.0;
+    double fat = 1.0;
+    double termo;
+    int i = 1;
+
+    do {
+        fat *= i;
+        termo = 1.0 / fat;
+        e += termo;
+        i++;
+    } while (termo &gt;= 0.000001);
+
+    printf(&quot;aproximacao de e: %.10f\n&quot;, e);
+    return 0;
+}</code></pre>
+        <p class="obs">O do-while garante ao menos uma soma, e o laço para quando o termo fica pequeno demais.</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t1-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.06.5</p>
+  <p class="enunciado">Print uma "escada digital" com dois loops aninhados: para cada linha i, imprima os números de 1 até i. Ex.: linha 3 imprime "1 2 3". Vá de 1 até 5.</p>
+  <p class="dica"><strong>Dica:</strong> O loop externo controla a linha; o interno os números dela.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int i, j;
+
+    for (i = 1; i &lt;= 5; i++) {
+        for (j = 1; j &lt;= i; j++) {
+            printf(&quot;%d &quot;, j);
+        }
+        printf(&quot;\n&quot;);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">O laço interno usa a variável do externo (i) como limite — por isso as linhas crescem.</p></details>
+</div>
+<div class="exercicio" id="ex-6" data-mod="t1-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.06.6</p>
+  <p class="enunciado">Imprima todos os números primos de 2 a 100, um por linha, usando uma função de teste inline (flag + break) dentro do próprio loop externo.</p>
+  <p class="dica"><strong>Dica:</strong> Reuse a lógica do exemplo primo.c, mas agora ia percorrendo cada candidato.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n, i, eh_primo;
+
+    for (n = 2; n &lt;= 100; n++) {
+        eh_primo = 1;
+        for (i = 2; i * i &lt;= n; i++) {
+            if (n % i == 0) {
+                eh_primo = 0;
+                break;
+            }
+        }
+        if (eh_primo) {
+            printf(&quot;%d\n&quot;, n);
+        }
+    }
+    return 0;
+}</code></pre>
+        </details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual laço garante que o corpo rode pelo menos uma vez, mesmo se a condição já começar falsa?&quot;,&quot;opcoes&quot;:[&quot;do-while&quot;,&quot;while&quot;,&quot;for&quot;,&quot;if&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O do-while testa a condição depois do corpo.&quot;},{&quot;pergunta&quot;:&quot;Quantas vezes roda o corpo de &lt;code&gt;for (i = 1; i &lt;= 5; i++)&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;5&quot;,&quot;6&quot;,&quot;4&quot;,&quot;infinitas&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;i vai de 1 a 5: cinco execuções; o teste &lt;code&gt;i &lt;= 5&lt;/code&gt; fica falso quando i=6.&quot;},{&quot;pergunta&quot;:&quot;O que &lt;code&gt;break&lt;/code&gt; faz dentro de um loop?&quot;,&quot;opcoes&quot;:[&quot;encerra o loop imediatamente&quot;,&quot;pula para a próxima iteração&quot;,&quot;reinicia o loop do início&quot;,&quot;sai do programa inteiro&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;break encerra o laço mais interno; continue pula a volta atual.&quot;},{&quot;pergunta&quot;:&quot;Qual a diferença entre &lt;code&gt;break&lt;/code&gt; e &lt;code&gt;continue&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;break encerra o loop; continue pula para a próxima iteração&quot;,&quot;continue encerra o loop; break pula a iteração&quot;,&quot;não há diferença&quot;,&quot;break vale só para slow≠for&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;breaks terminam a repetição; deixa passar, apenas avança a volta.&quot;},{&quot;pergunta&quot;:&quot;Quantos números o loop externo + interno de &lt;code&gt;for(i=0;i&lt;3;i++) for(j=0;j&lt;2;j++)&lt;/code&gt; somam no total de execuções internas?&quot;,&quot;opcoes&quot;:[&quot;6&quot;,&quot;3&quot;,&quot;2&quot;,&quot;9&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;3 voltas externas × 2 internas = 6 execuções do corpo interno.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Tabela de quadrados e cubos</h2>
+  <p>Crie <code>tabela.c</code>: um programa que imprime uma tabela de n de 1 até N (N lido do teclado, máximo 100): colunas "n", "n^2", "n^3" e "soma acumulada" (dos n^2 até aquela linha). Use loops, largura fixa (<code>%6d</code>) e algumas formatações. Ao final, imprima o total geral dos quadrados.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Lê N e valida (rejeita N > 100 ou N < 1 com loop do-while).</li><li>Imprime o cabeçalho e as linhas com colunas alinhadas.</li><li>Calcula a soma acumulada dos quadrados e o total geral.</li><li>Compila com <code>-Wall -Wextra -std=c11</code> sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="selecao-if-else-if-switch.html">← 1.05 Seleção: if, else if, switch</a><a class="btn nav-next" href="tipos-basicos-a-fundo.html">1.07 Tipos básicos a fundo →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t1-m06">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.07 — Tipos básicos a fundo — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="1">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t1">Trilha 1 — Fundamentos</a> / Tipos básicos a fundo</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">1.07</div>
+    <h1>Tipos básicos a fundo</h1>
+    <p class="subtitulo">tamanhos, límites, unsigned, overflow e conversões</p>
+    <div class="chips">
+      <span class="chip">Nível: Iniciante</span>
+      <span class="chip">Duração: ~40 min</span>
+      <span class="chip">Pré-requisitos: T1.04</span>
+    </div>
+    <button class="btn btn-done" data-mod="t1-m07">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Entender de verdade os tipos: tamanhos variáveis de int/char/short/long, signed vs unsigned, precisão de float/double, o overflow silencioso de inteiros, os limites de <limits.h>/<float.h>, o operador sizeof e as conversões implícitas versus o cast explícito.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 14 — tipos em detalhe</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 7 — Tipos básicos</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, capítulo 7 trata exatamente este tema: gere a tabela de intervalos de cada tipo e leia as seções de conversões implícitas com calma. No Beej, o capítulo sobre tipos complementa com exemplos de sizeof.</p>
+</section>
+  <section class="card secao">
+  <h2>A família int: tamanhos e o padrão</h2>
+  <p>O C não fixa o tamanho da maioria dos tipos — ele fixa <em>mínimos</em>, e deixa a plataforma escolher o resto (praticidade máxima para quem escreve compiladores). Na nossa máquina (MinGW-w64 x86_64), os tamanhos típicos são:</p>
+  <ul><li><code>char</code> — 1 byte (sempre 1, por definição).</li>
+<li><code>short</code> — 2 bytes (garantidamente pelo menos 2).</li>
+<li><code>int</code> — 4 bytes (pelo menos 2).</li>
+<li><code>long</code> — 4 bytes no Windows (8 no Linux 64-bit! — cuidado, não é portável).</li>
+<li><code>long long</code> — 8 bytes (pelo menos 8).</li>
+<li>Cada tipo pode ser <code>signed</code> (com sinal) ou <code>unsigned</code> (sem sinal, só não-negativos, o que dobra a faixa positiva). O <code>int</code> com sinal vai de <code>INT_MIN</code> a <code>INT_MAX</code>.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>char também é um inteiro (pequeno)</h2>
+  <p>Um <code>char</code> guarda um valor de 0 a 127 na maioria das plataformas (assim o caracter ASCII cabe). O C permite tratá-lo como o <em>número</em> que o representa: <code>'A'</code> é o número 65 na tabela ASCII. Isso abre truques como converter uma letra minúscula em maiúscula subtraindo 32.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — char</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    char letra = 'a';
+
+    printf(&quot;letra: %c, valor numerico: %d\n&quot;, letra, letra);
+    printf(&quot;maiuscula: %c\n&quot;, letra - 32);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>letra: a, valor numerico: 97
+maiuscula: A</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>float vs double: precisão e representação</h2>
+  <p>Números de ponto flutuante guardam valor, expoente e sinal — como notação científica binária. Por isso, a maioria dos "números quebrados" não pode ser representada exatamente, e há <strong>arredondamento</strong>. O <code>float</code> tem ~6-7 dígitos decimais confiáveis; o <code>double</code> tem ~15-16. Regra do curso: para cálculos, use <code>double</code>.</p>
+<p>E não compare doubles com <code>==</code> para igualdade exata: <code>0.1 + 0.2</code> costuma não ser exatamente <code>0.3</code> em ponto flutuante. Compare por margem de erro (ex.: <code>fabs(a - b) &lt; 0.0001</code>).</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Overflow: o erro que não faz barulho</h2>
+  <p>Quando um <strong>inteiro sem sinal</strong> passa do máximo, ele <strong>dá a volta</strong> (wrap-around): 4294967295 + 1 vira 0. Já o <strong>inteiro com sinal</strong> em overflow é <strong>comportamento indefinido</strong> (UB) — pode ser qualquer lixo. E o pior: <em>nada é avisado</em>. Sua única proteção é conhecer os limites e decidir na mão.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — overflow</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    unsigned int n = 4294967295U;   /* maior valor de unsigned int */
+
+    printf(&quot;n: %u\n&quot;, n);
+    printf(&quot;n + 1 (estoura silenciosamente): %u\n&quot;, n + 1U);
+    printf(&quot;n + 1 eh menor que n: %d\n&quot;, (n + 1U) &lt; n);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>n: 4294967295
+n + 1 (estoura silenciosamente): 0
+n + 1 eh menor que n: 1</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Limites padrão: limits.h e float.h</h2>
+  <p>A biblioteca padrão fornece as constantes de limites: <code>limits.h</code> para inteiros e <code>float.h</code> para ponto flutuante. Aprender a lê-las no seu próprio computador vale mais do que decorar valores.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — limites</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;limits.h&gt;
+#include &lt;float.h&gt;
+
+int main(void)
+{
+    printf(&quot;sizeof(int)       = %zu bytes\n&quot;, sizeof(int));
+    printf(&quot;sizeof(char)      = %zu bytes\n&quot;, sizeof(char));
+    printf(&quot;sizeof(float)     = %zu bytes\n&quot;, sizeof(float));
+    printf(&quot;sizeof(double)    = %zu bytes\n&quot;, sizeof(double));
+    printf(&quot;sizeof(short)     = %zu bytes\n&quot;, sizeof(short));
+    printf(&quot;sizeof(long long) = %zu bytes\n&quot;, sizeof(long long));
+
+    printf(&quot;\nINT_MAX:  %d\n&quot;, INT_MAX);
+    printf(&quot;INT_MIN:  %d\n&quot;, INT_MIN);
+    printf(&quot;UINT_MAX: %u\n&quot;, UINT_MAX);
+    printf(&quot;CHAR_MAX: %d\n&quot;, CHAR_MAX);
+
+    printf(&quot;\nFLT_DIG (digitos confiaveis do float):  %d\n&quot;, FLT_DIG);
+    printf(&quot;DBL_DIG (digitos confiaveis do double): %d\n&quot;, DBL_DIG);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>sizeof(int)       = 4 bytes
+sizeof(char)      = 1 bytes
+sizeof(float)     = 4 bytes
+sizeof(double)    = 8 bytes
+sizeof(short)     = 2 bytes
+sizeof(long long) = 8 bytes
+
+INT_MAX:  2147483647
+INT_MIN:  -2147483648
+UINT_MAX: 4294967295
+CHAR_MAX: 127
+
+FLT_DIG (digitos confiaveis do float):  6
+DBL_DIG (digitos confiaveis do double): 15</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Conversões: implícita vs cast</h2>
+  <p>Em uma expressão mista, o C aplica <strong>conversão implícita</strong> (usual arithmetic conversions): o menor tipo "promove" para o maior (ex.: <code>int</code> + <code>double</code> → <code>double</code>). Isso é automático e, às vezes, é justamente o que você não quer — como na divisão <code>7 / 2</code>=3.</p>
+<p>O <strong>cast</strong> é a conversão <em>explícita</em> e declarada por você: <code>(double) a / b</code>. Use cast quando a regra automática não é o que você precisa, e para deixar sua intenção clara.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — conversões</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int a = 7, b = 2;
+
+    printf(&quot;7 / 2 (inteiros, trunca): %d\n&quot;, a / b);
+    printf(&quot;7.0 / 2.0 (double): %.2f\n&quot;, 7.0 / 2.0);
+    printf(&quot;(double) 7 / 2 (cast): %.2f\n&quot;, (double) a / b);
+    printf(&quot;a / (double) b: %.1f\n&quot;, a / (double) b);
+
+    double soma_impl = a + 0.5;   /* int promove a double */
+    printf(&quot;7 + 0.5 (implicita): %.1f\n&quot;, soma_impl);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>7 / 2 (inteiros, trunca): 3
+7.0 / 2.0 (double): 3.50
+(double) 7 / 2 (cast): 3.50
+a / (double) b: 3.5
+7 + 0.5 (implicita): 7.5</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t1-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.07.1</p>
+  <p class="enunciado">Escreva um programa que imprime <code>sizeof</code> de <code>int</code>, <code>char</code>, <code>double</code> e <code>long long</code> na sua máquina, com uma frase para cada. Antes de rodar, chute os valores.</p>
+  <p class="dica"><strong>Dica:</strong> Use <code>%zu</code> no printf.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;int:       %zu bytes\n&quot;, sizeof(int));
+    printf(&quot;char:      %zu bytes\n&quot;, sizeof(char));
+    printf(&quot;double:    %zu bytes\n&quot;, sizeof(double));
+    printf(&quot;long long: %zu bytes\n&quot;, sizeof(long long));
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t1-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.07.2</p>
+  <p class="enunciado">Crie um programa que mostra o overflow de um <code>unsigned short</code>: inicialize-o com 65535, some 1 e imprima o resultado. O que acontece?</p>
+  <p class="dica"><strong>Dica:</strong> 65535 é o maior unsigned short; 65535 + 1 dá a volta para 0.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    unsigned short us = 65535;
+
+    printf(&quot;us: %u\n&quot;, us);
+    us = us + 1;
+    printf(&quot;us + 1: %u\n&quot;, (unsigned) us);
+    return 0;
+}</code></pre>
+        <p class="obs">O cast (unsigned) no printf evita ambiguidade de tipos na promoção para int; o valor vira 0.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t1-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.07.3</p>
+  <p class="enunciado">Leia duas notas (int 0–100) e imprima a média correta como double, usando cast em vez de dividir por 2.0.</p>
+  <p class="dica"><strong>Dica:</strong> <code>(n1 + n2) / 2</code> com int daria truncamento; o cast muda o tipo de um dos operandos.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n1, n2;
+
+    printf(&quot;Nota 1 (0-100): &quot;);
+    scanf(&quot;%d&quot;, &amp;n1);
+    printf(&quot;Nota 2 (0-100): &quot;);
+    scanf(&quot;%d&quot;, &amp;n2);
+
+    printf(&quot;media: %.2f\n&quot;, ((double) n1 + n2) / 2);
+    return 0;
+}</code></pre>
+        <p class="obs">Com <code>(double) n1</code>, a soma inteira é promovida para double e a divisão é real.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t1-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.07.4</p>
+  <p class="enunciado">Leia uma letra minúscula e imprima a maiúscula correspondente (subtraia 32 do código ASCII) e também o código numérico de ambas.</p>
+  <p class="dica"><strong>Dica:</strong> "a" é 97 e "A" é 65. O printf combina %c e %d.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    char minuscula;
+
+    printf(&quot;Digite uma letra minuscula: &quot;);
+    scanf(&quot; %c&quot;, &amp;minuscula);
+
+    char maiuscula = minuscula - 32;
+
+    printf(&quot;minuscula: %c (%d)\n&quot;, minuscula, minuscula);
+    printf(&quot;maiuscula: %c (%d)\n&quot;, maiuscula, maiuscula);
+    return 0;
+}</code></pre>
+        <p class="obs">O espaço em <code>scanf(" %c")</code> descarta o Enter que ficou no buffer antes.</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t1-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.07.5</p>
+  <p class="enunciado">Sem rodar, diga o resultado de <code>5/2</code>, <code>5.0/2</code>, <code>(double)5/2</code> e <code>5/2.0</code>. Confirme com um programa que imprime os quatro casos.</p>
+  <p class="dica"><strong>Dica:</strong> Só a primeira é divisão inteira; as demais envolvem ponto flutuante.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;5/2    = %d\n&quot;, 5 / 2);
+    printf(&quot;5.0/2  = %.1f\n&quot;, 5.0 / 2);
+    printf(&quot;(double)5/2 = %.1f\n&quot;, (double) 5 / 2);
+    printf(&quot;5/2.0  = %.1f\n&quot;, 5 / 2.0);
+    return 0;
+}</code></pre>
+        <p class="obs">Resultado: 2, 2.5, 2.5, 2.5. Só o primeiro é divisão inteira.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual o tamanho garantido de um char em C?&quot;,&quot;opcoes&quot;:[&quot;1 byte&quot;,&quot;2 bytes&quot;,&quot;4 bytes&quot;,&quot;depende da máquina sem mínimo&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O char tem 1 byte garantido por definição, em qualquer plataforma.&quot;},{&quot;pergunta&quot;:&quot;O que acontece quando um unsigned int no máximo soma 1?&quot;,&quot;opcoes&quot;:[&quot;dá a volta para 0 (wrap-around), silenciosamente&quot;,&quot;vira comportamento indefinido e travar o programa&quot;,&quot;o compilador acusa erro&quot;,&quot;vira long long automaticamente&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Unsigned faz wrap-around sem aviso: 4294967295 + 1 = 0.&quot;},{&quot;pergunta&quot;:&quot;O overflow de um int COM sinal é:&quot;,&quot;opcoes&quot;:[&quot;comportamento indefinido (UB)&quot;,&quot;sempre dá a volta para o mínimo&quot;,&quot;um erro de compilação&quot;,&quot;automaticamente tratado pelo gcc&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Sinal overflow é UB: o compilador pode otimizar de formas imprevisíveis. Nunca confie nele.&quot;},{&quot;pergunta&quot;:&quot;Qual o valor de &lt;code&gt;7 / 2&lt;/code&gt; com int, e com (double)7 / 2?&quot;,&quot;opcoes&quot;:[&quot;int: 3, cast: 3.5&quot;,&quot;int: 3.5, cast: 3.5&quot;,&quot;int: 3, cast: 3&quot;,&quot;int: 3.5, cast: 3&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Divisão inteira trunca para 3; com cast, a divisão é real (3.5).&quot;},{&quot;pergunta&quot;:&quot;Quantos dígitos decimais confiáveis tem um double típico?&quot;,&quot;opcoes&quot;:[&quot;cerca de 15-16&quot;,&quot;cerca de 6-7&quot;,&quot;2&quot;,&quot;é infinito&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;DBL_DIG costuma ser 15; o float fica em ~6-7.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Explorando os limites do seu computador</h2>
+  <p>Crie <code>explora.c</code> que usa <limits.h> e <float.h> para apresentar, em um relatório atrativo: tamanhos (sizeof) de cada tipo inteiro e real, os valores INT_MAX/INT_MIN/UINT_MAX/LONG_MAX, o valor de DBL_MAX e o de FLT_MAX. Na parte "final" do relatório, invente O próprio teste: declare um int com o valor INT_MAX e imprima o resultado de INT_MAX + 1 com um comentário explicando por que o resultado não faz sentido (UB).</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Relatório formatado com cabeçalho e colunas alinhadas.</li><li>Usa <code>%zu</code> para sizeof e <code>%u</code>/<code>%d</code>/<code>%ld</code> para os limites corretos.</li><li>Contém uma demonstração comentada de que a soma INT_MAX + 1 é indefensável (UB).</li><li>Compila sem avisos com <code>-Wall -Wextra -std=c11</code>.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="loops-while-do-while-e-for.html">← 1.06 Loops: while, do-while e for</a><a class="btn nav-next" href="arrays.html">1.08 Arrays →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t1-m07">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

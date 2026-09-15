@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3.01 — Biblioteca padrão e tratamento de erros — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="3">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t3">Trilha 3 — Avançado</a> / Biblioteca padrão e tratamento de erros</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">3.01</div>
+    <h1>Biblioteca padrão e tratamento de erros</h1>
+    <p class="subtitulo">stdlib, errno, exit status, atexit e assert</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado</span>
+      <span class="chip">Duração: ~35 min</span>
+      <span class="chip">Pré-requisitos: T2.10 (funções), T2.11 (strings), T2.13 (arquivos)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t3-m01">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Conhecer o mapa da biblioteca padrão do C e adotar a postura de quem programa "à prova de erros": retornar status de saída explícitos, validar conversões com strtol, descobrir a causa de uma falha com errno/perror/strerror, agendar limpeza com atexit e usar assert como trava de desenvolvimento.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulos 18 (Error Handling) e 28 (visão geral da biblioteca padrão)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulos 21 (The Standard Library) e 24 (Error Handling)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, o capítulo 21 é um mapa dos cabeçalhos padrão: foque em stdio.h, stdlib.h, string.h, math.h, ctype.h, limits.h e errno.h. O capítulo 24 explica o padrão de tratamento de erros que vamos exercitar.</p>
+</section>
+  <section class="card secao">
+  <h2>Um mapa da biblioteca padrão</h2>
+  <p>A biblioteca padrão do C é o conjunto de funções e macros que acompanham qualquer compilador. Ela não é parte da "linguagem" (sintaxe), mas sem ela não existe programa prático. Você já usa várias; aqui está o mapa para quem quer enxergar o todo:</p>
+  <ul><li><code>&lt;stdio.h&gt;</code> — entrada/saída <em>padrão</em>: <code>printf</code>, <code>fopen</code>, <code>fgets</code>, <code>fwrite</code>.</li>
+<li><code>&lt;stdlib.h&gt;</code> — utilitários gerais: <code>malloc/free</code>, <code>strtol</code>, <code>atoi</code>, <code>exit</code>, <code>atexit</code>, <code>qsort</code>.</li>
+<li><code>&lt;string.h&gt;</code> — manipulação de strings e memória: <code>strcpy</code>, <code>strlen</code>, <code>memcpy</code>, <code>strtok</code>.</li>
+<li><code>&lt;math.h&gt;</code> — funções matemáticas: <code>sqrt</code>, <code>pow</code>, <code>floor</code>, <code>isfinite</code>.</li>
+<li><code>&lt;time.h&gt;</code> — tempo e datas: <code>time</code>, <code>clock</code>, <code>difftime</code>.</li>
+<li><code>&lt;ctype.h&gt;</code> — classificação de caracteres: <code>isalpha</code>, <code>isdigit</code>, <code>toupper</code>.</li>
+<li><code>&lt;limits.h&gt;</code> e <code>&lt;float.h&gt;</code> — faixas e precisão dos tipos (INT_MAX, DBL_EPSILON...).</li>
+<li><code>&lt;errno.h&gt;</code> — a variável global <code>errno</code> para reportar o último erro da libc.</li>
+<li><code>&lt;assert.h&gt;</code> — a macro <code>assert</code> para validações em tempo de desenvolvimento.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Aberturas de arquivo com verificação completa</h2>
+  <p>O erro mais comum de quem começa é ignorar o retorno de <code>fopen</code>. Quando o arquivo não existe, <code>fopen</code> devolve <code>NULL</code> e o motivo fica na variável global <code>errno</code> (um número inteiro). <code>strerror(errno)</code> converte esse número numa mensagem legível; <code>perror("texto")</code> imprime o texto seguido de dois-pontos e da mensagem. Depois do loop de leitura, <code>ferror(fp)</code> detecta erros de I/O que não apareceram durante a leitura.</p>
+  <ul><li>Sempre verifique o retorno de <code>fopen</code> antes de usar o ponteiro.</li>
+<li>No loop, prefira <code>fgets</code> e teste <code>ferror</code> ao final (sair do loop não significa sucesso).</li>
+<li>Use <code>EXIT_FAILURE</code> para falhas e <code>EXIT_SUCCESS</code> no fim normal (definidos em <code>&lt;stdlib.h&gt;</code>).</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — abre.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;string.h&gt;
+
+int main(int argc, char **argv)
+{
+    if (argc != 2) {
+        fprintf(stderr, &quot;uso: %s &lt;arquivo&gt;\n&quot;, argv[0]);
+        return EXIT_FAILURE;
+    }
+    FILE *fp = fopen(argv[1], &quot;r&quot;);
+    if (fp == NULL) {
+        fprintf(stderr, &quot;fopen: %s\n&quot;, strerror(errno));
+        return EXIT_FAILURE;
+    }
+    char linha[256];
+    unsigned num_linhas = 0;
+    while (fgets(linha, sizeof linha, fp) != NULL) {
+        num_linhas++;
+    }
+    if (ferror(fp)) {
+        fprintf(stderr, &quot;leitura: %s\n&quot;, strerror(errno));
+        fclose(fp);
+        return EXIT_FAILURE;
+    }
+    printf(&quot;%s tem %u linhas\n&quot;, argv[1], num_linhas);
+    fclose(fp);
+    return EXIT_SUCCESS;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; abre nao_existe.txt
+fopen: No such file or directory     (sai com EXIT_FAILURE)
+
+&gt; abre numeros.txt    (arquivo com 1.5, 2.5 e 3.0, uma por linha)
+numeros.txt tem 3 linhas</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Validando conversão de texto para número com strtol</h2>
+  <p><code>strtol</code> (e o irmão de 64 bits <code>strtoll</code>) é a forma correta de converter texto em inteiro — muito superior a <code>atoi</code>, que não sinaliza erro nenhum. Ela devolve o número e usa três canais para reportar problema: <code>errno</code> (fica <code>ERANGE</code> se o valor estourar a faixa), o ponteiro <code>endptr</code> (aponta onde a conversão parou), e o retorno. Regras de ouro: zere <code>errno</code> antes; considere falha se <code>endptr == nptr</code> (nada foi convertido) ou se sobrarem caracteres (<code>*endptr != '\0'</code>).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — divisor.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;limits.h&gt;
+
+int main(int argc, char **argv)
+{
+    if (argc != 3) {
+        fprintf(stderr, &quot;uso: %s &lt;dividendo&gt; &lt;divisor&gt;\n&quot;, argv[0]);
+        return EXIT_FAILURE;
+    }
+    errno = 0;
+    char *fim = NULL;
+    long long a = strtoll(argv[1], &amp;fim, 10);
+    if (errno == ERANGE || fim == argv[1] || *fim != '\0') {
+        fprintf(stderr, &quot;dividendo invalido: %s\n&quot;, argv[1]);
+        return EXIT_FAILURE;
+    }
+    errno = 0;
+    fim = NULL;
+    long long b = strtoll(argv[2], &amp;fim, 10);
+    if (errno == ERANGE || fim == argv[2] || *fim != '\0') {
+        fprintf(stderr, &quot;divisor invalido: %s\n&quot;, argv[2]);
+        return EXIT_FAILURE;
+    }
+    if (b == 0) {
+        fprintf(stderr, &quot;divisao por zero\n&quot;);
+        return EXIT_FAILURE;
+    }
+    if (a == LLONG_MIN &amp;&amp; b == -1) {
+        fprintf(stderr, &quot;overflow: LLONG_MIN / -1\n&quot;);
+        return EXIT_FAILURE;
+    }
+    printf(&quot;%lld / %lld = %lld (resto %lld)\n&quot;, a, b, a / b, a % b);
+    return EXIT_SUCCESS;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; divisor 100 8
+100 / 8 = 12 (resto 4)
+
+&gt; divisor 100 0
+divisao por zero
+
+&gt; divisor abc 5
+dividendo invalido: abc
+
+&gt; divisor -9223372036854775808 -1
+overflow: LLONG_MIN / -1</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>exit, exit status e atexit</h2>
+  <p>A função <code>main</code> retornar um número (o <em>exit status</em>) é como o programa responde ao sistema operacional: 0 (ou <code>EXIT_SUCCESS</code>) significa sucesso; qualquer outro valor (convencionalmente <code>EXIT_FAILURE</code> = 1) significa falha. <code>exit(n)</code> encerra no meio do caminho executando a mesma limpeza do <code>return</code> de main; <code>_Exit(n)</code> encerra <strong>sem</strong> limpeza nenhuma. <code>atexit(funcao)</code> registra funções que rodam na saída — na ordem inversa do registro (LIFO).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — despedida.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+static void limpar(void)
+{
+    printf(&quot;limpando recursos...\n&quot;);
+}
+
+static void despedida(void)
+{
+    printf(&quot;ate logo!\n&quot;);
+}
+
+int main(void)
+{
+    atexit(limpar);
+    atexit(despedida);
+    printf(&quot;corpo do programa\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; despedida
+corpo do programa
+ate logo!
+limpando recursos...</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>assert: a trava de desenvolvimento</h2>
+  <p>A macro <code>assert(expressao)</code> aborta o programa com uma mensagem se a expressão for falsa — mas somente na compilação de desenvolvimento. É a forma barata de declarar pré-condições: "aqui, esta condição TEM que valer". No momento da release, você compila com <code>-DNDEBUG</code> e todas as asserções somem do executável (sem custo). Note a diferença: assert serve para <strong>bugs de lógica</strong>, não para erros de usuário (esses você trata com errno/if).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — fat.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;assert.h&gt;
+
+static int fatorial(int n)
+{
+    assert(n &gt;= 0 &amp;&amp; n &lt;= 12);
+    int r = 1;
+    for (int i = 2; i &lt;= n; i++) {
+        r *= i;
+    }
+    return r;
+}
+
+int main(void)
+{
+    printf(&quot;5! = %d\n&quot;, fatorial(5));
+    printf(&quot;12! = %d\n&quot;, fatorial(12));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; fat
+5! = 120
+12! = 479001600</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t3-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.01.1</p>
+  <p class="enunciado">Escreva um programa que tenta abrir uma arquivo inexistente e mostra o erro de três formas: (1) imprimindo o valor cru de <code>errno</code>, (2) com <code>perror</code>, (3) com <code>strerror(errno)</code> dentro de um <code>printf</code> seu.</p>
+  <p class="dica"><strong>Dica:</strong> Lembre-se de incluir <code>&lt;errno.h&gt;</code>. <code>perror</code> recebe um rótulo e já escreve na saída de erro.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    FILE *fp = fopen(&quot;arquivo_que_nao_existe.txt&quot;, &quot;r&quot;);
+    if (fp == NULL) {
+        printf(&quot;errno = %d\n&quot;, errno);
+        perror(&quot;perror diz&quot;);
+        printf(&quot;strerror diz: %s\n&quot;, strerror(errno));
+        printf(&quot;mensagem propria: nao consegui abrir o arquivo\n&quot;);
+        return EXIT_FAILURE;
+    }
+    fclose(fp);
+    return EXIT_SUCCESS;
+}</code></pre>
+        <p class="obs">No Windows (MinGW) a mensagem vem em inglês — "No such file or directory". O número <code>errno</code> 2 é ENOENT. Em scripts você compara com as constantes, nunca com números mágicos.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t3-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.01.2</p>
+  <p class="enunciado">Crie uma função <code>media(const double v[], size_t n)</code> que tem <code>assert(n > 0)</code>. Compile e rode sem flags; depois compile com <code>-DNDEBUG</code> e rode de novo, observando o que muda quando a pré-condição é violada chame <code>media</code> com um vetor vazio.</p>
+  <p class="dica"><strong>Dica:</strong> No teste, chame <code>media</code> com n == 0 de propósito. Com assert ativo o programa aborta; com NDEBUG ele segue e faz divisão por zero.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;assert.h&gt;
+
+static double media(const double v[], size_t n)
+{
+    assert(n &gt; 0);
+    double soma = 0.0;
+    for (size_t i = 0; i &lt; n; i++) {
+        soma += v[i];
+    }
+    return soma / (double)n;
+}
+
+int main(void)
+{
+    setvbuf(stdout, NULL, _IONBF, 0);   /* saia de vez (sem buffer) antes do abort */
+    printf(&quot;media = %.2f\n&quot;, media((double[]){10.0, 20.0, 30.0}, 3));
+    printf(&quot;media vazia = %.2f\n&quot;, media((double[]){5.0}, 0));
+    return 0;
+}</code></pre>
+        <p class="obs">Saída com assert ativo: "media = 20.00" seguida de "Assertion failed: n > 0". Com <code>-DNDEBUG</code>: "media = 20.00" e "media vazia = -nan(ind)" (0.0/0.0). Isso é o assert na prática: ele pega o bug antes dele virar comportamento estranho.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t3-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.01.3</p>
+  <p class="enunciado">Implemente um somador de linha de comando <code>somaargs 10 20 30</code> que soma todos os argumentos (de <code>long long</code>). Cada argumento deve ser validado com <code>strtoll</code> (ERANGE, sem conversão, sobra de caracteres) e a soma deve detectar overflow <strong>antes</strong> de somar, usando <code>LLONG_MAX</code>/<code>LLONG_MIN</code>.</p>
+  <p class="dica"><strong>Dica:</strong> A soma estoura se <code>(v > 0 && soma > LLONG_MAX - v)</code> ou <code>(v < 0 && soma < LLONG_MIN - v)</code>. Isso evita que a soma sequer chegue a estourar.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;limits.h&gt;
+
+int main(int argc, char **argv)
+{
+    long long soma = 0;
+    for (int i = 1; i &lt; argc; i++) {
+        errno = 0;
+        char *fim = NULL;
+        long long v = strtoll(argv[i], &amp;fim, 10);
+        if (errno == ERANGE || fim == argv[i] || *fim != '\0') {
+            fprintf(stderr, &quot;argumento %d invalido: %s\n&quot;, i, argv[i]);
+            return EXIT_FAILURE;
+        }
+        if ((v &gt; 0 &amp;&amp; soma &gt; LLONG_MAX - v) ||
+            (v &lt; 0 &amp;&amp; soma &lt; LLONG_MIN - v)) {
+            fprintf(stderr, &quot;overflow da soma\n&quot;);
+            return EXIT_FAILURE;
+        }
+        soma += v;
+    }
+    printf(&quot;soma = %lld\n&quot;, soma);
+    return EXIT_SUCCESS;
+}</code></pre>
+        <p class="obs">Observe a saída real: <code>somaargs 10 20 30</code> imprime "soma = 60"; <code>somaargs 9223372036854775807 5</code> imprime "overflow da soma"; <code>somaargs 1 dois</code> imprime "argumento 2 invalido".</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;fopen falhou e devolveu NULL. Qual é a melhor forma de saber o motivo?&quot;,&quot;opcoes&quot;:[&quot;Usar atoi&quot;,&quot;Ler a variável global errno (com strerror/perror)&quot;,&quot;Chamar fclose mesmo assim&quot;,&quot;Imprimir o ponteiro com %p&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;A libc deixa o motivo em &lt;code&gt;errno&lt;/code&gt;; &lt;code&gt;strerror(errno)&lt;/code&gt; converte em texto e &lt;code&gt;perror&lt;/code&gt; imprime direto.&quot;},{&quot;pergunta&quot;:&quot;O que significa, por convenção, retornar EXIT_SUCCESS em main?&quot;,&quot;opcoes&quot;:[&quot;O programa falhou&quot;,&quot;O programa terminou com sucesso&quot;,&quot;Erro de compilação&quot;,&quot;O programa segue em segundo plano&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;&lt;code&gt;EXIT_SUCCESS&lt;/code&gt; é 0, o status padrão de sucesso para o sistema operacional.&quot;},{&quot;pergunta&quot;:&quot;O que faz a função atexit(funcao)?&quot;,&quot;opcoes&quot;:[&quot;Executa funcao imediatamente&quot;,&quot;Registra funcao para rodar na saída do programa (LIFO)&quot;,&quot;Cria uma thread&quot;,&quot;Aborta o programa&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Ate exit: handlers registrados rodam na ordem inversa do registro quando o programa termina.&quot;},{&quot;pergunta&quot;:&quot;Por que assert é uma ferramenta de desenvolvimento e não de produção?&quot;,&quot;opcoes&quot;:[&quot;Porque compilando com -DNDEBUG as asserções são removidas&quot;,&quot;Porque assert imprime a mensagem em inglês&quot;,&quot;Porque assert precisa de internet&quot;,&quot;Porque assert retorna errno&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;&lt;code&gt;-DNDEBUG&lt;/code&gt; define o símbolo que desativa &lt;code&gt;assert&lt;/code&gt;; na release elas não existem no executável.&quot;},{&quot;pergunta&quot;:&quot;strtol indica que o valor não coube no tipo devolvendo...&quot;,&quot;opcoes&quot;:[&quot;NULL&quot;,&quot;-1&quot;,&quot;ERANGE em errno&quot;,&quot;um ponteiro nulo em endptr&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;Quando o número estoura, &lt;code&gt;strtol&lt;/code&gt; devolve o limite e deixa &lt;code&gt;errno == ERANGE&lt;/code&gt;.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: wc-lite: contador de linhas, palavras e bytes</h2>
+  <p>Crie um utilitário tipo o <code>wc</code> do Linux: <code>wclite arquivo.txt</code> imprime o número de linhas, de palavras (separadas por espaço/tab/nova linha) e de bytes do arquivo. Trate TODOS os erros: argumento ausente (uso), arquivo inexistente (strerror), erro no meio da leitura (ferror). Use EXIT_SUCCESS/EXIT_FAILURE corretamente e registre um atexit que imprime o tempo total gasto.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Compila sem avisos com <code>gcc -Wall -Wextra -std=c11</code>.</li><li>Sem o argumento de arquivo, mostra a mensagem de uso e retorna EXIT_FAILURE.</li><li>Arquivo inexistente: mensagem com strerror(errno) e EXIT_FAILURE.</li><li>Relatório correto de linhas/palavras/bytes para um arquivo de teste com 3 linhas.</li><li>Saída final ordenada (não embaralhada) quando você o redireciona para um arquivo.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-next" href="como-os-numeros-vivem-na-memoria.html">3.02 Como os números vivem na memória →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t3-m01">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

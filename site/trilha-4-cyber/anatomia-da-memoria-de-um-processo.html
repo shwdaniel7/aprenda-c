@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4.03 — Anatomia da memória de um processo — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="4">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t4">Trilha 4 — Cyber</a> / Anatomia da memória de um processo</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">4.03</div>
+    <h1>Anatomia da memória de um processo</h1>
+    <p class="subtitulo">text/data/bss/heap/stack, stack frames, endianness e endereços virtuais</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário/Cyber</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: T2.05 (ponteiros e strings), T2.06 (memória dinâmica), T0.01</span>
+    </div>
+    <button class="btn btn-done" data-mod="t4-m03">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Entender a memória como o atacante a enxerga: layout de um processo Linux (texto, dados, heap, pilha), endereços virtuais, organização de um stack frame (return address, base pointer, variáveis locais), heap, endianness e alinhamento — e por que isso faz o buffer overflow "funcionar aqui".</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 5, seções 5.1–5.9 (Memory and Variables)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 11 (Pointers): seções sobre endereços e aritmética</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, foque em "pointers are addresses" e no mapa de memória. Para a pilha, leia um artigo de referência sobre o call stack (procure "x86-64 stack frame layout" ou a seção do gdb manual sobre stack frames). Entenda o diagrama do stack frame ANTES de ir ao módulo 05.</p>
+</section>
+  <section class="card secao">
+  <h2>Mapa de memória de um processo Linux</h2>
+  <p>Todo processo Linux enxerga um espaço de endereços <strong>virtual</strong> (por processo, privado). Regiões típicas, da mais baixa para a mais alta:</p>
+  <ul><li><strong>text</strong> — as instruções da CPU (seu código compilado). Geralmente read-only + execute.</li>
+<li><strong>data / bss</strong> — variáveis globais. <em>data</em> guarda as inicializadas (ex.: <code>int x = 7</code>); <em>bss</em> guarda as zeradas por padrão (ex.: <code>int y;</code>).</li>
+<li><strong>heap</strong> — memória dinâmica (<code>malloc</code>/<code>free</code>), cresce para cima.</li>
+<li><strong>stack</strong> — chamadas de função e variáveis locais, cresce para baixo (endereços decrescentes).</li>
+<li><code>mmap</code> — mapeamentos de bibliotecas compartilhadas (libc, ld) e região de threads; fica entre o heap e a pilha.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — mapa de memoria</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">endereco alto
++--------------------------------------------------+
+| pilha (stack)          &lt;- cresce para BAIXO      |  enderecos altos (0x7fff...)
++--------------------------------------------------+
+| ... espaco                                   ... |
++--------------------------------------------------+
+|   memoria mapeada por mmap (bibliotecas, etc.)  |  ~0x7f...
++--------------------------------------------------+
+| heap (malloc)           -&gt; cresce para CIMA      |  logo acima do data
++--------------------------------------------------+
+| bss  (globais zeradas, nao inicializadas)        |
+| data (globais inicializadas)                     |
++--------------------------------------------------+
+| texto (codigo da funcao)                         |  endereco baixo (0x4... )
+endereco baixo</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Imprimindo endereços de cada região</h2>
+  <p>O programa abaixo imprime o endereço de uma variável em cada região. <strong>ASLR</strong> (Address Space Layout Randomization) embaralha pila/heap/bibliotecas por execução, então os números mudam a cada <code>./addr</code> — mas a <em>ordem relativa</em> é sempre a mesma. Compare a pilha de <code>main</code> com a de <code>funcao</code>: a de dentro fica <strong>abaixo</strong> (menor endereço), porque a pilha cresce para baixo.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — addr.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* addr.c -- imprime enderecos de cada regiao de memoria.
+   gcc -Wall -Wextra -std=c11 addr.c -o addr   (Linux/WSL; roda tambem no MinGW) */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int global_inicializado = 7;   /* data  */
+int global_zerado;             /* bss   */
+
+static void funcao(void)
+{
+    char tela_local[8];        /* pilha, dentro de outra frame */
+    printf(&quot;    pilha (local de funcao)  : %p\n&quot;, (void *)tela_local);
+}
+
+int main(void)
+{
+    char  na_pilha[8];         /* pilha */
+    int   numero = 42;         /* pilha */
+    char *no_heap = malloc(64);/* heap  */
+
+    printf(&quot;  texto (main)                : %p\n&quot;, (void *)main);
+    printf(&quot;  data  (global init)         : %p\n&quot;, (void *)&amp;global_inicializado);
+    printf(&quot;  bss   (global zerada)       : %p\n&quot;, (void *)&amp;global_zerado);
+    printf(&quot;  heap  (malloc)              : %p\n&quot;, (void *)no_heap);
+    printf(&quot;  pilha (local de main)       : %p\n&quot;, (void *)na_pilha);
+    printf(&quot;  pilha (var numero)          : %p\n&quot;, (void *)&amp;numero);
+    funcao();
+
+    free(no_heap);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ ./addr
+  texto (main)                : 0x401126
+  data  (global init)         : 0x404010
+  bss   (global zerada)       : 0x404028
+  heap  (malloc)              : 0x90f2a0
+  pilha (local de main)       : 0x7ffe2f4f0c20
+  pilha (var numero)          : 0x7ffe2f4f0c1c
+    pilha (local de funcao)  : 0x7ffe2f4f0bf0</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O stack frame: a estrutura que o atacante estuda</h2>
+  <p>Quando uma função é chamada, a CPU monta um <strong>frame</strong> (moldura) na pilha. No x86-64 (ABI System V), o frame típico contém, do endereço mais alto para o mais baixo:</p>
+  <ul><li>Os <strong>argumentos de entrada</strong> (ou registradores salvos) do chamador.</li>
+<li>O <strong>return address</strong> — endereço da próxima instrução no chamador, empurrado pela instrução <code>call</code>. É o "bilhete de volta".</li>
+<li>O <strong>saved frame pointer</strong> (RBP anterior) — usado para restaurar a pilha ao retornar.</li>
+<li>As <strong>variáveis locais</strong> da função (os buffers!).</li>
+<li><strong>Área de temporários</strong> / espaço para salvar registradores, se necessário.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — stack frame</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">enderecos altos
+  +----------------------------+
+  | args / copia do chamador   |
+  | return address  &lt;-- EIP/RIP volta pra ca      |
+  | saved RBP                  |
+  | variaveis locais (buf[])   |  &lt;-- onde estoura o overflow
+  | temporarios                |
+enderecos baixos (RSP aponta pra ca)
+  &quot;A pilha cresce PARA BAIXO. Um overflow escrita-para-cima
+   em buf[] caminha em direcao ao saved RBP e ao return address.&quot;</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>O heap e o motivo de &quot;estourou aqui, corrompeu ali&quot;</h2>
+  <p>O heap é gerenciado pelo <em>allocator</em> da glibc. Cada bloco <code>malloc</code> tem um <strong>cabeçalho (metadata)</strong> logo antes do ponteiro que você recebe. Por isso, escrever além do bloco com <code>strcpy</code>/<code>memcpy</code> corrompe o cabeçalho do bloco vizinho, e o <code>free</code> subsequente pode fazer o programa quebrar ou executar código (veremos a teoria no módulo 08). Do lado do programa, a lição imediata é: <strong>heap overflow corrompe estrutura que o programa não vê</strong>.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Endianness: como o CPU lê seus bytes</h2>
+  <p>O x86 (Intel/AMD) é <strong>little-endian</strong>: o byte menos significativo fica no endereço mais baixo. Isso importa muito em exploração, porque o atacante monta endereços "de trás para frente" no payload (no 32-bit, <code>0xbffff5a0</code> vira os bytes <code>a0 f5 ff bf</code>).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — endian.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* endian.c -- mostra a ordem dos bytes de um int em memoria.
+   gcc -Wall -Wextra -std=c11 endian.c -o endian   (qualquer SO) */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    unsigned char bytes[4];
+    unsigned int x = 0x11223344;
+
+    memcpy(bytes, &amp;x, sizeof x);
+    printf(&quot;0x11223344 em memoria: %02x %02x %02x %02x\n&quot;,
+           bytes[0], bytes[1], bytes[2], bytes[3]);
+    if (bytes[0] == 0x44)
+        printf(&quot;little-endian (byte menos significativo primeiro)\n&quot;);
+    else
+        printf(&quot;big-endian\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ ./endian
+0x11223344 em memoria: 44 33 22 11
+little-endian (byte menos significativo primeiro)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Alinhamento (resumo prático)</h2>
+  <p>O compilador posiciona variáveis em endereços <em>alinhados ao tamanho</em> (um <code>int</code> costuma ser alinhado a 4, um <code>long</code> a 8). Consequências práticas: (1) <code>sizeof(struct)</code> pode ser maior que a soma dos campos (padding) — um dos motivos de "reservar 20 bytes" e conseguir mais; (2) na pilha, entre um buffer e o return address pode existir padding, o que muda o <em>offset</em> no exploit. No módulo 05 você vai calcular esse offset experimentalmente no gdb, e não no chute.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Por que o buffer overflow &quot;funciona aqui&quot;</h2>
+  <p>Junte tudo: local variáveis ficam na pilha; um <code>strcpy</code> sem limite escreve <strong>para cima</strong> (endereços crescentes); acima do buffer na frame estão (possivelmente) outras locais, o saved RBP e o return address. Se o atacante controla o overflow, controla o fluxo do programa. Demonstração simples — estourar <code>segredo[8]</code> e corromper o <code>autenticado</code> que veio depois na stack frame:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — corromper uma variavel vizinha</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* corrupcao.c -- estouro que muda o valor de uma variavel vizinha.
+   gcc -Wall -Wextra -std=c11 corrupcao.c -o corrupcao
+   *o layout exato depende do compilador; rode o seu */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char segredo[8] = &quot;????&quot;;
+    int  autenticado = 0;
+
+    /* 20 'A' nao cabem em 8: transbordam na pilha */
+    strcpy(segredo, &quot;AAAAAAAAAAAAAAAAAAAA&quot;);
+
+    if (autenticado == 0)
+        printf(&quot;NAO autenticado\n&quot;);
+    else
+        printf(&quot;AUTENTICADO por corrupcao de memoria!\n&quot;);
+
+    printf(&quot;autenticado = %d (0x%x)\n&quot;, autenticado, autenticado);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ ./corrupcao
+AUTENTICADO por corrupcao de memoria!
+autenticado = 1094795585 (0x41414141)
+(no Windows/MinGW o CRT ainda reporta um aviso de runtime (&quot;runtime error&quot;),
+ mas a corrupcao e a mesma; no Linux/glibc a saida e so a das duas linhas. A
+ nota serve para voce nao estranhar a diferenca de saida entre sistemas.)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Como se defender</h2>
+  
+  <ul><li>Assuma que o layout da pilha pode mudar (compilador, otimização, sistema) — nenhum código real pode depender de "buffer X fica logo abaixo do Y".</li>
+<li>Tudo que é <em>local</em> e <em>recebe cópia sem limite</em> é estourável: use sempre cópias com tamanho (módulo 02).</li>
+<li>Endereços sensíveis (return address, metadados de heap, ponteiros) ficam a poucos bytes de qualquer overflow: proteja-os com canário (<code>-fstack-protector</code>) e nunca deixe seu buffer ser atingível por entrada externa sem sanitização.</li>
+<li>Entender endianness evita suposições erradas ao ler dump de memória: 44 33 22 11 é 0x11223344 em little-endian, não "44 milhões".</li>
+<li>Use <code>checksec</code> (no pwndbg: <code>checksec</code>) em binários reais para saber o que está ativo antes de decidir como defender.</li>
+<li>Essa anatomia também é a base defensiva: para ler um crash/panik (kernel), você precisa ler a pilha do mesmo jeito.</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t4-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.03.1</p>
+  <p class="enunciado">Compile e rode <code>addr.c</code> três vezes. Anote os endereços de heap, pilha e main em cada rodada. O que muda por execução? O que permanece estável? Por quê?</p>
+  <p class="dica"><strong>Dica:</strong> Lembre-se da ASLR: a pilha é randomizada por execução; se o binário foi compilado como PIE (padrão), main também muda.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ ./addr   # execucao 1
+...
+$ ./addr   # execucao 2
+...
+$ ./addr   # execucao 3
+...
+# Obs.: enderecos de heap/pilha/main mudam a cada execucao
+# por causa da ASLR (Linux randomiza espaco de enderecos por
+# processo). A ordem (text &lt; data &lt; bss &lt; heap &lt; pilha) e
+# sempre a mesma. Se main nao mudar, veja se o binario foi
+# compilado com -no-pie.</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t4-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.03.2</p>
+  <p class="enunciado">Rode <code>corrupcao.c</code>, depois recompile com <code>-fstack-protector-all</code> e rode de novo. A saída muda? Explique o que o stack protector fez (ou deixou de fazer) neste exemplo.</p>
+  <p class="dica"><strong>Dica:</strong> O canário protege o return address, não necessariamente variáveis vizinhas no mesmo frame. Note qual valor foi corrompido em cada caso.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ gcc -Wall -Wextra -std=c11 corrupcao.c -o corrupcao
+$ ./corrupcao
+AUTENTICADO por corrupcao de memoria!
+autenticado = 1094795585 (0x41414141)
+$ gcc -Wall -Wextra -std=c11 -fstack-protector-all corrupcao.c -o corrupcao_sp
+$ ./corrupcao_sp
+AUTENTICADO por corrupcao de memoria!
+autenticado = 1094795585 (0x41414141)</code></pre>
+        <p class="obs">Neste caso o canário não impediu, porque o autenticado é variável local do mesmo frame e a corrupção não tocou o canário nem o return address. Lição: stack protector não é pára-choque de toda corrupção — a defesa primária continua sendo não estourar o buffer.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t4-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.03.3</p>
+  <p class="enunciado">Modifique <code>corrupcao.c</code> para que o overflow caminhe até o <em>return address</em>: aumente o payload (ex.: 40-50 A) e observe no gdb (<code>info registers rbp rip</code>) onde os "A" param. O programa deve dar segfault com invalid return address.</p>
+  <p class="dica"><strong>Dica:</strong> Compile com <code>-g -fno-stack-protector</code>, coloque breakpoint no <code>printf</code> final e olhe <code>x/16x mapem? no, $rsp</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ gcc -g -fno-stack-protector -Wall -Wextra -std=c11 corrupcao.c -o corrupcao_g
+$ gdb ./corrupcao_g
+(gdb) break 20
+(gdb) run
+(gdb) x/16x $rsp
+...0x41414141.. aparece nos bytes logo apos o buffer...
+(gdb) continue
+Program received signal SIGSEGV, Segmentation fault.</code></pre>
+        <p class="obs">O segfault é o indício de que o ret tocado: RIP virou 0x41414141. Esse caminho é exatamente o que o módulo 05 explora de forma controlada.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual região da memória guarda variáveis locais e o return address?&quot;,&quot;opcoes&quot;:[&quot;Heap&quot;,&quot;Stack (pilha)&quot;,&quot;BSS&quot;,&quot;Texto&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Variáveis locais e informações de chamada (return address) ficam na pilha, que cresce para baixo.&quot;},{&quot;pergunta&quot;:&quot;Em um stack frame típico, o que fica entre as variáveis locais e o return address?&quot;,&quot;opcoes&quot;:[&quot;O saved frame pointer (RBP anterior)&quot;,&quot;O endereço base do heap&quot;,&quot;A tabela de páginas&quot;,&quot;O primeiro byte do buffer&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Acima das locais vem o saved RBP e depois o return address — é essa \&quot;faixa\&quot; que o overflow escala.&quot;},{&quot;pergunta&quot;:&quot;Em uma máquina little-endian, o inteiro 0x11223344 aparece na memória como:&quot;,&quot;opcoes&quot;:[&quot;44 33 22 11&quot;,&quot;11 22 33 44&quot;,&quot;44 44 44 44&quot;,&quot;11 33 22 44&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Little-endian grava o byte menos significativo primeiro (44 no endereço mais baixo).&quot;},{&quot;pergunta&quot;:&quot;Por que a pilha de funcao() fica em endereço MENOR que a pilha de main() no exemplo addr.c?&quot;,&quot;opcoes&quot;:[&quot;Porque a pilha cresce para baixo, e a frame de quem chamou fica acima&quot;,&quot;Porque malloc sempre aloca primeiro&quot;,&quot;Porque main é declarada antes&quot;,&quot;Porque o compilador ordena por ordem alfabética&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Cada call empurra a nova frame para endereços mais baixos; o chamador (main) permanece em endereço maior.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Poster da memória de um processo</h2>
+  <p>Crie um arquivo <code>memoria.md</code> na pasta <code>~/labs/4.03</code> com um diagrama ASCII do mapa de memória (texto, data, bss, heap, mmap, pilha), e ao lado uma explicação do stack frame (args, return address, saved RBP, locais, temporários) com um exemplo de endereço real tirado do seu <code>addr.c</code>. Inclua também o resultado do exercício de endianness e um parágrafo "onde o buffer overflow atua" ligando os dois conceitos.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Diagrama com as 5-6 regiões e seta de crescimento de cada uma.</li><li>Desenho do stack frame com os 4-5 campos e indicação de onde o overflow escala.</li><li>Um endereço real de cada região copiado da saída do addr.c.</li><li>Explicação correta do 44 33 22 11 (little-endian).</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="codificacao-segura-em-c-defensiva.html">← 4.02 Codificação segura em C (defensiva)</a><a class="btn nav-next" href="ferramentas-de-analise-gdb-objdump-readelf-strings-e-strace.html">4.04 Ferramentas de análise: gdb, objdump, readelf, strings e strace →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t4-m03">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

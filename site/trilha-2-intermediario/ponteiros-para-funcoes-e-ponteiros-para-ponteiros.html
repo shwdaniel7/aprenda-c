@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.11 — Ponteiros para funções e ponteiros para ponteiros — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / Ponteiros para funções e ponteiros para ponteiros</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.11</div>
+    <h1>Ponteiros para funções e ponteiros para ponteiros</h1>
+    <p class="subtitulo">callbacks, qsort, tabelas de funções e char**</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~40 min</span>
+      <span class="chip">Pré-requisitos: T2.05, T2.06, T2.09</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m11">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Armazenar endereços de funções e usá-los como argumentos (callbacks), ordenar com qsort, montar tabelas de funções para menus, e dominar ponteiros para ponteiros (funções que devolvem via parâmetro).</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 23, seções sobre function pointers e typedef</p>
+  <p><strong>King (livro em PDF):</strong> Capítulos 17.6–17.7 (Pointers to functions, pointers to pointers)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, 17.7 trata ponteiros para ponteiros aplicados a matrizes/strtok; 17) funções como argumentos. No Beej, os exemplos de ponteiros de função e o uso com qsort.</p>
+</section>
+  <section class="card secao">
+  <h2>Ponteiro para função: um endereço que você chama</h2>
+  <p>Um ponteiro para função guarda o endereço de uma função — você pode guardá-lo em variável, passá-lo como argumento e chamá-lo através do parâmetro. É o mecanismo dos <em>callbacks</em>: uma função recebe "o que fazer" como parâmetro.</p>
+<p>A sintaxe é esquisita: <code>int (*f)(int)</code> é um ponteiro para função que recebe <code>int</code> e devolve <code>int</code>. Chame com <code>f(x)</code> ou <code>(*f)(x)</code>.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — fnptr.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int dobrar(int v)    { return v * 2; }
+int triplicar(int v) { return v * 3; }
+
+int aplicar(int (*f)(int), int valor)
+{
+    return f(valor);
+}
+
+int main(void)
+{
+    int (*ptr)(int) = dobrar;
+
+    printf(&quot;dobrar(5) via ponteiro = %d\n&quot;, ptr(5));
+    printf(&quot;aplicar(triplicar, 5)  = %d\n&quot;, aplicar(triplicar, 5));
+    printf(&quot;aplicar(triplicar, 7)  = %d\n&quot;, aplicar(triplicar, 7));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>dobrar(5) via ponteiro = 10
+aplicar(triplicar, 5)  = 15
+aplicar(triplicar, 7)  = 21</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>qsort e seu comparador</h2>
+  <p><code>qsort</code> ordena qualquer array, mas não sabe o que significa "maior/menor" para os seus dados — por isso pede um <em>comparador</em>: uma função <code>int cmp(const void *, const void *)</code> que devolve negativo/zero/positivo. O parâmetro é <code>void *</code>; dentro, convertemos e então lemos.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — qsort.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int cmp_int(const void *a, const void *b)
+{
+    int x = *(const int *)a;
+    int y = *(const int *)b;
+    return (x &gt; y) - (x &lt; y);
+}
+
+int main(void)
+{
+    int v[] = {42, 7, 19, 3, 88, 1};
+    int n = (int)(sizeof v / sizeof v[0]);
+
+    qsort(v, (size_t)n, sizeof v[0], cmp_int);
+
+    for (int i = 0; i &lt; n; i++) {
+        printf(&quot;%d &quot;, v[i]);
+    }
+    printf(&quot;\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>1 3 7 19 42 88</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>typedef para ponteiro de função e tabelas</h2>
+  <p>Uma linha inteira complicada fica legível com typedef: <code>typedef int (*Operacao)(int, int);</code>. Com isso, declara-se um <em>array</em> de funções — a base de menus, máquinas de estado e despachos:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — tabela.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+typedef int (*Operacao)(int, int);
+
+int somar(int a, int b)       { return a + b; }
+int subtrair(int a, int b)    { return a - b; }
+int multiplicar(int a, int b) { return a * b; }
+
+int main(void)
+{
+    Operacao ops[3] = {somar, subtrair, multiplicar};
+    int a = 12, b = 4;
+
+    for (int i = 0; i &lt; 3; i++) {
+        printf(&quot;op[%d](%d, %d) = %d\n&quot;, i, a, b, ops[i](a, b));
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>op[0](12, 4) = 16
+op[1](12, 4) = 8
+op[2](12, 4) = 48</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Ponteiro para ponteiro: trocar ponteiros</h2>
+  <p>Ponteiro para ponteiro (<code>int **</code>) é "o endereço de um ponteiro". Serve para funções que <strong>modificam o ponteiro do chamador</strong> — como já vimos no swap, mas desta vez trocando alvos:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — ptrptr.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void trocar_ponteiros(int **a, int **b)
+{
+    int *tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+int main(void)
+{
+    int x = 1, y = 2;
+    int *px = &amp;x, *py = &amp;y;
+
+    printf(&quot;antes : px -&gt; %d , py -&gt; %d\n&quot;, *px, *py);
+    trocar_ponteiros(&amp;px, &amp;py);
+    printf(&quot;depois: px -&gt; %d , py -&gt; %d\n&quot;, *px, *py);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>antes : px -&gt; 1 , py -&gt; 2
+depois: px -&gt; 2 , py -&gt; 1</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Ponteiro para ponteiro: alocar e &quot;devolver&quot;</h2>
+  <p>Outro uso clássico: a função <em>cria</em> algo (aloca) e precisa entregar o endereço ao chamador. Passamos <code>char **saida</code> e escrevemos o ponteiro <code>*saida = malloc(...)</code> — quem chama recebe a string (e é responsável pelo free).</p>
+<p>É o mesmo padrão visto no T2.01 com <code>int **</code> e claramente com o strtok do T2.04? Não — strtok guarda estado interno; aqui é "devolver alocação por parâmetro", padrão comum em bibliotecas (ex.: ler uma linha).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — criar-string.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+void criar_saudacao(char **saida)
+{
+    *saida = malloc(64);
+    if (*saida != NULL) {
+        strcpy(*saida, &quot;oi, mundo!&quot;);
+    }
+}
+
+int main(void)
+{
+    char *s = NULL;
+
+    criar_saudacao(&amp;s);
+    if (s != NULL) {
+        printf(&quot;%s\n&quot;, s);
+        free(s);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>oi, mundo!</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.11.1</p>
+  <p class="enunciado">Declare um ponteiro para função <code>int (*op)(int, int)</code>, aponte para uma função <code>max</code> que devolve o maior de dois ints, chame através do ponteiro com (7, 2) e (3, 8), e imprima.</p>
+  <p class="dica"><strong>Dica:</strong> Declaração: <code>int (*op)(int, int) = max;</code> e chamada <code>op(a, b)</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int max(int a, int b)
+{
+    return a &gt; b ? a : b;
+}
+
+int main(void)
+{
+    int (*op)(int, int) = max;
+
+    printf(&quot;max(7, 2) = %d\n&quot;, op(7, 2));
+    printf(&quot;max(3, 8) = %d\n&quot;, op(3, 8));
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.11.2</p>
+  <p class="enunciado">Ordene um array de <code>Aluno</code> (nome, idade) com qsort pelo campo idade (crescente), usando um comparador que converte <code>void *</code> para <code>const Aluno *</code>. Imprima o resultado.</p>
+  <p class="dica"><strong>Dica:</strong> qsort(array, n, sizeof(Aluno), cmp_idade); no comparador, <code>const Aluno *a = pa;</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+typedef struct {
+    char nome[40];
+    int idade;
+} Aluno;
+
+int cmp_idade(const void *pa, const void *pb)
+{
+    const Aluno *a = pa;
+    const Aluno *b = pb;
+    return (a-&gt;idade &gt; b-&gt;idade) - (a-&gt;idade &lt; b-&gt;idade);
+}
+
+int main(void)
+{
+    Aluno turma[4] = {
+        {&quot;Carla&quot;, 33}, {&quot;Ana&quot;, 25}, {&quot;Bruno&quot;, 30}, {&quot;Diego&quot;, 28}
+    };
+    int n = (int)(sizeof turma / sizeof turma[0]);
+
+    qsort(turma, (size_t)n, sizeof turma[0], cmp_idade);
+
+    for (int i = 0; i &lt; n; i++) {
+        printf(&quot;%s (%d)\n&quot;, turma[i].nome, turma[i].idade);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado: Ana(25), Diego(28), Bruno(30), Carla(33).</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.11.3</p>
+  <p class="enunciado">Escreva <code>void aplicar_todos(int (*f)(int), int arr[], int n)</code> que aplica f a cada elemento e imprime o transformado. Teste com uma função <code>dobrar</code> sobre <code>{1,2,3,4}</code>.</p>
+  <p class="dica"><strong>Dica:</strong> Dentro, <code>for (i...) printf("%d ", f(arr[i]))</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int dobrar(int v) { return v * 2; }
+
+void aplicar_todos(int (*f)(int), int arr[], int n)
+{
+    for (int i = 0; i &lt; n; i++) {
+        printf(&quot;%d &quot;, f(arr[i]));
+    }
+    printf(&quot;\n&quot;);
+}
+
+int main(void)
+{
+    int v[] = {1, 2, 3, 4};
+    aplicar_todos(dobrar, v, 4);
+    return 0;
+}</code></pre>
+        <p class="obs">Esse é o "map" de linguagens funcionais.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.11.4</p>
+  <p class="enunciado">Escreva <code>void criar_nome(char **out, const char *nome)</code> que aloca "Olá, NOME!" (use snprintf) e devolve por ponteiro-para-ponteiro. No main, chame, imprima e dê free. Teste com "C" e "C++".</p>
+  <p class="dica"><strong>Dica:</strong> tamanho = 8 + strlen(nome); alocar; snprintf; *out = s.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+void criar_nome(char **out, const char *nome)
+{
+    size_t tam = 8 + strlen(nome);
+    char *s = malloc(tam);
+    if (s == NULL) {
+        *out = NULL;
+        return;
+    }
+    snprintf(s, tam, &quot;Ola, %s!&quot;, nome);
+    *out = s;
+}
+
+int main(void)
+{
+    char *a = NULL, *b = NULL;
+
+    criar_nome(&amp;a, &quot;C&quot;);
+    criar_nome(&amp;b, &quot;C++&quot;);
+
+    if (a != NULL) { printf(&quot;%s\n&quot;, a); free(a); }
+    if (b != NULL) { printf(&quot;%s\n&quot;, b); free(b); }
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t2-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.11.5</p>
+  <p class="enunciado">Monte um menu com uma tabela de ponteiros para função: as 4 operações (somar, subtrair, multiplicar, dividir — com divisão checando zero). Leia dois números e a opção do usuário e despache via <code>ops[op](a, b)</code>.</p>
+  <p class="dica"><strong>Dica:</strong> <code>typedef double (*Op)(double, double);</code> e <code>Op ops[4] = {somar, subtrair, multiplicar, dividir};</code></p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+typedef double (*Op)(double, double);
+
+double somar(double a, double b)       { return a + b; }
+double subtrair(double a, double b)    { return a - b; }
+double multiplicar(double a, double b) { return a * b; }
+double dividir(double a, double b)     { return a / b; }
+
+int main(void)
+{
+    Op ops[4] = {somar, subtrair, multiplicar, dividir};
+    double a = 20.0, b = 4.0;
+
+    for (int i = 0; i &lt; 4; i++) {
+        printf(&quot;op[%d]: %.2f\n&quot;, i, ops[i](a, b));
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Versão com scanf: <code>scanf("%d %lf %lf", &op, &a, &b)</code> e valide o intervalo antes de despachar. Divisão por zero seria NaN/inf — trate antes em produção.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;A sintaxe &lt;code&gt;int (*f)(int)&lt;/code&gt; declara...&quot;,&quot;opcoes&quot;:[&quot;Uma função que devolve int*&quot;,&quot;Um ponteiro para função que recebe int e devolve int&quot;,&quot;Um array de ints&quot;,&quot;Um ponteiro para int&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Entre parênteses *f marca \&quot;ponteiro para função\&quot;; o resto descreve a assinatura.&quot;},{&quot;pergunta&quot;:&quot;Para que serve o \&quot;comparador\&quot; passado ao qsort?&quot;,&quot;opcoes&quot;:[&quot;Saber o tamanho dos elementos&quot;,&quot;Definir a ordem (negativo/zero/positivo) entre dois elementos&quot;,&quot;Desenhar a interface&quot;,&quot;Contar os elementos&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;qsort é genérico; o comparador diz se a &lt; b, igual ou a &gt; b.&quot;},{&quot;pergunta&quot;:&quot;Uma tabela de ponteiros para função permite...&quot;,&quot;opcoes&quot;:[&quot;acelerar o hardware&quot;,&quot;despachar chamadas por índice (menus, máquinas de estado)&quot;,&quot;multiplicar ponteiros&quot;,&quot;evitar o uso de main&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Com &lt;code&gt;ops[i](args)&lt;/code&gt; o índice escolhe a função — padrão em menus e despachos.&quot;},{&quot;pergunta&quot;:&quot;Por que uma função usa &lt;code&gt;char **saida&lt;/code&gt; para \&quot;devolver\&quot; uma string alocada?&quot;,&quot;opcoes&quot;:[&quot;Para economizar memória&quot;,&quot;Porque precisa modificar o ponteiro do chamador (o endereço da string nova)&quot;,&quot;Porque char* não pode ser retornado&quot;,&quot;É sintaxe obrigatória para strings&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Para gravar no ponteiro do chamador, precisamos do endereço dele — daí o duplo ponteiro.&quot;},{&quot;pergunta&quot;:&quot;O que é um callback?&quot;,&quot;opcoes&quot;:[&quot;Uma função que chama o SO&quot;,&quot;Uma função passada a outra para ser executada em determinado momento&quot;,&quot;Uma variável global&quot;,&quot;Um erro de compilação do C&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Callbacks são ponteiros para função usados como argumento, ex.: o comparador do qsort.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  
+  <nav class="mod-nav"><a class="btn nav-prev" href="operacoes-bit-a-bit.html">← 2.10 Operações bit a bit</a><a class="btn nav-next" href="estruturas-de-dados-listas-encadeadas-e-recursao.html">2.12 Estruturas de dados: listas encadeadas e recursão →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m11">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

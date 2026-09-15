@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4.04 — Ferramentas de análise: gdb, objdump, readelf, strings e strace — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="4">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t4">Trilha 4 — Cyber</a> / Ferramentas de análise: gdb, objdump, readelf, strings e strace</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">4.04</div>
+    <h1>Ferramentas de análise: gdb, objdump, readelf, strings e strace</h1>
+    <p class="subtitulo">Instrumentar binários, ler assembly e rastrear syscalls</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado/Cyber</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: T0.01 (gdb básico), T4.03 (anatomia da memória)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t4-m04">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Dominar o conjunto de ferramentas do analista de binários: gdb a fundo (breakpoints, examinar memória/registradores, disassembly, watchpoints, find), peda/pwndbg, objdump (-d/-s), readelf, strings e strace — para dissecar um binário C compilado com -g e identificar seus frames e dados.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  
+  
+  <p class="foco"><strong>Foco da leitura:</strong> Leia o manual do gdb (<code>info gdb</code> ou https://sourceware.org/gdb/current/onlinedocs/gdb/) com foco em "Examining Memory" e "Examining Data". Para o assembly, consulte a referência de instruções do System V AMD64 ABI e o README do pwndbg (https://github.com/pwndbg/pwndbg). A prática do módulo vale mais que a leitura: rode cada comando no seu binário.</p>
+</section>
+  <section class="card secao">
+  <h2>O binário de estudo (compilado para análise)</h2>
+  <p>Vamos trabalhar com um programa trivial compilado de forma a deixar o assembly didático: <code>-g</code> (símbolos), <code>-fno-stack-protector</code> e <code>-no-pie</code> (sem randomização do binário — endereços estáveis, mais fácil de acompanhar). <strong>Não use estes flags em código real</strong>: aqui são só para estudo. Este módulo roda inteiro no Linux/WSL (no MinGW o gdb é outra história); segue o programa:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — analise.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* analise.c -- alvo de estudo das ferramentas.
+   gcc -g -fno-stack-protector -no-pie -Wall -Wextra analise.c -o analise */
+#include &lt;stdio.h&gt;
+
+static int soma(int a, int b)
+{
+    return a + b;
+}
+
+static void processa(const char *dado)
+{
+    char buf[16];
+    snprintf(buf, sizeof buf, &quot;%s&quot;, dado);
+    puts(buf);
+    (void) soma(2, 3);
+}
+
+int main(void)
+{
+    processa(&quot;reconhecimento&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ gcc -g -fno-stack-protector -no-pie -Wall -Wextra analise.c -o analise
+$ ./analise
+reconhecimento</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>gdb: breakpoints, stepping por instrução e registradores</h2>
+  <p>O gdb é o microscópio. Os comandos desta seção cobrem 90% do uso em exploração:</p>
+  <ul><li><code>break N</code> ou <code>break processa</code> — pausa na linha N ou no início da função.</li>
+<li><code>info registers</code> (curto: <code>i r</code>) — mostra todos os registradores (RIP, RSP, RBP, RAX…).</li>
+<li><code>x/20x $rsp</code> — examina 20 words hexa a partir de RSP; <code>x/20wx</code> força 4 bytes/word, <code>x/10gx</code> 8 bytes. É o "x-ray" da pilha.</li>
+<li><code>x/20xb $rsp</code> — bytes avulsos (essencial para ver payload/thancle endianness).</li>
+<li><code>nexti</code> (ni) — executa UMA instrução de máquina; <code>next</code> (n) executa uma linha de C. <code>stepi</code> (si) entra em calls, <code>ni</code> não.</li>
+<li><code>disas</code> (disassemble) — mostra o assembly da função atual; <code>disas processa</code> de qualquer função.</li>
+<li><code>watch var</code> — para a execução quando a variável mudar de valor (watchpoint).</li>
+<li><code>find /b 0x400000, 0x410000, 0x44, 0x45, 0x41</code> — procura uma sequência de bytes num intervalo de endereços.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — sessao gdb basica</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">gdb ./analise
+(gdb) break processa
+(gdb) run
+(gdb) info registers rsp rbp rip
+(gdb) disas
+(gdb) x/16wx $rsp            # a frame inteira na tela
+(gdb) ni
+(gdb) ni
+(gdb) info registers rip     # RIP avancou 2 instrucoes
+(gdb) continue
+(gdb) quit</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Breakpoint 1, processa (dado=0x7fffffffe3e0 &quot;reconhecimento&quot;) at analise.c:9
+9         char buf[16];
+(gdb) info registers rsp rbp rip
+rsp            0x7fffffffe3b0      0x7fffffffe3b0
+rbp            0x7fffffffe3c0      0x7fffffffe3c0
+rip            0x4011b0            0x4011b0 &lt;processa&gt;
+(gdb) disas
+Dump of assembler code for function processa:
+   0x00000000004011b0 &lt;+0&gt;:     push   %rbp
+   0x00000000004011b1 &lt;+1&gt;:     mov    %rsp,%rbp
+   0x00000000004011b4 &lt;+4&gt;:     sub    $0x20,%rsp
+   ...
+   0x00000000004011d3 &lt;+35&gt;:    leave
+   0x00000000004011d4 &lt;+36&gt;:    ret
+End of assembler dump.</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Encontrando o return address e o offset da frame</h2>
+  <p>Técnica valiosa para os próximos módulos: <strong>marcar a pilha com um padrão</strong> e ler onde ele aparece. No gdb, escreva em memória uma marca e depois veja em que offset do buffer ela cai. Passo a passo (parada em <code>processa</code> após os locals):</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — marcando a pilha</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">(gdb) break *processa+4        # apos sub $0x20 (frame montada)
+(gdb) run
+(gdb) set {long} $rsp = 0x4142434445464748   # &quot;HGFEDCBA&quot;
+(gdb) x/8gx $rsp
+0x7fffffffe3b0: 0x4142434445464748  0x0000000000000000
+0x7fffffffe3c0: 0x0000000000000000  0x0000000000000000
+0x7fffffffe3d0: 0x0000000000000000  0x00000000004011dd
+                                          ^^^^^^^^^^ return address p/ main
+(gdb) quit</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>peda e pwndbg: o gdb turbinado</h2>
+  <p>Pedra e pwndbg são plugins do gdb que desenham a pilha, destacam o return address, decodificam endereços (text vs libc) e trazem comandos prontos. Com o pwndbg (preferido aqui):</p>
+  <ul><li><code>checksec</code> — mostra NX, PIE, canário, RELRO do binário carregado (o "checar blindagens" de cada exploração).</li>
+<li><code>cyclic 100</code> (pwntools) — gera padrão para achar offset exato; <code>cyclic -l 0x61616164</code> devolve o offset.</li>
+<li><code>canary</code> — tenta mostrar o canário da thread atual (módulos 06).</li>
+<li><code>stack N</code> — imprime N words da pilha com anotações; <code>regs</code> lista registradores em colunas.</li>
+<li>O realce automático: o return address aparece na pilha com cor/rotulo "ret addr" — economiza horas de x/20x.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">$ gdb ./analise
+pwndbg&gt; checksec
+    Arch: amd64-64-little
+    RELRO: Partial RELRO
+    Stack: No canary found
+    NX: NX enabled
+    PIE: No PIE (0x400000)
+pwndbg&gt; break processa
+pwndbg&gt; run
+pwndbg&gt; stack 12
+00:0000│ rsp 0x7fffffffe3b0 ◂— 0x0
+04:0020│     0x7fffffffe3d0 ◂— 0x4011dd  /* ret addr para main+0x14 */
+...</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>objdump: o assembly sem executar</h2>
+  <p>Para "ler" o binário sem abrir o gdb, o objdump desconstrói o arquivo:</p>
+  <ul><li><code>objdump -d analise</code> — desmonta o <em>código</em> de todas as funções para assembly (Intel com <code>-M intel</code>).</li>
+<li><code>objdump -d -M intel analise | grep -A25 "&lt;processa&gt;"</code> — só a função processa.</li>
+<li><code>objdump -s -j .rodata analise</code> — hexdump da seção de constantes (strings literais do seu programa).</li>
+<li><code>objdump -t analise</code> — tabela de símbolos (funções e endereços).</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — objdump e readelf</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">$ objdump -d -M intel analise | grep -A25 &quot;&lt;processa&gt;:&quot;
+&lt;processa&gt;:
+   push   rbp
+   mov    rbp,rsp
+   sub    rsp,0x20
+   lea    rax,[rip+0x2e9b]     # &quot;reconhecimento&quot;
+   mov    rsi,rax
+   mov    edi,0x20
+   call   ...
+   ...
+$ readelf -h analise          # cabecalho ELF (tipo, entradas...)
+$ readelf -S analise          # tabela de secoes (.text, .data, .rodata...)
+$ readelf -s analise | grep -E &quot;processa|main|soma&quot;   # simbolos</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>strings e strace: pistas e comportamento</h2>
+  <p>Duas ferramentas rápidas de inteligência:</p>
+  <ul><li><code>strings binario</code> — extrai todas as sequências de texto; <code>strings -n 8</code> ignora as curtas. Em CTFs, o <code>strings</code> muitas vezes entrega a "flag" ou mensagens escondidas; em análise, revela mensagens de erro e paths que desenham o comportamento.</li>
+<li><code>strace -f ./analise</code> — registra cada <em>syscall</em> (read, write, mmap, execve, connect): mostra com que o programa fala, quando e com quais argumentos. Útil para perceber chamadas suspeitas (ex.: uma conexão de saída).</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — strings e strace</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">$ strings analise | head
+/lib64/ld-linux-x86-64.so.2
+reconhecimento
+...
+$ strace ./analise 2&gt;&amp;1 | tail -20
+execve(&quot;./analise&quot;, ...) = 0
+brk(NULL) ...
+write(1, &quot;reconhecimento\n&quot;, 15) = 15
+exit_group(0)</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Como se defender</h2>
+  
+  <ul><li>Use as mesmas ferramentas do atacante na sua defesa: <code>checksec</code> para confirmar que canário/NX/PIE/RELRO estão ativos no binário que você publica.</li>
+<li>Leia o assembly do seu próprio código compilado com <code>-O2</code> para confirmar que o compilador não introduziu chamadas estranhas (ou que suas funções de string segura não viraram código quente demais).</li>
+<li>Rode <code>strace</code> em serviços próprios para auditar "com o que este processo conversa" (devem ser só os peers esperados).</li>
+<li>Em incidentes, capture o core dump (ulimit -c) e analise com gdb: a pilha do crash é a primeira pista da causa raiz — exatamente como você aprendeu a "sentir" a pilha aqui.</li>
+<li>Binários de produção devem passar por <code>gvim readelf -d</code> para checar dependências e por valgrind/ASan em testes.</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t4-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.04.1</p>
+  <p class="enunciado">Compile <code>analise.c</code> com <code>-g -fno-stack-protector -no-pie</code> e, no gdb, coloque breakpoint em <code>processa</code>. Imprima <code>info registers rbp rip</code>, depois <code>x/20x $rsp</code> e <code>x/1gi $rip</code>. Identifique o return address na pilha (o ponteiro que aponta para a instrução seguinte ao call em main).</p>
+  <p class="dica"><strong>Dica:</strong> Monte a frame (Pressione <code>run</code> para parar no break; dê <code>ni</code> umas 3 vezes). A pilha é little-endian: o ret vem em gx com os bytes na ordem inversa.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ gdb ./analise
+(gdb) break processa
+(gdb) run
+(gdb) i r rbp rip
+rbp            0x7fffffffe3c0      0x7fffffffe3c0
+rip            0x4011b0            0x4011b0 &lt;processa&gt;
+(gdb) x/20x $rsp
+0x7fffffffe3b0: ... ...
+(gdb) x/1i $rip
+=&gt; 0x4011b0 &lt;processa&gt;: push %rbp</code></pre>
+        <p class="obs">O ret addr fica no endereço rbp+8: <code>x/gx $rbp+8</code>. Na dúvida, siga o endereço retornado com <code>x/3i</code> para conferir que é código de main.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t4-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.04.2</p>
+  <p class="enunciado">Use o gdb para quebrar em um campo específico da frame: pare em <code>processa</code>, avance 4 instruções (<code>ni</code> 4x), escreva o valor <code>0x41</code> (quatro A) em <code>$rbp+8</code> (<code>set {long} $rbp+8 = 0x41414141</code>) e <code>continue</code>. O que acontece? Explique por que o gdb reporta o que reporta.</p>
+  <p class="dica"><strong>Dica:</strong> Ao dar <code>leave; ret</code>, a CPU vai pular para 0x41414141 — fora do mapa do processo.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">(gdb) ni 4
+(gdb) set {long} $rbp+8 = 0x41414141
+(gdb) continue
+Continuing.
+Program received signal SIGSEGV, Segmentation fault.
+0x0000000000414143 in ?? ()
+Cannot access memory at address 0x41414141</code></pre>
+        <p class="obs">RIP tentou ir para 0x41414141 (little-endian) e o kernel abortou. Isso é literalmente o que o módulo 05 fará com um endereço de verdade.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t4-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.04.3</p>
+  <p class="enunciado">Com o objdump, liste o assembly completo de <code>main</code> e de <code>processa</code>. Identifique no main a instrução <code>call</code> que invoca processa e o endereço da instrução seguinte (o ret address). Confirme com <code>objdump -t</code> os endereços das três funções.</p>
+  <p class="dica"><strong>Dica:</strong> No assembly Intel: o <code>call</code> aparece seguido do <code>leave/ret</code>; o endereço apontado pelo <code>RIP</code> após o call é o ret address.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ objdump -d -M intel analise | sed -n '/&lt;main&gt;:/,/&lt;_fini&gt;:/p'
+00000000004011e0 &lt;main&gt;:
+   ...
+  call   4011b0 &lt;processa&gt;
+   ...
+  call   401160 &lt;soma+0x...&gt;   # ver simbolos
+$ objdump -t analise | grep -E &quot; main| processa| soma&quot;</code></pre>
+        </details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual comando do gdb imprime 20 words (4 bytes) da pilha a partir de RSP?&quot;,&quot;opcoes&quot;:[&quot;x/20wx $rsp&quot;,&quot;print 20 $rsp&quot;,&quot;dump stack 20&quot;,&quot;stack/20&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;x/conta+formato+unidade: x/20wx = 20 words hex horizontais a partir de $rsp.&quot;},{&quot;pergunta&quot;:&quot;Qual a diferença entre next (n) e nexti (ni) no gdb?&quot;,&quot;opcoes&quot;:[&quot;n executa uma linha de C; ni executa uma única instrução de máquina&quot;,&quot;n executa instruções e ni linhas&quot;,&quot;n pula funções e i entra nelas&quot;,&quot;n é mais rápido porque não mostra assembly&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;n (next) anda a nível de código-fonte; ni (nexti) anda a nível de assembly — essencial em exploração.&quot;},{&quot;pergunta&quot;:&quot;Para que serve o checksec dentro do pwndbg?&quot;,&quot;opcoes&quot;:[&quot;Mostrar quais proteções o binário tem (NX, PIE, canário, RELRO)&quot;,&quot;Verificar se o binário é um vírus&quot;,&quot;Comparar dois binários&quot;,&quot;Desmontar o binário em assembly&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;checksec resume stack canary, NX, PIE e RELRO do binário carregado.&quot;},{&quot;pergunta&quot;:&quot;O que strace mostra?&quot;,&quot;opcoes&quot;:[&quot;Cada chamada de sistema feita pelo processo, com argumentos&quot;,&quot;As strings escondidas do binário&quot;,&quot;O histórico de compilação&quot;,&quot;A tabela de páginas da memória&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;strace interpõe e registra syscalls (read, write, connect, mmap…) — o que o processo \&quot;conversa\&quot; com o kernel.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Cartão de análise de um binário</h2>
+  <p>Compile o <code>analise.c</code> com flags reais (<code>-O2 -fstack-protector-all -pie</code>) e com o flag de estudo (<code>-O0 -fno-stack-protector -no-pie</code>), e monte um cartão comparativo em markdown: para cada binário registre (a) checksec (NX, PIE, canário, RELRO), (b) endereço de <code>main</code> e de <code>processa</code> no objdump -t, (c) o endereço do buffer dentro de processa em 2 execuções (mudou? por quê?), (d) se o return address está a offset fixo do buffer. Feche com a pergunta: "em qual dos dois binários um overflow de buffer controlaria o fluxo com mais facilidade?"</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Dois cartões (um por build) com NX/PIE/canário/RELRO registrados.</li><li>Endereços de main/processa e do buffer, com a variação (ou não) entre execuções explicada.</li><li>Offset buffer→return address medido no gdb.</li><li>Conclusão comparando a dificuldade de exploração nas duas builds.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="anatomia-da-memoria-de-um-processo.html">← 4.03 Anatomia da memória de um processo</a><a class="btn nav-next" href="buffer-overflow-classico-stack-ret2shellcode-em-32-bits.html">4.05 Buffer overflow clássico (stack): ret2shellcode em 32 bits →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t4-m04">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3.12 — Sistema de arquivos e persistência (projeto final) — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="3">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t3">Trilha 3 — Avançado</a> / Sistema de arquivos e persistência (projeto final)</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">3.12</div>
+    <h1>Sistema de arquivos e persistência (projeto final)</h1>
+    <p class="subtitulo">Do fread/fwrite à serialização robusta: construa um gestor de inventário com arquivo binário e testes — o capstone da trilha.</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado</span>
+      <span class="chip">Duração: ~35 min</span>
+      <span class="chip">Pré-requisitos: Concluir os módulos 3.09–3.11 (tempo, inteiros exatos e ambiente) e saber arquivos (T2.13) e escopo/multiarquivos (T2.15).</span>
+    </div>
+    <button class="btn btn-done" data-mod="t3-m12">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Integrar tudo: structs com dados mistos, entrada robusta, arquivos binários e texto, separação de responsabilidades e testes práticos — entregando um Gestor de Inventário por linha de comando com persistência em arquivo binário e suíte de verificação.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Beej: revisite caps. 18 (argv), 35 (stdint), 38 (time). </p>
+  <p><strong>King (livro em PDF):</strong> King cap. 19 (design de programas grandes) — vale reler o capítulo inteiro antes de começar o projeto.</p>
+  <p class="foco"><strong>Foco da leitura:</strong> Leia com atenção os exercícios de arquivos do Beej e o modelo de divisão em .h/.c do King (padrão: struct no .h, implementação no .c, testes avulsos).</p>
+</section>
+  <section class="card secao">
+  <h2>Esqueleto do projeto: dados, menu e persistência</h2>
+  <p>O projeto final é um <strong>Gestor de Inventário</strong>: um programa de linha de comando que mantém uma lista de itens (código, nome, quantidade, preço) num arquivo binário, com operações de adicionar, listar, buscar, alterar, remover e sair.</p>
+<p>A arquitetura segue o padrão do King cap. 19: um cabeçalho (struct + protótipos), um arquivo de implementação (funções) e o main que só lê comandos. Dividir é o que torna o projeto testável e crescente.</p>
+<p>Antes de escrever 400 linhas, desenhe o esqueleto: menu no main, um <code>registro_exibe()</code> para imprimir um item num formato único (a base de tudo) e as decisões binárias (um <code>Registro</code> de tamanho fixo, gravado com fwrite).</p>
+  <ul><li>Separar em arquivos: <code>inventario.h</code>, <code>inventario.c</code>, <code>main.c</code>.</li>
+<li>Registro fixo: <code>struct Registro { int codigo; char nome[32]; int qtd; double preco; };</code>.</li>
+<li>Núcleo da exibição: <code>void registro_exibe(const struct Registro *r)</code> num formato único.</li>
+<li>Num arquivo binário, cada registro tem <code>sizeof(struct Registro)</code> bytes.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1201</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+struct Registro {
+    int codigo;
+    char nome[32];
+    int qtd;
+    double preco;
+};
+
+void registro_exibe(const struct Registro *r) {
+    printf(&quot;%04d | %-32s | qtd %d | R$ %.2f\n&quot;,
+           r-&gt;codigo, r-&gt;nome, r-&gt;qtd, r-&gt;preco);
+}
+
+int main(void) {
+    struct Registro r = { 1, &quot;caneta azul&quot;, 12, 1.75 };
+    registro_exibe(&amp;r);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .egistro-binario.exe
+&gt; 0001 | caneta azul                      | qtd 12 | R$ 1.75</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Gravando e lendo binário: fwrite/fread com fseeko</h2>
+  <p>Persistir é escrever os bytes do struct no arquivo e, para ler de volta no lugar certo, posicionar-se com <code>fseek</code>/<code>fseek(ftell)</code>. O par <code>fwrite</code>/<code>fread</code> recebe tamanho e quantidade de elementos — aqui, <code>sizeof(struct Registro)</code> e 1.</p>
+<p>O protocolo do arquivo: começa com um cabeçalho de 4 bytes (o campo <code>contagem</code> de um struct de arquivo), depois N registros contíguos. O índice de um item é <code>sizeof(struct Registro)</code> vezes a posição.</p>
+<p>No exemplo, gravamos um registro, fechamos e reabrimos em modo <code>"rb"</code>, posicionamos no byte 4 do arquivo e lemos de volta — conferindo campo a campo que o "round-trip" preservou os dados. Esse é o teste mínimo de qualquer serialização.</p>
+  <ul><li><code>fwrite(reg, sizeof *reg, 1, f)</code> — grava o struct inteiro de uma vez.</li>
+<li><code>fseek(f, offset, SEEK_SET)</code> + <code>fread(...)</code> — lê o registro k a partir do offset k*sizeof.</li>
+<li>Header do arquivo em um struct separado: <code>struct Arquivo { int contagem; };</code>.</li>
+<li>Sempre confira os retornos de fwrite/fread (contagem de itens escrita/lida).</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1202</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+struct Registro {
+    int codigo;
+    char nome[32];
+    int qtd;
+    double preco;
+};
+
+int main(void) {
+    FILE *f = fopen(&quot;item.bin&quot;, &quot;wb&quot;);
+    if (!f) return 1;
+
+    struct Registro r = { 7, &quot;borracha&quot;, 25, 0.90 };
+    printf(&quot;gravando %zu bytes\n&quot;, sizeof r);
+    fwrite(&amp;r, sizeof r, 1, f);
+    fclose(f);
+
+    f = fopen(&quot;item.bin&quot;, &quot;rb&quot;);
+    if (!f) return 1;
+
+    struct Registro lido;
+    fseek(f, 0, SEEK_SET);
+    fread(&amp;lido, sizeof lido, 1, f);
+    fclose(f);
+
+    if (lido.codigo == r.codigo &amp;&amp; strcmp(lido.nome, r.nome) == 0 &amp;&amp;
+        lido.qtd == r.qtd &amp;&amp; lido.preco == r.preco) {
+        printf(&quot;round-trip ok: %04d %s qtd=%d preco=%.2f\n&quot;,
+               lido.codigo, lido.nome, lido.qtd, lido.preco);
+    } else {
+        printf(&quot;ERRO: dados divergem apos o round-trip\n&quot;);
+    }
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .orcamento-extra.exe
+&gt; gravando 48 bytes
+&gt; round-trip ok: 0007 borracha qtd=25 preco=0.90
+&gt; 
+&gt; (48 = 4 do int codigo + 32 do nome + 4 do int qtd + 8 do double preco; o valor muda se você alterar os campos.)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Teste como disciplina: um main de verificação</h2>
+  <p>Antes de fechar o projeto, transforme as funções em um pequeno <strong>main de teste</strong>: um programa que liga as funções do inventário, verifica resultados esperados e contabiliza PASS/FAIL. Testar não é opcional num módulo de persistência — é como você prova que o formato binário não "vazou" um byte.</p>
+<p>O padrão: cada teste chama uma função, compara o resultado com o esperado e imprime <code>PASS</code> ou <code>FAIL</code>; no final, imprime o resumo e devolve o número de falhas como código de saída (0 = todos passaram).</p>
+<p>Assim, o seu gestor de inventário pode ser rodado tanto por um humano (menu) quanto por uma máquina (testes) — e é exatamente isso que scripts de Quality System esperam de um binário.</p>
+  <ul><li>Função helper <code>check(int ok, const char *nome)</code> imprime PASS/FAIL.</li>
+<li>Contadores: <code>int passou, falhou;</code> — resumo no final.</li>
+<li>Código de saída = número de falhas (0 = sucesso).</li>
+<li>Teste 4 coisas: inserir, listar (conta registros), buscar existente, buscar inexistente.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1203</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+static int passou = 0, falhou = 0;
+
+static void check(int ok, const char *nome) {
+    printf(&quot;%s %s\n&quot;, ok ? &quot;PASS&quot; : &quot;FAIL&quot;, nome);
+    if (ok) passou++; else falhou++;
+}
+
+static int soma_3(int a, int b, int c) {
+    return a + b + c;
+}
+
+int main(void) {
+    check(soma_3(1, 2, 3) == 6, &quot;soma 1+2+3 = 6&quot;);
+    check(soma_3(-1, 7, 0) == 6, &quot;soma -1+7+0 = 6&quot;);
+    check(soma_3(0, 0, 0) == 0, &quot;soma 0+0+0 = 0&quot;);
+    check(soma_3(100, 200, 300) == 600, &quot;soma 100+200+300&quot;);
+
+    printf(&quot;%d testes, %d falhas\n&quot;, passou + falhou, falhou);
+    return falhou;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .suite-testes.exe
+&gt; PASS soma 1+2+3 = 6
+&gt; PASS soma -1+7+0 = 6
+&gt; PASS soma 0+0+0 = 0
+&gt; PASS soma 100+200+300
+&gt; 4 testes, 0 falhas</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Boas práticas e leitura reversa do registro</h2>
+  <p>Um detalhe sutil do binário: gravar um struct inteiro com fwrite é rápido, mas o arquivo fica dependente do layout da struct (padrão de preenchimento/alinho do compilador). Para aprender a "costura fina", o projeto do módulo usa um formato <em>texto</em> (como alternativa) e o binário com struct — e você é convidado a experimentar os dois.</p>
+<p>Profissionalmente, o formato de registro fixo em binário é o mais simples e ainda flexível. As regras de ouro: (1) abra sempre conferindo <code>if (!f)</code>; (2) mantenha uma função <code>abre_arquivo()</code> única; (3) depois de cada operação que mexe no ponteiro do arquivo, feche e reabra para "resetar" a posição — isso evita bugs de fseek mal lembrado.</p>
+<p>E lembre-se: fluxo de dados errado é invisível. A disciplina de <code>registro_exibe()</code> faz com que qualquer lista impressa seja idêntica, em qualquer função — comparável em um teste automático.</p>
+  <ul><li>Abra arquivos sempre validando o retorno; dê mensagem em stderr.</li>
+<li>Uma única função <code>abre()</code> central os modos de abertura usados.</li>
+<li>Feche depois de operações e reabra para evitar fseek esquecido.</li>
+<li>Compare sempre via registro_exibe para verificação visual e textual invariante.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Encerrando a trilha</h2>
+  <p>Você chegou ao fim da Trilha 3 — Avançado. Neste módulo você uniu: <code>&lt;time.h&gt;</code> (carimbo de horário dos logs), <code>&lt;stdint.h&gt;</code> (códigos exatos e preços em inteiros de largura exata opcional), <code>&lt;stdlib.h&gt;</code> (argv para comandos) e os fluxos de entrada para criar um programa com interface de máquina e de humano.</p>
+<p>O saldo que fica: de agora em diante seus programas não são mais "scripts de exemplo" — eles conversam com o sistema (sinais de saida), persistem dados com formato próprio, medem o tempo e se defendem de entradas inválidas. É o arsenal básico para ferramentas de Quality System, automação, protocolos e utilitários do dia a dia.</p>
+<p>Bons estudos — e lembre-se: o próximo nível é sempre o do reuso (bibliotecas, split em .h/.c) e o da segurança (fgets em vez de scanf, strtol em vez de atoi, checagem de retorno em tudo). A Trilha 3 está completa.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1205</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    printf(&quot;trilha 3 concluida. proximo passo: reuso e bibliotecas.\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .conclusao-trilha.exe
+&gt; trilha 3 concluida. proximo passo: reuso e bibliotecas.</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t3-m12">
+  <div class="ex-head">
+    <span class="badge badge-nivel nAvançado">Nível Avançado</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.12.1</p>
+  <p class="enunciado">Crie a funcao int registro_busca(FILE *f, int codigo, struct Registro *saida) que percorre os registros do arquivo (do offset 4 em diante, apos o cabeçalho de contagem) e preenche *saida se encontrar o codigo; devolve 1 se achou, 0 se nao. Teste com dois items gravados (codigos 10 e 40) procurando 40 e depois 999.</p>
+  <p class="dica"><strong>Dica:</strong> O arquivo com N registros tem 4 + N*sizeof(struct Registro) bytes. fread em loop ate EOF ou ate o fim calculado.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+struct Registro {
+    int codigo;
+    char nome[32];
+    int qtd;
+    double preco;
+};
+
+int registro_busca(FILE *f, int codigo, struct Registro *saida) {
+    fseek(f, 4, SEEK_SET);
+    struct Registro r;
+    while (fread(&amp;r, sizeof r, 1, f) == 1) {
+        if (r.codigo == codigo) {
+            *saida = r;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int main(void) {
+    FILE *f = fopen(&quot;buf.bin&quot;, &quot;wb&quot;);
+    if (!f) return 1;
+    struct Registro items[2];
+    items[0].codigo = 10; strcpy(items[0].nome, &quot;item dez&quot;); items[0].qtd = 1; items[0].preco = 1.0;
+    items[1].codigo = 40; strcpy(items[1].nome, &quot;item quarenta&quot;); items[1].qtd = 2; items[1].preco = 2.5;
+    int cont = 2;
+    fwrite(&amp;cont, sizeof cont, 1, f);
+    fwrite(items, sizeof(struct Registro), cont, f);
+    fclose(f);
+
+    f = fopen(&quot;buf.bin&quot;, &quot;rb&quot;);
+    if (!f) return 1;
+
+    struct Registro achado;
+    if (registro_busca(f, 40, &amp;achado)) {
+        printf(&quot;codigo %d encontrado: %s\n&quot;, achado.codigo, achado.nome);
+    } else {
+        printf(&quot;codigo %d nao encontrado\n&quot;, 40);
+    }
+
+    if (registro_busca(f, 999, &amp;achado)) {
+        printf(&quot;codigo 999 encontrado: %s\n&quot;, achado.nome);
+    } else {
+        printf(&quot;codigo 999 nao encontrado\n&quot;);
+    }
+
+    fclose(f);
+    return 0;
+}</code></pre>
+        <p class="obs">./ex12_1 — o fseek(f, 4, SEEK_SET) pula o cabeçalho de contagem (4 bytes) antes da busca; sem ele, o contador seria lido como um registro falso.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t3-m12">
+  <div class="ex-head">
+    <span class="badge badge-nivel nAvançado">Nível Avançado</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.12.2</p>
+  <p class="enunciado">Escreva o esqueleto completo do gestor com as funcoes salva(cont, items, nome_arquivo) e carrega(cont, items, nome_arquivo) que gravam/leem, respetivamente, o cabeçalho e os registros. No main, crie 3 registros, salve, leia de volta e imprima via registro_exibe, conferindo no final quantos foram lidos.</p>
+  <p class="dica"><strong>Dica:</strong> O struct Arquivo { int contagem; } evita ler bool falso; acesse items[c] apos carregar com base em cont.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+struct Registro {
+    int codigo;
+    char nome[32];
+    int qtd;
+    double preco;
+};
+
+struct Arquivo {
+    int contagem;
+};
+
+void registro_exibe(const struct Registro *r) {
+    printf(&quot;%04d | %-32s | qtd %d | R$ %.2f\n&quot;,
+           r-&gt;codigo, r-&gt;nome, r-&gt;qtd, r-&gt;preco);
+}
+
+void salva(int cont, const struct Registro *items, const char *nome) {
+    FILE *f = fopen(nome, &quot;wb&quot;);
+    if (!f) return;
+    struct Arquivo h = { cont };
+    fwrite(&amp;h, sizeof h, 1, f);
+    fwrite(items, sizeof(struct Registro), cont, f);
+    fclose(f);
+}
+
+int carrega(struct Registro *items, const char *nome) {
+    FILE *f = fopen(nome, &quot;rb&quot;);
+    if (!f) return 0;
+    struct Arquivo h;
+    if (fread(&amp;h, sizeof h, 1, f) != 1) { fclose(f); return 0; }
+    int n = fread(items, sizeof(struct Registro), h.contagem, f);
+    fclose(f);
+    return n;
+}
+
+int main(void) {
+    struct Registro items[8];
+    items[0].codigo = 1;  strcpy(items[0].nome, &quot;caneta&quot;);    items[0].qtd = 12; items[0].preco = 1.75;
+    items[1].codigo = 2;  strcpy(items[1].nome, &quot;lapis&quot;);     items[1].qtd = 8;  items[1].preco = 0.80;
+    items[2].codigo = 3;  strcpy(items[2].nome, &quot;regua&quot;);     items[2].qtd = 4;  items[2].preco = 3.20;
+
+    salva(3, items, &quot;inventario.bin&quot;);
+
+    struct Registro lidos[8];
+    int n = carrega(lidos, &quot;inventario.bin&quot;);
+    printf(&quot;gravados 3 registros; lidos %d:\n&quot;, n);
+    for (int i = 0; i &lt; n; i++) {
+        registro_exibe(&amp;lidos[i]);
+    }
+
+    return 0;
+}</code></pre>
+        <p class="obs">./ex12_2</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Para gravar um struct inteiro num arquivo binário em uma única chamada, qual função usar?&quot;,&quot;opcoes&quot;:[&quot;fprintf(f, \&quot;%s\&quot;, &amp;r)&quot;,&quot;fwrite(&amp;r, sizeof r, 1, f)&quot;,&quot;fputs(&amp;r, f)&quot;,&quot;putc(&amp;r, f)&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;fwrite com tamanho sizeof(struct) e 1 elemento grava o struct completo.&quot;},{&quot;pergunta&quot;:&quot;O que significa o código de saída 0 de um testador?&quot;,&quot;opcoes&quot;:[&quot;Houve 0 falhas&quot;,&quot;O teste foi pulado&quot;,&quot;Nenhum teste rodou&quot;,&quot;O programa travou&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Por convenção, 0 = sucesso/sem falhas; o testador devolve o nº de falhas.&quot;},{&quot;pergunta&quot;:&quot;No arquivo binário do gestor, o que está nos primeiros 4 bytes?&quot;,&quot;opcoes&quot;:[&quot;O primeiro registro completo&quot;,&quot;O contador de registros (cabeçalho)&quot;,&quot;O tamanho do arquivo em bytes&quot;,&quot;Um número mágico de assinatura&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O cabeçalho struct Arquivo { int contagem; } ocupa 4 bytes no início; os registros vêm depois.&quot;},{&quot;pergunta&quot;:&quot;Por que separar o código em inventario.h/inventario.c/main.c?&quot;,&quot;opcoes&quot;:[&quot;Para deixar mais lento&quot;,&quot;Para desacoplar interface, implementação e ponto de entrada&quot;,&quot;Porque o compilador exige&quot;,&quot;Para as funções ficarem globais&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;A separação em .h (interface), .c (implementação) e main (entrada) é o padrão de projetos maiores (King cap. 19).&quot;},{&quot;pergunta&quot;:&quot;Que informação uma função de busca de registro deve devolver?&quot;,&quot;opcoes&quot;:[&quot;Só o nome&quot;,&quot;Se achou (0/1) e o registro encontrado&quot;,&quot;O tamanho do arquivo&quot;,&quot;A quantidade de registros&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;A convenção escolhida: int (1=achou, 0=não) + preenchimento de *saida.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Gestor de inventário CLI com persistência binária</h2>
+  <p>Construa o projeto final completo da trilha: um Gestor de Inventário com menu de texto e persistência em arquivo binário. Comandos: (1) adicionar item, (2) listar, (3) buscar por código, (4) alterar quantidade, (5) remover, (0) sair. Um arquivo "inventario.bin" guarda o cabeçalho (int contagem) seguido de N registros (struct: codigo int, nome char[32], qtd int, preco double). O menu é um loop com a leitura segura de fgets+strtol; toda alteração reescreve o arquivo do zero (padrão simples e robusto). Testes: um arquivo main de teste ativa as funções (busca existe/não existe, salvar+carregar round-trip) e imprime PASS/FAIL com resumo.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Menu funcional com os 6 comandos e validação de entrada (não trava com texto).</li><li>Persistência: salvar/carregar com cabeçalho+registros; round-trip sem perda de campos.</li><li>registro_exibe única para tudo.</li><li>Busca devolve 0/1 e preenche saida.</li><li>Remoção compacta (reordena, decrementa contagem).</li><li>main de teste com PASS/FAIL e resumo, saída 0 se 0 falhas.</li><li>Código organizado em arquivos (inventario.h/inventario.c/main.c) na entrega.</li><li>Compila com gcc -Wall -Wextra -std=c11 sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="a-vida-fora-do-main-ambiente-saida-e-interacao.html">← 3.11 A vida fora do main: ambiente, saída e interação</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t3-m12">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.01 — Preparando o ambiente de desenvolvimento — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="0">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t0">Trilha 0 — Setup</a> / Preparando o ambiente de desenvolvimento</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">0.01</div>
+    <h1>Preparando o ambiente de desenvolvimento</h1>
+    <p class="subtitulo">gcc, editor, terminal e primeiros comandos</p>
+    <div class="chips">
+      <span class="chip">Nível: Iniciante</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: Nenhum</span>
+    </div>
+    <button class="btn btn-done" data-mod="t0-m01">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Deixar seu computador pronto para escrever, compilar e executar programas em C com confiança: entender o que o gcc faz, compilar um programa, ver erros de compilação e dar os primeiros passos no depurador gdb.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 2, seções 2.4–2.7 (Building with gcc, clang, IDEs)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 2.1 (Compiling and Linking)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, foque em como o compilador transforma seu arquivo .c em um executável e como passar flags. No King, entenda a diferença entre compilar e linkar.</p>
+</section>
+  <section class="card secao">
+  <h2>As ferramentas que você já tem</h2>
+  <p>Você já tem o compilador gcc instalado (MinGW-w64). Isso é o essencial. Para acompanhar o curso você precisa apenas de:</p>
+  <ul><li><strong>gcc</strong> (compilador) — já instalado. No terminal, confira com <code>gcc --version</code>.</li>
+<li><strong>Um editor de código</strong> — VS Code, Notepad++, Sublime ou o próprio Vim/Neovim. Qualquer um serve; o importante é salvar arquivos em texto puro.</li>
+<li><strong>PowerShell</strong> (que você já usa) ou o <strong>Windows Terminal</strong> padrão do Windows 11.</li>
+<li><strong>git</strong> (recomendado, para versionar seus exercícios) — instale de https://git-scm.com se ainda não tiver.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — verificando seu ambiente</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">gcc --version</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>gcc.exe (MinGW-W64 x86_64-ucrt-posix-seh, built by Brecht Sanders, r4) 16.1.0
+Copyright (C) 2026 Free Software Foundation, Inc.
+...</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O que o gcc faz: do .c ao executável</h2>
+  <p>Quando você roda <code>gcc prog.c</code>, o compilador executa quatro etapas em sequência:</p>
+  <ul><li><strong>Pré-processamento</strong> (<code>cpp</code>): resolve as diretivas <code>#include</code>, <code>#define</code> etc.; gera um arquivo gigante "achatado".</li>
+<li><strong>Compilação</strong>: transforma o C em <strong>assembly</strong> (linguagem da CPU).</li>
+<li><strong>Montagem</strong> (<code>as</code>): transforma assembly em <strong>código de máquina</strong>, dentro de um arquivo objeto (<code>.o</code>).</li>
+<li><strong>Linkagem</strong> (<code>ld</code>): junta seu código com a biblioteca padrão (stdio, string...) e produz o executável final.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — pipeline do compilador</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c"># Etapas que o gcc executa por baixo dos panos:
+gcc -E prog.c      &gt; prog.i   # 1. pré-processamento
+gcc -S prog.i               # 2. compilação  -&gt; prog.s (assembly)
+gcc -c prog.s               # 3. montagem    -&gt; prog.o (objeto)
+gcc prog.o -o prog          # 4. linkagem    -&gt; prog (executável)</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Seu primeiro programa compilado</h2>
+  <p>Crie um arquivo chamado <code>hello.c</code> com o conteúdo abaixo. Preste atenção em cada linha: a diretiva <code>#include &lt;stdio.h&gt;</code> traz as declarações de <code>printf</code>; cada programa em C tem uma função <code>main</code>, que é o ponto de entrada; <code>printf</code> imprime; <code>return 0;</code> diz ao sistema operacional que o programa terminou com sucesso.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — hello.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;Olá, mundo!\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 hello.c -o hello
+&gt; .\hello.exe
+
+Olá, mundo!</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Flags do gcc que você vai usar o tempo todo</h2>
+  <p>As flags abaixo viram sua "higiene de compilação". Acostume-se a usá-las em todos os exercícios:</p>
+  <ul><li><code>-Wall -Wextra</code> — liga avisos valiosos (warnings). Código limpo compila sem nenhum aviso.</li>
+<li><code>-std=c11</code> — fixa o padrão da linguagem (C11). Também existem <code>c99</code> e <code>c17</code>.</li>
+<li><code>-g</code> — inclui informações de depuração (necessário para o gdb).</li>
+<li><code>-O0 / -O2</code> — nível de otimização. <code>-O0</code> (padrão) para estudar; <code>-O2</code> para programar "de verdade".</li>
+<li><code>-o nome</code> — nome do executável de saída (senão o gcc gera <code>a.exe</code>).</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — compilando com boas práticas</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">gcc -Wall -Wextra -std=c11 -g -O0 hello.c -o hello</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Como ler um erro de compilação</h2>
+  <p>Erros de compilação têm um formato padronizado: <em>arquivo</em>, <em>linha</em>, <em>coluna</em>, e a mensagem. Sempre corrija <strong>o primeiro erro primeiro</strong> — erros seguintes costumam ser "efeito colateral" dos anteriores.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — um erro de exemplo (falta o ;)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;Olá\n&quot;)   // &lt;-- falta o ponto e vírgula aqui
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>hello.c:5:5: error: expected ';' before 'return'
+    5 |     printf(&quot;Olá\n&quot;)
+      |     ^
+      |     ;
+    6 |     return 0</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Primeiros passos no depurador gdb</h2>
+  <p>O gdb (GNU Debugger) deixa você executar o programa passo a passo e inspecionar variáveis — o que é essencial quando um programa compila mas não faz o que deveria. Na Trilha 4 (Cyber) vamos usar isso pesado. Por enquanto, aprenda os 4 comandos básicos:</p>
+  <ul><li><code>gdb ./hello.exe</code> — abre o depurador com o programa carregado.</li>
+<li><code>break main</code> — pausa a execução na função <code>main</code>.</li>
+<li><code>run</code> (ou <code>r</code>) — roda o programa até o breakpoint.</li>
+<li><code>next</code> (ou <code>n</code>) + <code>print var</code> — avança uma linha e imprime o valor de uma variável.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — sessão gdb</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">gdb ./hello.exe
+(gdb) break main
+(gdb) run
+(gdb) next
+(gdb) print &quot;chegamos até aqui&quot;
+(gdb) quit</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Organizando seus projetos</h2>
+  <p>Crie uma pasta <code>exercicios</code> dentro desta (a pasta <code>aprenda-c</code>) e um subpasta por exercício. Sempre que terminar um exercício, compile com a dupla <code>-Wall -Wextra</code> e garanta zero avisos. A consistência de poucas pastas organizadas vale mais do que ferramentas sofisticadas nesta fase.</p>
+  <ul><li>Pastas sugeridas: <code>exercicios/</code>, <code>projetos/</code>, <code>labs/</code> (para a trilha Cyber).</li>
+<li>Nomeie os arquivos com padrão: <code>ex01.c</code>, <code>ex02.c</code>, ...</li>
+<li>Salve seus arquivos como UTF-8 (padrão dos editores modernos).</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t0-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 0.01.1</p>
+  <p class="enunciado">Crie o arquivo <code>eu.c</code> que imprime seu nome e sua cidade em duas linhas. Compile com <code>gcc -Wall -Wextra -std=c11 eu.c -o eu</code> e rode. Se houver algum aviso, corrija até zerar.</p>
+  <p class="dica"><strong>Dica:</strong> Use dois <code>printf</code> ou um só com <code>\n</code> no meio.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;Seu Nome Aqui\n&quot;);
+    printf(&quot;Sua Cidade\n&quot;);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t0-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 0.01.2</p>
+  <p class="enunciado">Escreva um programa que cause, de propósito, um erro de compilação (ex.: esqueça o ponto e vírgula). Compile e leia a mensagem. Depois conserte e compile de novo até emitir nenhum erro/aviso.</p>
+  <p class="dica"><strong>Dica:</strong> Tente trocar <code>return 0;</code> por <code>return 0</code> e veja onde o erro aparece.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;O erro já se foi\n&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">Repare que o tipo da mensagem de erro muda conforme o erro: "error" (bloqueia a compilação) vs "warning" (compila mas é suspeito).</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t0-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 0.01.3</p>
+  <p class="enunciado">Declare uma variável inteira <code>x = 7</code> e um <code>y = 4</code>, imprima a soma, subtração, multiplicação e divisão <em>inteira</em> dos dois. O que acontece com 7/4? Compile com <code>-Wall -Wextra</code>.</p>
+  <p class="dica"><strong>Dica:</strong> Divisão de inteiros em C trunca o resto. Experimente imprimir 7.0/4 também usando um literal float.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int x = 7, y = 4;
+    printf(&quot;soma: %d\n&quot;, x + y);
+    printf(&quot;subtracao: %d\n&quot;, x - y);
+    printf(&quot;multiplicacao: %d\n&quot;, x * y);
+    printf(&quot;divisao inteira: %d\n&quot;, x / y);      /* 7/4 = 1 (resto 3) */
+    printf(&quot;divisao real: %.2f\n&quot;, 7.0 / 4.0);   /* 1.75 */
+    return 0;
+}</code></pre>
+        <p class="obs">O literal <code>7.0</code> é ponto flutuante, o que muda o tipo da operação. Veremos tipos a fundo na Trilha 1.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t0-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 0.01.4</p>
+  <p class="enunciado">Usando o gdb: compile <code>eu.c</code> com <code>-g</code>, abra com <code>gdb ./eu.exe</code>, coloque um breakpoint em <code>main</code>, rode, avance com <code>next</code> e saia com <code>quit</code>.</p>
+  <p class="dica"><strong>Dica:</strong> Depois de <code>run</code>, o programa pausa em main. Cada <code>next</code> executa uma linha.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">&gt; gcc -g -Wall -Wextra -std=c11 eu.c -o eu
+&gt; gdb ./eu.exe
+(gdb) break main
+Breakpoint 1 at ...
+(gdb) run
+(gdb) next
+(gdb) next
+(gdb) quit</code></pre>
+        <p class="obs">Se o gdb pedir para sair com "Quit anyway? (y or n)", responda y.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual comando compila hello.c gerando o executável hello (com warnings ativos)?&quot;,&quot;opcoes&quot;:[&quot;gcc -Wall -Wextra -std=c11 hello.c -o hello&quot;,&quot;gcc hello.c -v&quot;,&quot;run hello.c&quot;,&quot;gcc -Wall -Wextra -std=c11 -o hello.c hello&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;A ordem do gcc é: &lt;code&gt;gcc [flags] [arquivos.c] -o [nome do executável]&lt;/code&gt;.&quot;},{&quot;pergunta&quot;:&quot;Qual função todo programa em C precisa ter para ser executado?&quot;,&quot;opcoes&quot;:[&quot;start&quot;,&quot;main&quot;,&quot;begin&quot;,&quot;run&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O sistema operacional chama a função &lt;code&gt;main&lt;/code&gt; quando o programa inicia.&quot;},{&quot;pergunta&quot;:&quot;A diretiva #include &lt;stdio.h&gt; tem a função de...&quot;,&quot;opcoes&quot;:[&quot;compilar mais rápido&quot;,&quot;incluir declarações da biblioteca padrão (como printf)&quot;,&quot;criar o executável&quot;,&quot;otimizar o código&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;&lt;code&gt;#include&lt;/code&gt; copia o conteúdo do cabeçalho, que declara funções padrão como printf e scanf.&quot;},{&quot;pergunta&quot;:&quot;O que significa a flag -g?&quot;,&quot;opcoes&quot;:[&quot;gerar executável gráfico&quot;,&quot;incluir símbolos de depuração (usado pelo gdb)&quot;,&quot;depurar erros automaticamente&quot;,&quot;usar o padrão C99&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;&lt;code&gt;-g&lt;/code&gt; adiciona informações (nomes de variáveis, linhas) que o gdb usa.&quot;},{&quot;pergunta&quot;:&quot;Na linha \&quot;hello.c:6:9: error: expected &#39;;&#39;\&quot; — o que é o \&quot;6\&quot;?&quot;,&quot;opcoes&quot;:[&quot;a coluna do erro&quot;,&quot;o número de erros&quot;,&quot;a linha onde está o erro&quot;,&quot;a versão do compilador&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;O formato é &lt;code&gt;arquivo:linha:coluna: tipo: mensagem&lt;/code&gt;.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Cartão de visita em C</h2>
+  <p>Crie um programa <code>cartao.c</code> que imprime um "cartão de visita" ASCII: seu nome, papel/objetivo de estudo e um dos seus hobbies. Use <code>printf</code> com <code>\n</code> e pelo menos um caractere de borda (ex.: <code>+---o---</code>). Compile com <code>-Wall -Wextra -std=c11</code> e garanta zero avisos.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Programa compila com <code>gcc -Wall -Wextra -std=c11 cartao.c -o cartao</code> sem erros nem avisos.</li><li>Saída contém seu nome, objetivo e um hobby, formatada com bordas ou separadores.</li><li>Função <code>main</code> retorna 0.</li><li>Você consegue explicar cada linha para outra pessoa.</li></ul></div>
+</section>
+  <nav class="mod-nav"></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t0-m01">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

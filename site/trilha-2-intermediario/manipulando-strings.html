@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.04 — Manipulando strings — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / Manipulando strings</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.04</div>
+    <h1>Manipulando strings</h1>
+    <p class="subtitulo">string.h: strcpy, strcat, strcmp, strchr, strstr, strtok e snprintf</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: T2.03</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m04">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Dominar o kit de funções de <string.h> para copiar, concatenar, comparar, buscar e separar strings com segurança, evitando as armadilhas clássicas de buffer.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 7 (seção de funções de string; biblioteca string.h)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulos 13.4–13.6 (limites, funções de string)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, a tabela de funções de string com assinaturas e exemplos de uso. No King, as seções 13.4–13.6 explicam por que strncpy/strncat são mais seguras e como funciona a busca.</p>
+</section>
+  <section class="card secao">
+  <h2>Copiar: strcpy e strncpy</h2>
+  <p><code>strcpy(dest, src)</code> copia a origem inteira (parando no <code>\0</code>); é sua responsabilidade garantir que <code>dest</code> tem espaço. <code>strncpy(dest, src, n)</code> copia no máximo <code>n</code> caracteres — e aqui mora a sutileza: <strong>não</strong> garante <code>\0</code> automático, então escrevemos <code>dest[n-1] = '\0'</code> à mão:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — strcpy.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char a[32];
+    char b[32];
+
+    strcpy(a, &quot;primeira&quot;);
+    strncpy(b, &quot;segunda&quot;, sizeof b - 1);
+    b[sizeof b - 1] = '\0';
+
+    printf(&quot;a = \&quot;%s\&quot;\n&quot;, a);
+    printf(&quot;b = \&quot;%s\&quot;\n&quot;, b);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>a = &quot;primeira&quot;
+b = &quot;segunda&quot;</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Concatenar: strcat e strncat</h2>
+  <p><code>strcat(dest, src)</code> acha o <code>\0</code> de <code>dest</code> e copia <code>src</code> a partir dali. Novo estouro clássico: <code>dest</code> deve ter espaço para o resultado todo. <code>strncat</code> limita quantos caracteres vêm de <code>src</code> — a fórmula do tamanho disponível é <code>sizeof(dest) - strlen(dest) - 1</code>:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — strcat.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char frase[64] = &quot;Aprender&quot;;
+    char resto[32];
+
+    strncat(frase, &quot; C&quot;, sizeof frase - strlen(frase) - 1);
+    strcpy(resto, &quot; e' divertido&quot;);
+    strncat(frase, resto, sizeof frase - strlen(frase) - 1);
+
+    printf(&quot;%s\n&quot;, frase);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Aprender C e' divertido</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Comparar: strcmp e strncmp</h2>
+  <p><code>strcmp(a, b)</code> compara byte a byte e devolve um valor: <strong>negativo</strong> se <code>a &lt; b</code>, <strong>zero</strong> se iguais, <strong>positivo</strong> se <code>a &gt; b</code> (comparação lexicográfica, com os códigos ASCII). <code>strncmp</code> compara só os primeiros n caracteres.</p>
+<p>Nunca compare strings com <code>==</code>: isso compara endereços, não conteúdo.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — strcmp.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    printf(&quot;strcmp(\&quot;abc\&quot;, \&quot;abc\&quot;) = %d\n&quot;, strcmp(&quot;abc&quot;, &quot;abc&quot;));
+    printf(&quot;strcmp(\&quot;abc\&quot;, \&quot;abd\&quot;) = %d\n&quot;, strcmp(&quot;abc&quot;, &quot;abd&quot;));
+    printf(&quot;strcmp(\&quot;abd\&quot;, \&quot;abc\&quot;) = %d\n&quot;, strcmp(&quot;abd&quot;, &quot;abc&quot;));
+    printf(&quot;strncmp(\&quot;abcde\&quot;, \&quot;abcfg\&quot;, 3) = %d\n&quot;, strncmp(&quot;abcde&quot;, &quot;abcfg&quot;, 3));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>strcmp(&quot;abc&quot;, &quot;abc&quot;) = 0
+strcmp(&quot;abc&quot;, &quot;abd&quot;) = -1
+strcmp(&quot;abd&quot;, &quot;abc&quot;) = 1
+strncmp(&quot;abcde&quot;, &quot;abcfg&quot;, 3) = 0</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Buscar: strchr e strstr</h2>
+  <p><code>strchr(s, c)</code> acha o primeiro <code>c</code> na string e devolve um ponteiro para ele (ou NULL). <code>strstr(s, sub)</code> acha a primeira ocorrência de uma substring. Subtrair o ponteiro devolvido do início da string dá o índice:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — strchr-strstr.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    const char *texto = &quot;O rato roeu a roupa do rei&quot;;
+    char *achado;
+
+    achado = strchr(texto, 'r');
+    if (achado != NULL) {
+        printf(&quot;primeiro 'r' no indice %td\n&quot;, achado - texto);
+    }
+
+    achado = strstr(texto, &quot;roupa&quot;);
+    if (achado != NULL) {
+        printf(&quot;\&quot;roupa\&quot; comeca no indice %td\n&quot;, achado - texto);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>primeiro 'r' no indice 2
+&quot;roupa&quot; comeca no indice 14</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Separar: strtok (e seus cuidados)</h2>
+  <p><code>strtok</code> parte a string em "pedaços" usando delimitadores. Primeira chamada recebe a string e o conjunto de delimitadores; as chamadas seguintes recebem <code>NULL</code> e continuam de onde parou.</p>
+<p>Cuidados: (1) <em>destrói</em> a string original (insere \0 nos divisores) — passe uma cópia; (2) <em>não é reentrante</em> — não use dentro de dois loops aninhados simultâneos; (3) usa estado global, então não há garantias em múltiplas threads.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — strtok.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char linha[] = &quot;nome:email:idade:cidade&quot;;
+    char *parte;
+
+    parte = strtok(linha, &quot;:&quot;);
+    while (parte != NULL) {
+        printf(&quot;-&gt; %s\n&quot;, parte);
+        parte = strtok(NULL, &quot;:&quot;);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>-&gt; nome
+-&gt; email
+-&gt; idade
+-&gt; cidade</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Formatar com segurança: snprintf</h2>
+  <p><code>snprintf(buf, tamanho, formato, ...)</code> é o printf para strings: formata direto no buffer, sempre com <code>\0</code>, e devolve quantos caracteres <em>deveriam</em> ter sido escritos. Se o retorno for maior ou igual ao tamanho do buffer, houve truncamento.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — snprintf.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    char buffer[32];
+    int escritos;
+
+    escritos = snprintf(buffer, sizeof buffer, &quot;%s tem %d anos&quot;, &quot;Leo&quot;, 23);
+    if (escritos &gt;= (int)sizeof buffer) {
+        printf(&quot;String foi truncada.\n&quot;);
+    }
+    printf(&quot;buffer = \&quot;%s\&quot; (%d caracteres)\n&quot;, buffer, escritos);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>buffer = &quot;Leo tem 23 anos&quot; (15 caracteres)</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.04.1</p>
+  <p class="enunciado">Crie um buffer <code>nome_completo[64]</code> e monte "Fulano da Silva" usando strcpy + strcat (ou strncpy/strncat com limites). Imprima o resultado e o tamanho com strlen.</p>
+  <p class="dica"><strong>Dica:</strong> Comece com <code>strcpy(nome_completo, "Fulano")</code>, depois acrescente " da Silva".</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char nome_completo[64];
+
+    strcpy(nome_completo, &quot;Fulano&quot;);
+    strncat(nome_completo, &quot; da Silva&quot;,
+            sizeof nome_completo - strlen(nome_completo) - 1);
+
+    printf(&quot;%s (len %zu)\n&quot;, nome_completo, strlen(nome_completo));
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.04.2</p>
+  <p class="enunciado">Escreva uma função que substitui todas as ocorrências de um caractere por outro em uma string modificável, ex.: trocar todos os "a" por "@" em "banana". Imprima antes e depois.</p>
+  <p class="dica"><strong>Dica:</strong> Percorra com ponteiro e <code>*p = novo</code> quando <code>*p == velho</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void substituir(char *s, char velho, char novo)
+{
+    for (; *s != '\0'; s++) {
+        if (*s == velho) {
+            *s = novo;
+        }
+    }
+}
+
+int main(void)
+{
+    char fruta[] = &quot;banana&quot;;
+
+    printf(&quot;antes : %s\n&quot;, fruta);
+    substituir(fruta, 'a', '@');
+    printf(&quot;depois: %s\n&quot;, fruta);
+    return 0;
+}</code></pre>
+        <p class="obs">A string precisa ser um array mutável, <em>jamais</em> um literal (T2.03).</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.04.3</p>
+  <p class="enunciado">Conte as palavras de uma frase usando <code>strtok</code> com delimitadores espaço e tab. Teste com <code>"o rato roeu a roupa"</code>.</p>
+  <p class="dica"><strong>Dica:</strong> Delimitadores: <code>" \t"</code>. Cada pedaço devolvido não-NULO é uma palavra.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char frase[] = &quot;o rato roeu a roupa&quot;;
+    int n = 0;
+
+    char *palavra = strtok(frase, &quot; \t&quot;);
+    while (palavra != NULL) {
+        n++;
+        palavra = strtok(NULL, &quot; \t&quot;);
+    }
+
+    printf(&quot;palavras: %d\n&quot;, n);
+    return 0;
+}</code></pre>
+        <p class="obs">Lembre-se: strtok modifica a string original — aqui está tudo bem, frase é uma cópia própria.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.04.4</p>
+  <p class="enunciado">Escreva um programa que usa <code>strstr</code> para achar a posição da primeira ocorrência de <code>"ca"</code> dentro de <code>"cachorro":</code> e imprime o índice; depois repita buscando algo que não existe (<code>"zz"</code>) e trate o NULL.</p>
+  <p class="dica"><strong>Dica:</strong> Se <code>p = strstr(s, sub)</code>, o índice é <code>p - s</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    const char *frase = &quot;cachorro&quot;;
+    char *p;
+
+    p = strstr(frase, &quot;ca&quot;);
+    if (p != NULL) {
+        printf(&quot;'ca' em %td\n&quot;, p - frase);
+    }
+
+    p = strstr(frase, &quot;zz&quot;);
+    if (p == NULL) {
+        printf(&quot;'zz' nao encontrado\n&quot;);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado: ca em 0 e mensagem de não encontrado. Note o uso de <code>%td</code> para a diferença de ponteiros (ptrdiff_t).</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t2-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.04.5</p>
+  <p class="enunciado">Leia uma frase com fgets, corte a quebra de linha, use strtok para separar em palavras e imprima as palavras <strong>em ordem inversa</strong> da digitação. Dica: guarde as palavras num array de ponteiros <code>char *palavras[20]</code>.</p>
+  <p class="dica"><strong>Dica:</strong> Cada token do strtok aponta para dentro do buffer; guarde o ponteiro, não copie.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char frase[256];
+    char *palavras[20];
+    int n = 0;
+
+    printf(&quot;Digite uma frase: &quot;);
+    if (fgets(frase, sizeof frase, stdin) == NULL) {
+        return 1;
+    }
+    frase[strcspn(frase, &quot;\n&quot;)] = '\0';
+
+    char *token = strtok(frase, &quot; &quot;);
+    while (token != NULL &amp;&amp; n &lt; 20) {
+        palavras[n++] = token;
+        token = strtok(NULL, &quot; &quot;);
+    }
+
+    printf(&quot;inverso: &quot;);
+    for (int i = n - 1; i &gt;= 0; i--) {
+        printf(&quot;%s &quot;, palavras[i]);
+    }
+    printf(&quot;\n&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">Exemplo: "vou aprender c" sai "c aprender vou". O array palavras guarda ponteiros para dentro de frase (que o strtok fatiou).</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que &lt;code&gt;strncpy&lt;/code&gt; &lt;strong&gt;não&lt;/strong&gt; garante?&quot;,&quot;opcoes&quot;:[&quot;Copia até n caracteres&quot;,&quot;O \\0 final se a origem for longa ou passar dos n&quot;,&quot;Que source seja válida&quot;,&quot;Nada: strncpy garante tudo&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;strncpy pode deixar a string sem \\0; por isso escrevemos &lt;code&gt;dest[n-1] = &#39;\\0&#39;&lt;/code&gt; depois.&quot;},{&quot;pergunta&quot;:&quot;Como &lt;code&gt;strcmp(\&quot;abc\&quot;, \&quot;abd\&quot;)&lt;/code&gt; se comporta?&quot;,&quot;opcoes&quot;:[&quot;Retorna 0, são iguais&quot;,&quot;Retorna um valor negativo (abc &lt; abd)&quot;,&quot;Retorna um valor positivo&quot;,&quot;Gera erro de compilação&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Na comparação lexicográfica, &#39;c&#39; &amp;lt; &#39;d&#39;, então o retorno é negativo (geralmente -1 ou a diferença de bytes).&quot;},{&quot;pergunta&quot;:&quot;Qual condição indica truncamento ao usar &lt;code&gt;int n = snprintf(buf, tam, ...)&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;n == 0&quot;,&quot;n &lt; tam&quot;,&quot;n &gt;= tam&quot;,&quot;n == tam - 1 sempre&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;snprintf devolveo que escreveria; se n &gt;= tam, algo foi cortado.&quot;},{&quot;pergunta&quot;:&quot;Por que &lt;code&gt;strtok&lt;/code&gt; não é reentrante?&quot;,&quot;opcoes&quot;:[&quot;Porque usa estado interno global entre chamadas&quot;,&quot;Porque modifica a fonte&quot;,&quot;Porque é muito lenta&quot;,&quot;Porque só aceita um delimitador&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;A posição de continuação é guardada em uma variável global interna; loops/threads concorrentes quebram a lógica. Nas glibcs modernas prefira strtok_r/strtok_s.&quot;},{&quot;pergunta&quot;:&quot;Qual função devolve um ponteiro para a primeira ocorrência de um caractere numa string?&quot;,&quot;opcoes&quot;:[&quot;strstr&quot;,&quot;strchr&quot;,&quot;strspn&quot;,&quot;strlen&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;strchr busca um caractere; strstr busca uma substring.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Gravador de perfil de usuário</h2>
+  <p>Crie um programa que pergunta nome, e-mail e cidade (fgets), monta com strncpy/strncat/snprintf um "cartão" formatado, remove o @ do nome para gerar um login, e por fim conta palavras no nome completo. Combina copiar, concatenar, buscar e separar.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Todos os buffers com limites (strncpy/strncat/snprintf); nenhum estouro possível.</li><li>Gera campo "login" removendo espaços e vírgulas do nome.</li><li>Imprime o cartão formatado e a contagem de palavras.</li><li>Compila com -Wall -Wextra sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="strings-em-c.html">← 2.03 Strings em C</a><a class="btn nav-next" href="alocacao-dinamica-de-memoria.html">2.05 Alocação dinâmica de memória →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m04">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

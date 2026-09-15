@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.08 — O pré-processador — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / O pré-processador</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.08</div>
+    <h1>O pré-processador</h1>
+    <p class="subtitulo">#include, #define, macros com parênteses, #ifdef e guardas</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: T2.01 a T2.07</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m08">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Entender o que o pré-processador faz antes da compilação, escrever macros seguras (com os parênteses!), usar condicionais de compilação e guardas de inclusão, e reconhecer as armadilhas clássicas.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 19 (The Preprocessor)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 14 (The Preprocessor)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, o capítulo 14 inteiro é dedicado ao pré-processador: dedique atenção às macros com argumentos e às condicionais #if/#ifdef. No Beej, veja as macros embutidas e os exemplos práticos.</p>
+</section>
+  <section class="card secao">
+  <h2>#include, #define e o &quot;repeat&quot; do texto</h2>
+  <p>O pré-processador roda <strong>antes</strong> do compilador e é, na prática, um "substituidor de texto". <code>#include</code> cola o conteúdo de um arquivo (<code>&lt;...&gt;</code> procura em diretórios de sistema; <code>"..."</code> procura na pasta atual). <code>#define</code> cria macros — constantes ou "mini-funções" textuais.</p>
+<p><strong>Parênteses, parênteses, parênteses:</strong> toda macro com argumentos envolve cada parâmetro e o corpo inteiro em parênteses; sem isso a expansão textual produz erros sutis.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — macros.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+#define PI 3.14159
+#define AREA_CIRCULO(r) (PI * (r) * (r))
+#define SOMA(a, b) ((a) + (b))
+
+int main(void)
+{
+    printf(&quot;PI = %.5f\n&quot;, PI);
+    printf(&quot;area de raio 2 = %.5f\n&quot;, AREA_CIRCULO(2));
+    printf(&quot;soma(3, 4) = %d\n&quot;, SOMA(3, 4));
+    printf(&quot;com parenteses: SOMA(2, 3) * 2 = %d\n&quot;, SOMA(2, 3) * 2);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>PI = 3.14159
+area de raio 2 = 12.56636
+soma(3, 4) = 7
+com parenteses: SOMA(2, 3) * 2 = 10</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Macros embutidas: __func__, __LINE__, __FILE__, __DATE__</h2>
+  <p>O pré-processador oferece macros automáticas: <code>__FILE__</code> é o nome do arquivo, <code>__LINE__</code> o número da linha, <code>__func__</code> a função atual (isso daqui do compilador) e <code>__DATE__</code>/<code>__TIME__</code> quando foi compilado. Excelente para logs leves:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — log-macro.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+#define LOG(msg) printf(&quot;[%s:%d] %s\n&quot;, __func__, __LINE__, msg)
+
+int processar(void)
+{
+    LOG(&quot;processando...&quot;);
+    return 0;
+}
+
+int main(void)
+{
+    LOG(&quot;inicio&quot;);
+    processar();
+
+    printf(&quot;Arquivo: %s\n&quot;, __FILE__);
+    printf(&quot;Compilado em: %s %s\n&quot;, __DATE__, __TIME__);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>[main:13] inicio
+[processar:7] processando...
+Arquivo: log-macro.c
+Compilado em: Sep 15 2026 16:21:01
+
+(os números de linha, o nome do arquivo e a data dependem de onde você compila)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Stringizing (#) e token pasting (##)</h2>
+  <p><code>#</code> transforma o argumento em uma string literal; <code>##</code> "cola" dois tokens para construir identificadores. Ferramentas raras, mas poderosas em meta-programação:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — stringize.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+#define STR(x) #x
+#define CONCAT(a, b) a##b
+
+int main(void)
+{
+    int carros = 3;
+
+    printf(STR(carros) &quot;\n&quot;);
+    printf(&quot;carros = %d\n&quot;, CONCAT(car, ros));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>carros
+carros = 3</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Compilação condicional: #if, #ifdef, #else, #endif</h2>
+  <p>Trechos inteiros de código podem nascer ou morrer na compilação. <code>#ifdef X</code> inclui o bloco se a macro X existir; <code>#if</code> avalia uma expressão; <code>#undef</code> apaga uma macro. Padrão típico: código de depuração que só é compilado com <code>-DDEBUG</code>:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — condicional.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+#define NIVEL 3
+
+int main(void)
+{
+#if NIVEL &gt;= 3
+    printf(&quot;modo avancado ativo (NIVEL=%d)\n&quot;, NIVEL);
+#else
+    printf(&quot;modo basico\n&quot;);
+#endif
+
+#ifdef DEBUG
+    printf(&quot;debug ligado\n&quot;);
+#else
+    printf(&quot;debug desligado\n&quot;);
+#endif
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 condicional.c -o cond
+&gt; .\cond.exe
+
+modo avancado ativo (NIVEL=3)
+debug desligado
+
+&gt; gcc -DDEBUG -Wall -Wextra -std=c11 condicional.c -o cond2
+&gt; .\cond2.exe
+
+modo avancado ativo (NIVEL=3)
+debug ligado</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Guardas de inclusão: o cabeçalho &quot;anti-duplicado&quot;</h2>
+  <p>Quando dois arquivos .c incluem o mesmo .h (que por sua vez inclui outro), as declarações colariam duas vezes. A <em>include guard</em> — um <code>#ifndef</code> na primeira inclusão e <code>#endif</code> no fim — garante que o conteúdo seja colado uma única vez.</p>
+<p>Este trecho é um cabeçalho (<code>.h</code>), não um programa completo; ele ganha vida ao ser <code>#include</code>ado pelos .c do módulo T2.09.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — contador.h (fragmento de cabeçalho)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#ifndef CONTADOR_H
+#define CONTADOR_H
+
+#define VALOR_INICIAL 0
+
+int proximo(void);
+
+#endif  /* CONTADOR_H */</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Macros vs funções e a avaliação dupla</h2>
+  <p>Macro é texto: os argumentos são colados sem avaliação. Se o argumento tem efeito colateral (<code>++n</code>) ou é uma chamada cara, a macro pode <strong>avaliá-lo mais de uma vez</strong>. Funções avaliam cada argumento uma única vez — prefira funções (e <code>static inline</code>) sempre que possível.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — dupla-evaluacao.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+#define MAX(a, b) ((a) &gt; (b) ? (a) : (b))
+
+int chamadas = 0;
+
+int custoso(int v)
+{
+    chamadas++;
+    return v;
+}
+
+int main(void)
+{
+    int r = MAX(custoso(7), custoso(3));
+
+    printf(&quot;r = %d\n&quot;, r);
+    printf(&quot;custoso foi chamado %d vezes (numa funcao seriam 2)\n&quot;, chamadas);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>r = 7
+custoso foi chamado 3 vezes (numa funcao seriam 2)</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.08.1</p>
+  <p class="enunciado">Defina <code>#define TAXA 0.08</code> e um programa que calcula o preço com imposto de um valor lido do usuário. Imprima o resultado formatado.</p>
+  <p class="dica"><strong>Dica:</strong> Use <code>scanf("%lf", &amp;v)</code> e depois <code>printf("%.2f", v * (1 + TAXA))</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+#define TAXA 0.08
+
+int main(void)
+{
+    double preco;
+
+    printf(&quot;Preco sem imposto: &quot;);
+    if (scanf(&quot;%lf&quot;, &amp;preco) != 1) {
+        return 1;
+    }
+
+    printf(&quot;Com imposto: %.2f\n&quot;, preco * (1 + TAXA));
+    return 0;
+}</code></pre>
+        <p class="obs">Teste com 100: imprime 108.00.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.08.2</p>
+  <p class="enunciado">Defina a macro BUGADA <code>QUADRADO_BUG(x) x * x</code> e use em <code>QUADRADO_BUG(2 + 3)</code> — imprima para ver o erro — e depois a versão correta <code>QUADRADO(x) ((x) * (x))</code> que dá o esperado (25).</p>
+  <p class="dica"><strong>Dica:</strong> A expansion textual: 2 + 3 * 2 + 3 = 11. É esse "+ 3 * 2" o problema.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+#define QUADRADO_BUG(x) x * x
+#define QUADRADO(x) ((x) * (x))
+
+int main(void)
+{
+    printf(&quot;QUADRADO_BUG(2 + 3) = %d\n&quot;, QUADRADO_BUG(2 + 3));
+    printf(&quot;QUADRADO(2 + 3)     = %d\n&quot;, QUADRADO(2 + 3));
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado: 11 (o bug) e 25 (correto). É a lição dos parênteses.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.08.3</p>
+  <p class="enunciado">Crie uma macro <code>LOG_ERRO(msg)</code> que imprime <code>[erro em FUNCAO (linha N)]: msg</code> usando <code>__func__</code> e <code>__LINE__</code>. Chame-a dentro de duas funções diferentes e mostre que a localização muda.</p>
+  <p class="dica"><strong>Dica:</strong> <code>#define LOG_ERRO(msg) printf("[erro em %s (linha %d)]: %s\n", __func__, __LINE__, msg)</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+#define LOG_ERRO(msg) printf(&quot;[erro em %s (linha %d)]: %s\n&quot;, __func__, __LINE__, msg)
+
+int carregar(void)
+{
+    LOG_ERRO(&quot;falha ao ler arquivo&quot;);
+    return -1;
+}
+
+int main(void)
+{
+    LOG_ERRO(&quot;tudo certo?&quot;);
+    carregar();
+    return 0;
+}</code></pre>
+        <p class="obs">O número da linha muda conforme a chamada — o pré-processador cola o valor real.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.08.4</p>
+  <p class="enunciado">Escreva um programa com <code>#ifdef DEBUG</code> imprimindo o valor de uma variável e <code>#else</code> imprimindo só o resultado. Compile uma vez sem flag e outra com <code>-DDEBUG</code>, mostrando comportamentos diferentes.</p>
+  <p class="dica"><strong>Dica:</strong> <code>gcc -DDEBUG prog.c -o prog_db</code> define a macro DEBUG na linha de comando.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int soma = 2 + 3;
+
+#ifdef DEBUG
+    printf(&quot;DEBUG: soma calculada = %d\n&quot;, soma);
+#endif
+
+    printf(&quot;resultado = %d\n&quot;, soma);
+    return 0;
+}</code></pre>
+        <p class="obs">Sem -DDEBUG só aparece "resultado = 5"; com -DDEBUG aparece também a linha de depuração.</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t2-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.08.5</p>
+  <p class="enunciado">Use <code>#</code> e <code>##</code> para criar uma macro <code>DECLARA_E_USA(v, val)</code> que declara <code>int v = val;</code> e imprime o nome da variável e seu conteúdo, juntando mesagens como <code>DECLARA_E_USA(idade, 21)</code>.</p>
+  <p class="dica"><strong>Dica:</strong> `#` gera o nome; chame <code>STR(idade)</code> para imprimir o texto "idade".</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+#define NOME_VAR(v) #v
+
+int main(void)
+{
+    int idade = 21;
+    int nota = 9;
+
+    printf(&quot;%s = %d\n&quot;, NOME_VAR(idade), idade);
+    printf(&quot;%s = %d\n&quot;, NOME_VAR(nota), nota);
+    return 0;
+}</code></pre>
+        <p class="obs">Colando tokens (##) você poderia construir identificadores, ex.: <code>CONCAT(var, i)</code> vira <code>vari</code>. Tente como extra.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que faz o pré-processador antes do compilador?&quot;,&quot;opcoes&quot;:[&quot;Otimiza loops&quot;,&quot;Substitui texto: cola #include, expande #define&quot;,&quot;Cria o executável&quot;,&quot;Roda o depurador&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;É a fase textual: inclusões e macros são resolvidas antes da compilação propriamente dita.&quot;},{&quot;pergunta&quot;:&quot;Por que envolver argumentos de macro em parênteses?&quot;,&quot;opcoes&quot;:[&quot;É obrigatório em C11&quot;,&quot;Para evitar erros de precedência na expansão textual&quot;,&quot;Para deixar mais rápido&quot;,&quot;Para impedir macros com efeito colateral&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Sem parênteses, &lt;code&gt;QUADRADO(2+3)&lt;/code&gt; vira &lt;code&gt;2+3*2+3&lt;/code&gt; = 11.&quot;},{&quot;pergunta&quot;:&quot;O que &lt;code&gt;#ifdef DEBUG&lt;/code&gt; faz?&quot;,&quot;opcoes&quot;:[&quot;Sempre inclui o bloco&quot;,&quot;Inclui o bloco somente se a macro DEBUG estiver definida&quot;,&quot;Apaga a macro DEBUG&quot;,&quot;Compila em modo slow&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;#ifdef testa se a macro existe; com -DDEBUG ligamos o bloco na linha de comando.&quot;},{&quot;pergunta&quot;:&quot;Qual é o papel das include guards?&quot;,&quot;opcoes&quot;:[&quot;Acelerar o linker&quot;,&quot;Impedir que o cabeçalho seja incluído duas vezes no mesmo arquivo&quot;,&quot;Pedir senha ao compilar&quot;,&quot;Definir macros de sistema&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O #ifndef/#define/#endif torna a segunda inclusão vazia, evitando duplicatas.&quot;},{&quot;pergunta&quot;:&quot;Qual macro embutida indica a função atual?&quot;,&quot;opcoes&quot;:[&quot;__FILE__&quot;,&quot;__FUNCTION__&quot;,&quot;__func__&quot;,&quot;LINE()&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;__func__ (e __FUNCTION__ em alguns compiladores) contém o nome da função em execução.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Logger com macros</h2>
+  <p>Construa um mini-logger: um cabeçalho <code>log.h</code> com guarda de inclusão definindo <code>LOG_INFO</code>, <code>LOG_AVISO</code> e <code>LOG_ERRO</code> que imprimem nível, função e linha (usa __func__/__LINE__), e um programa principal que simula uma "sessão" (iniciar, processar nota, encerrar) gravando no terminal. Crie também um modo com -DDEBUG que imprime valores extras.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>log.h com include guard e macros com parênteses.</li><li>Três níveis de log chamados em funções diferentes, mostrando localização.</li><li>Bloco #ifdef DEBUG adicionando saída extra sem quebrar o normal.</li><li>Compila sem e com -DDEBUG, sempre -Wall -Wextra limpos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="typedef-enum-e-union.html">← 2.07 typedef, enum e union</a><a class="btn nav-next" href="programas-multiarquivo-e-compilacao-separada.html">2.09 Programas multiarquivo e compilação separada →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m08">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

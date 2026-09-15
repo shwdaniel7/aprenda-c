@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.08 — Arrays — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="1">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t1">Trilha 1 — Fundamentos</a> / Arrays</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">1.08</div>
+    <h1>Arrays</h1>
+    <p class="subtitulo">coleções indexadas, 0-based, 1D e 2D</p>
+    <div class="chips">
+      <span class="chip">Nível: Iniciante</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: T1.07</span>
+    </div>
+    <button class="btn btn-done" data-mod="t1-m08">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Dominar os arrays: declaração e indexação começando em 0, inicializadores (inclusive designated initializers do C99), arrays constantes, uso de sizeof para contar elementos e o perigo de acessar fora dos limites (comportamento indefinido).</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 6 — Arrays</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 8 — Arrays</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, capítulo 8 cobre array 1D/2D e inicializadores com calma matemática. No Beej, o capítulo 6 é curto e direto ao ponto; preste atenção nos exemplos de percorrimento com for.</p>
+</section>
+  <section class="card secao">
+  <h2>Array: a mesma variável, várias vezes</h2>
+  <p>Um <strong>array</strong> é uma sequência de valores <em>do mesmo tipo</em>, guardados lado a lado na memória, e acessados por um <strong>índice</strong>. A primeira posição é a <code>0</code> — o índice 0 é o primeiro elemento. Declare com colchetes: <code>int notas[5];</code> cria cinco <code>int</code> acessíveis por <code>notas[0]</code> ... <code>notas[4]</code>.</p>
+<p>O laço natural para percorrer um array é o <code>for</code> de <code>0</code> até <code>n-1</code>. Se você tentar o intervalo <code>1..n</code>, você "pula" o primeiro e "escapa" do último — o clássico erro <strong>off-by-one</strong>.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — o que é array</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int numeros[5];
+    int i;
+
+    numeros[0] = 10;
+    numeros[1] = 20;
+    numeros[2] = 30;
+    numeros[3] = 40;
+    numeros[4] = 50;
+
+    for (i = 0; i &lt; 5; i++) {
+        printf(&quot;numeros[%d] = %d\n&quot;, i, numeros[i]);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>numeros[0] = 10
+numeros[1] = 20
+numeros[2] = 30
+numeros[3] = 40
+numeros[4] = 50</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Inicializadores: lista entre chaves</h2>
+  <p>Na declaração, você pode iniciar o array com uma lista: <code>int v[5] = {1, 2, 3, 4, 5};</code>. Inicialização <em>parcial</em> zera o resto: <code>int v[5] = {1, 2};</code> → v[0]=1, v[1]=2, e os demais são 0. E se a lista é completa, o C infere o tamanho: <code>int v[] = {1,2,3};</code> cria um array de 3.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Designated initializers (C99)</h2>
+  <p>O C99 trouxe a inicialização por "posição nomeada": <code>int v[10] = {[0] = 7, [2] = 9};</code> define v[0]=7 e v[2]=9 (o resto fica 0). É ótimo para deixar claro <em>quem</em> é quem, principalmente em arrays esparsos.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — inicializador nomeado</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int v[10] = {[0] = 7, [2] = 9, [9] = 42};
+    int i;
+
+    for (i = 0; i &lt; 10; i++) {
+        printf(&quot;v[%d] = %d\n&quot;, i, v[i]);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>v[0] = 7
+v[1] = 0
+v[2] = 9
+v[3] = 0
+v[4] = 0
+v[5] = 0
+v[6] = 0
+v[7] = 0
+v[8] = 0
+v[9] = 42</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>sizeof de array: contando elementos</h2>
+  <p>O <code>sizeof(array)</code> devolve o total de <em>bytes</em>; dividindo pelo <code>sizeof</code> de um elemento, obtém-se o número de <strong>elementos</strong>. É a técnica portável para loops: <code>for (i = 0; i &lt; sizeof(v)/sizeof(v[0]); i++)</code>. Arrays constantes (<code>const int</code>) evitam que você altere por engano dentro do código.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Fora dos limites: comportamento indefinido</h2>
+  <p>Escrever em <code>v[5]</code> quando <code>v</code> tem 5 elementos (índices 0–4) <em>compila e roda</em> — mas é <strong>comportamento indefinido</strong>. O C não cuida disso: você está gravando bytes em memória que não é do seu array. Às vezes "funciona", às vezes corrompe outra variável, às vezes quebra o programa, às vezes vira uma vulnerabilidade —— é o tipo de bug mais temido do C, e o assunto central da Trilha 4.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Programa: inverter uma sequência</h2>
+  <p>Inverter um array no próprio lugar usa o padrão "troca dos extremos": ande até a metade, trocando v[i] com v[n-1-i].</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — inverter.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int v[5] = {1, 2, 3, 4, 5};
+    int i;
+
+    printf(&quot;original: &quot;);
+    for (i = 0; i &lt; 5; i++) {
+        printf(&quot;%d &quot;, v[i]);
+    }
+    printf(&quot;\n&quot;);
+
+    for (i = 0; i &lt; 5 / 2; i++) {
+        int temp = v[i];
+        v[i] = v[4 - i];
+        v[4 - i] = temp;
+    }
+
+    printf(&quot;invertido: &quot;);
+    for (i = 0; i &lt; 5; i++) {
+        printf(&quot;%d &quot;, v[i]);
+    }
+    printf(&quot;\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>original: 1 2 3 4 5 
+invertido: 5 4 3 2 1 </code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Programa: checando dígitos repetidos</h2>
+  <p>Um array de contadores é um dos usos mais elegantes de array: 10 posições, uma por dígito. Para cada dígito do número, incremente a contagem correspondente.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — digitos.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n;
+    int digitos[10] = {0};
+    int d;
+
+    printf(&quot;Digite um numero: &quot;);
+    scanf(&quot;%d&quot;, &amp;n);
+
+    if (n &lt; 0) {
+        n = -n;
+    }
+
+    if (n == 0) {
+        digitos[0] = 1;
+    }
+
+    while (n &gt; 0) {
+        digitos[n % 10]++;
+        n = n / 10;
+    }
+
+    printf(&quot;frequencia dos digitos:\n&quot;);
+    for (d = 0; d &lt; 10; d++) {
+        if (digitos[d] &gt; 0) {
+            printf(&quot;digito %d: %d vez(es)\n&quot;, d, digitos[d]);
+        }
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Digite um numero: 455
+frequencia dos digitos:
+digito 4: 1 vez(es)
+digito 5: 2 vez(es)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Arrays 2D: matrizes</h2>
+  <p>Um <code>int m[3][4]</code> é uma tabela com 3 linhas e 4 colunas. As posições <code>m[i][j]</code> combinam o índice da linha com o da coluna; loops aninhados percorrem linha a linha. Construir uma <strong>matriz identidade</strong> (1 na diagonal, 0 no resto) é o exercício canônico:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — matriz</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int mat[4][4] = {0};
+    int i, j;
+
+    for (i = 0; i &lt; 4; i++) {
+        mat[i][i] = 1;
+    }
+
+    for (i = 0; i &lt; 4; i++) {
+        for (j = 0; j &lt; 4; j++) {
+            printf(&quot;%d &quot;, mat[i][j]);
+        }
+        printf(&quot;\n&quot;);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>1 0 0 0 
+0 1 0 0 
+0 0 1 0 
+0 0 0 1 </code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t1-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.08.1</p>
+  <p class="enunciado">Crie um array de 10 inteiros em que <code>v[i] = i * i</code> (o quadrado do índice) e imprima todos com o formato <code>i: quadrado</code>.</p>
+  <p class="dica"><strong>Dica:</strong> Um for de 0 a 9 preenchendo e outro imprimindo — ou o mesmo for.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int v[10];
+    int i;
+
+    for (i = 0; i &lt; 10; i++) {
+        v[i] = i * i;
+    }
+
+    for (i = 0; i &lt; 10; i++) {
+        printf(&quot;%d: %d\n&quot;, i, v[i]);
+    }
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t1-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.08.2</p>
+  <p class="enunciado">Leia 5 números, guarde em um array e depois imprima o maior valor e a posição (índice) onde ele está.</p>
+  <p class="dica"><strong>Dica:</strong> Um "segundo maior" flag: maior_atual + indice_atual, atualizados quando v[i] for maior.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int v[5];
+    int i, maior, indice;
+
+    printf(&quot;Digite 5 numeros:\n&quot;);
+    for (i = 0; i &lt; 5; i++) {
+        printf(&quot;&gt; &quot;);
+        scanf(&quot;%d&quot;, &amp;v[i]);
+    }
+
+    maior = v[0];
+    indice = 0;
+    for (i = 1; i &lt; 5; i++) {
+        if (v[i] &gt; maior) {
+            maior = v[i];
+            indice = i;
+        }
+    }
+
+    printf(&quot;maior: %d na posicao %d\n&quot;, maior, indice);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t1-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.08.3</p>
+  <p class="enunciado">Leia 6 números e imprima a média deles (double), usando um array. Depois imprima quantos estão acima da média.</p>
+  <p class="dica"><strong>Dica:</strong> Primeiro preencha e some; depois, com a média na mão, conte em um segundo for.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int v[6];
+    int i, soma = 0, acima = 0;
+    double media;
+
+    printf(&quot;Digite 6 numeros:\n&quot;);
+    for (i = 0; i &lt; 6; i++) {
+        printf(&quot;&gt; &quot;);
+        scanf(&quot;%d&quot;, &amp;v[i]);
+        soma += v[i];
+    }
+
+    media = soma / 6.0;
+    for (i = 0; i &lt; 6; i++) {
+        if (v[i] &gt; media) {
+            acima++;
+        }
+    }
+
+    printf(&quot;media: %.2f\n&quot;, media);
+    printf(&quot;acima da media: %d\n&quot;, acima);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t1-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.08.4</p>
+  <p class="enunciado">Um professor deu 10 notas (0–10). Leia-as, guarde em um array e imprima um histograma: para cada nota possível de 0 a 10, quantas vezes ela apareceu (use um array de contadores de 11 posições).</p>
+  <p class="dica"><strong>Dica:</strong> <code>cont[nota]++;</code> dentro do laço de leitura.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int notas[10];
+    int cont[11] = {0};
+    int i, nota;
+
+    printf(&quot;Digite 10 notas (0-10):\n&quot;);
+    for (i = 0; i &lt; 10; i++) {
+        printf(&quot;&gt; &quot;);
+        scanf(&quot;%d&quot;, &amp;nota);
+        notas[i] = nota;
+        cont[nota]++;
+    }
+
+    printf(&quot;histograma:\n&quot;);
+    for (i = 0; i &lt;= 10; i++) {
+        if (cont[i] &gt; 0) {
+            printf(&quot;%2d: %d vez(es)\n&quot;, i, cont[i]);
+        }
+    }
+
+    printf(&quot;notas digitadas: &quot;);
+    for (i = 0; i &lt; 10; i++) {
+        printf(&quot;%d &quot;, notas[i]);
+    }
+    printf(&quot;\n&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">O array notas guarda a sequência original; o cont[notas[i]]++] vira o histograma. Notas fora de 0–10 quebrariam o índice — validação fica como extensão sugerida.</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t1-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.08.5</p>
+  <p class="enunciado">Crie uma matriz 3x3 com a diagonal principal valendo 5 nas bordas e 0 no interior, exceto o centro que vale 9. Imprima a matriz.</p>
+  <p class="dica"><strong>Dica:</strong> Inicialize com {0}, force alguns pontos e imprima com loops aninhados.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int m[3][3] = {0};
+    int i, j;
+
+    m[0][0] = 5;
+    m[1][1] = 9;
+    m[2][2] = 5;
+
+    for (i = 0; i &lt; 3; i++) {
+        for (j = 0; j &lt; 3; j++) {
+            printf(&quot;%d &quot;, m[i][j]);
+        }
+        printf(&quot;\n&quot;);
+    }
+    return 0;
+}</code></pre>
+        </details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual o índice do PRIMEIRO elemento de um array de 5 posições?&quot;,&quot;opcoes&quot;:[&quot;0&quot;,&quot;1&quot;,&quot;5&quot;,&quot;-1&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Arrays em C são 0-based: a primeira posição é o índice 0.&quot;},{&quot;pergunta&quot;:&quot;Com &lt;code&gt;int v[5] = {10, 20};&lt;/code&gt;, quanto vale &lt;code&gt;v[4]&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;0&quot;,&quot;não foi definido&quot;,&quot;20&quot;,&quot;10&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Inicialização parcial zera as posições restantes.&quot;},{&quot;pergunta&quot;:&quot;O que acontece ao acessar &lt;code&gt;v[5]&lt;/code&gt; em um array de 5 elementos?&quot;,&quot;opcoes&quot;:[&quot;é comportamento indefinido — pode \&quot;funcionar\&quot;, corromper memória ou quebrar&quot;,&quot;sempre retorna um valor zero seguro&quot;,&quot;o compilador para com erro&quot;,&quot;o array cresce automaticamente&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Sair dos limites é UB: o C nada impede e nada avisa.&quot;},{&quot;pergunta&quot;:&quot;Como obter o número de elementos de &lt;code&gt;int v[10]&lt;/code&gt; portavelmente?&quot;,&quot;opcoes&quot;:[&quot;sizeof(v) / sizeof(v[0])&quot;,&quot;sizeof(v)&quot;,&quot;v.tamanho()&quot;,&quot;sizeof(v[0]) / sizeof(v)&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;sizeof total dividido pelo tamanho de um elemento dá a contagem.&quot;},{&quot;pergunta&quot;:&quot;E o código &lt;code&gt;int m[3][4]&lt;/code&gt; — quantos elementos?&quot;,&quot;opcoes&quot;:[&quot;12&quot;,&quot;7&quot;,&quot;34&quot;,&quot;não compila&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;3 linhas × 4 colunas = 12 posições m[i][j].&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Quadro de velha (padrões em matriz)</h2>
+  <p>Crie <code>padrao.c</code> que preenche uma matriz 6x6 (ou tabuleiro 6x6) com um padrão seu: por exemplo, "x" nas bordas, "o" na diagonal e "." no interior. Imprima o tabuleiro com espaço entre as células. Depois adicione uma segunda matriz que gira 90° da primeira (linha vira coluna de trás para a frente) e imprima as duas lado a lado.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Usa array 2D com inicializador {0} e atribuições por índices.</li><li>Imprime o tabuleiro com loops aninhados e formatação.</li><li>A "rotação" usa loops para copiar m1 para m2 (não atribuição direta).</li><li>Compila com <code>-Wall -Wextra -std=c11</code> sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="tipos-basicos-a-fundo.html">← 1.07 Tipos básicos a fundo</a><a class="btn nav-next" href="funcoes.html">1.09 Funções →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t1-m08">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

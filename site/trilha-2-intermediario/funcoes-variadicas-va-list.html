@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.14 — Funções variádicas: va_list — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / Funções variádicas: va_list</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.14</div>
+    <h1>Funções variádicas: va_list</h1>
+    <p class="subtitulo">&lt;stdarg.h&gt;, ... , va_start/va_arg/va_end, promoções e a família v*</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~40 min</span>
+      <span class="chip">Pré-requisitos: T2.13</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m14">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Escrever suas próprias funções de número variável de argumentos — como o printf — usando <stdarg.h>; entender as promoções de argumento padrão (char→int, float→double) e reutilizar format strings com segurança através de vprintf, vfprintf e vsnprintf.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 25 (Variadic Functions)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 21 (The Standard Library, seção de argumentos variáveis)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, leia a seção de variadic functions com va_start/va_arg/va_end e a tabela de promoções. No King, o contexto de printf/scanf mostra onde nascem os argumentos variáveis na biblioteca padrão.</p>
+</section>
+  <section class="card secao">
+  <h2>O problema: número variável de argumentos</h2>
+  <p><code>printf</code> é o caso da vida: às vezes imprime 1 valor, às vezes 5, às vezes 100. Assinaturas rígidas como <code>f(int, int)</code> não cobrem isso. A resposta do C são as <strong>funções variádicas</strong>: uma função que aceita uma quantidade variável de argumentos, declarada com reticências <code>...</code> no fim.</p>
+<p>O suporte fica em <code>&lt;stdarg.h&gt;</code>. A partir deste módulo, o <code>printf</code> deixa de ser caixa preta — e você ganha o poder de fazer os seus próprios.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — por-que.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;printf com 1 argumento\n&quot;);
+    printf(&quot;com 2 argumentos: x=%d\n&quot;, 7);
+    printf(&quot;com 3 argumentos: %d + %d = %d\n&quot;, 2, 3, 5);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 por-que.c -o por-que
+&gt; .\por-que.exe
+
+printf com 1 argumento
+com 2 argumentos: x=7
+com 3 argumentos: 2 + 3 = 5</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Anatomia: va_list, va_start, va_arg, va_end</h2>
+  <p>Uma função variádica tem pelo menos um parâmetro <strong>fixo</strong> e as reticências: <code>int soma(int n, ...)</code>. Dentro dela o ritual tem quatro passos: (1) declarar uma <code>va_list ap</code>; (2) <code>va_start(ap, n)</code> — "a lista começa logo depois do parâmetro fixo n"; (3) a cada <code>va_arg(ap, int)</code>, o próximo argumento é devolvido já no tipo pedido; (4) <code>va_end(ap)</code> no fim — obrigatório, ele limpa o estado interno.</p>
+<p>O tipo que você pede em <code>va_arg</code> precisa bater com o argumento <em>de verdade</em>; e a quantidade fica por sua conta — o parâmetro fixo normalmente carrega a contagem. Errar o tipo ou a contagem é comportamento indefinido.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — soma-variadica.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdarg.h&gt;
+
+int soma(int n, ...)
+{
+    va_list ap;
+    va_start(ap, n);
+
+    int total = 0;
+    for (int i = 0; i &lt; n; i++) {
+        total += va_arg(ap, int);
+    }
+
+    va_end(ap);
+    return total;
+}
+
+int main(void)
+{
+    printf(&quot;soma(3, 10, 20, 30) = %d\n&quot;, soma(3, 10, 20, 30));
+    printf(&quot;soma(5, 1..5)       = %d\n&quot;, soma(5, 1, 2, 3, 4, 5));
+    printf(&quot;soma(0)             = %d\n&quot;, soma(0));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 soma-variadica.c -o soma
+&gt; .\soma.exe
+
+soma(3, 10, 20, 30) = 60
+soma(5, 1..5)       = 15
+soma(0)             = 0</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Promoções de argumento padrão</h2>
+  <p>Antes de chegar a uma função variádica, cada argumento passa pelas <strong>default argument promotions</strong>: <code>char</code>, <code>short</code> e enum sobem para <code>int</code>; <code>float</code> sobe para <code>double</code>. Nenhum argumento "chega float" — ele vira double na viagem.</p>
+<p>Consequência prática: <code>va_arg(ap, float)</code> é <strong>sempre errado</strong>. Se o argumento era float, chegou double; é o double que você pede. (Não rodamos esse UB de propósito: basta saber que ler float onde existe double é lixo.) O exemplo lê corretamente os dois casos: ints promovidos e doubles.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — promocoes.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdarg.h&gt;
+
+void mostrar_promovidos(int n, ...)
+{
+    va_list ap;
+    va_start(ap, n);
+    for (int i = 0; i &lt; n; i++) {
+        int v = va_arg(ap, int);
+        printf(&quot;arg %d promovido a int: %d\n&quot;, i, v);
+    }
+    va_end(ap);
+}
+
+void mostrar_doubles(int n, ...)
+{
+    va_list ap;
+    va_start(ap, n);
+    for (int i = 0; i &lt; n; i++) {
+        double v = va_arg(ap, double);
+        printf(&quot;arg %d chega como double: %.3f\n&quot;, i, v);
+    }
+    va_end(ap);
+}
+
+int main(void)
+{
+    char c = 'A';
+    short s = 300;
+
+    mostrar_promovidos(3, c, s, 42);
+    mostrar_doubles(2, 1.5f, 2.75f);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 promocoes.c -o promocoes
+&gt; .\promocoes.exe
+
+arg 0 promovido a int: 65
+arg 1 promovido a int: 300
+arg 2 promovido a int: 42
+arg 0 chega como double: 1.500
+arg 1 chega como double: 2.750
+
+(o char 'A' chegou como 65; o short 300, como 300; os floats chegaram como double)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>A família v*: format strings reutilizáveis</h2>
+  <p>Com uma <code>va_list</code> pronta, dá para <em>formatar</em> reusando o motor do printf: <code>vprintf</code> (stdout), <code>vfprintf</code> (um <code>FILE *</code>) e <code>vsnprintf</code> (um buffer, com limite). Elas recebem a va_list "no lugar das reticências".</p>
+<p>O padrão de ouro: sua função variádica recebe o formato, chama <code>va_start</code> e entrega a lista para a versão <code>v*</code> — um único ponto centralizado de formatação, em vez de repetir format string a cada chamada.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — vlog.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdarg.h&gt;
+
+void log_event(const char *nivel, const char *fmt, ...)
+{
+    FILE *f = fopen(&quot;eventos.log&quot;, &quot;a&quot;);
+    if (f == NULL) {
+        return;
+    }
+
+    fprintf(f, &quot;[%s] &quot;, nivel);
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(f, fmt, ap);
+    va_end(ap);
+    fprintf(f, &quot;\n&quot;);
+    fclose(f);
+}
+
+int main(void)
+{
+    log_event(&quot;INFO&quot;, &quot;inicio do programa&quot;);
+    log_event(&quot;ERRO&quot;, &quot;operacao %d falhou na etapa %d&quot;, 7, 2);
+    log_event(&quot;INFO&quot;, &quot;concluido com %d itens&quot;, 42);
+
+    FILE *f = fopen(&quot;eventos.log&quot;, &quot;r&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    char linha[256];
+    while (fgets(linha, sizeof linha, f) != NULL) {
+        printf(&quot;%s&quot;, linha);
+    }
+    fclose(f);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 vlog.c -o vlog
+&gt; .\vlog.exe
+
+[INFO] inicio do programa
+[ERRO] operacao 7 falhou na etapa 2
+[INFO] concluido com 42 itens
+
+(o log é aberto em modo append: rode o exe de novo e o arquivo eventos.log ganha mais 3 linhas)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Armadilhas e segurança</h2>
+  <p>Regra número um: em <code>va_arg</code>, peça exatamente o tipo que chegou após as promoções — erro aí é comportamento indefinido. Regra número dois: quem garante que a quantidade de argumentos bate com o formato é <strong>você</strong>; nada impede ninguém de mandar <code>%s</code> sem a string.</p>
+<p>A armadilha mais grave é deixar o <strong>usuário controlar a format string</strong>: <code>printf(entrada_do_usuario)</code>. Um usuário malicioso injeta <code>%x</code> para vazar memória do stack ou <code>%n</code> para <em>escrever</em> na memória — é a origem da classe de vulnerabilidades de format strings, estudada a fundo na <strong>Trilha 4</strong>. A forma correta é sempre formatar com formato fixo e passar o texto como dado: <code>printf("%s", entrada)</code>.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — format-perigo.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    char buf[128];
+
+    printf(&quot;Escreva algo: &quot;);
+    if (fgets(buf, sizeof buf, stdin) == NULL) {
+        return 1;
+    }
+
+    printf(buf);          /* PERIGOSO: usuario controla a format string */
+    printf(&quot;%s&quot;, buf);    /* seguro: a string vira dado, nao formato */
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc -Wall -Wextra -std=c11 format-perigo.c -o format-perigo
+&gt; echo oi | .\format-perigo.exe
+
+Escreva algo: oi
+oi
+
+(com entrada benigna as duas impressoes coincidem. Troque o input por &quot;%x %x %x %x&quot;: a primeira impressao despeja lixo da pilha/registradores; &quot;%n&quot; escreve na memoria. E a Trilha 4.)</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m14">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.14.1</p>
+  <p class="enunciado">Escreva <code>int soma(int n, ...)</code> e use-a para somar 4 números (1, 2, 3, 4) e 6 números (5, 10, 15, 20, 25, 30). Imprima os dois resultados.</p>
+  <p class="dica"><strong>Dica:</strong> Parâmetro fixo n + va_start, laço com va_arg(ap, int) e va_end.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdarg.h&gt;
+
+int soma(int n, ...)
+{
+    va_list ap;
+    va_start(ap, n);
+
+    int total = 0;
+    for (int i = 0; i &lt; n; i++) {
+        total += va_arg(ap, int);
+    }
+
+    va_end(ap);
+    return total;
+}
+
+int main(void)
+{
+    int r1 = soma(4, 1, 2, 3, 4);
+    int r2 = soma(6, 5, 10, 15, 20, 25, 30);
+
+    printf(&quot;soma(1, 2, 3, 4)         = %d\n&quot;, r1);
+    printf(&quot;soma(5, 10, 15, 20, 25, 30) = %d\n&quot;, r2);
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado 10 e 105.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m14">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.14.2</p>
+  <p class="enunciado">Escreva <code>int maximo(int n, ...)</code> que devolve o maior entre n inteiros. Teste com (7, 12, 4, 9), com os negativos (-5, -2, -9) e com um único 42.</p>
+  <p class="dica"><strong>Dica:</strong> Comece o máximo com o primeiro va_arg e compare os demais. Sua API deve exigir n ≥ 1.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdarg.h&gt;
+
+int maximo(int n, ...)
+{
+    va_list ap;
+    va_start(ap, n);
+
+    int m = va_arg(ap, int);
+    for (int i = 1; i &lt; n; i++) {
+        int x = va_arg(ap, int);
+        if (x &gt; m) {
+            m = x;
+        }
+    }
+
+    va_end(ap);
+    return m;
+}
+
+int main(void)
+{
+    printf(&quot;maximo(4, 7, 12, 4, 9)   = %d\n&quot;, maximo(4, 7, 12, 4, 9));
+    printf(&quot;maximo(3, -5, -2, -9)    = %d\n&quot;, maximo(3, -5, -2, -9));
+    printf(&quot;maximo(1, 42)            = %d\n&quot;, maximo(1, 42));
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado 12, -2 e 42.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m14">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.14.3</p>
+  <p class="enunciado">Crie <code>void log_format(const char *nivel, const char *fmt, ...)</code> que abre <code>log.txt</code> em modo <code>"a"</code> e grava uma linha com hora atual (<code>time.h</code>), o nível e a mensagem formatada por <code>vfprintf</code>. Registre um INFO, um WARN e um ERRO e depois imprima o log.</p>
+  <p class="dica"><strong>Dica:</strong> Monte o tempo com <code>time(NULL)</code> + <code>localtime</code> + <code>strftime</code>; o "charme" da v* é o vfprintf.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdarg.h&gt;
+#include &lt;time.h&gt;
+
+void log_format(const char *nivel, const char *fmt, ...)
+{
+    FILE *f = fopen(&quot;log.txt&quot;, &quot;a&quot;);
+    if (f == NULL) {
+        return;
+    }
+
+    time_t agora = time(NULL);
+    struct tm *info = localtime(&amp;agora);
+    char tempo[32];
+    strftime(tempo, sizeof tempo, &quot;%Y-%m-%d %H:%M:%S&quot;, info);
+
+    fprintf(f, &quot;%s [%s] &quot;, tempo, nivel);
+
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(f, fmt, ap);
+    va_end(ap);
+
+    fprintf(f, &quot;\n&quot;);
+    fclose(f);
+}
+
+int main(void)
+{
+    log_format(&quot;INFO&quot;, &quot;configuracoes carregadas&quot;);
+    log_format(&quot;WARN&quot;, &quot;valor %d acima do limite %d&quot;, 150, 100);
+    log_format(&quot;ERRO&quot;, &quot;arquivo \&quot;%s\&quot; nao encontrado&quot;, &quot;dados.conf&quot;);
+
+    FILE *f = fopen(&quot;log.txt&quot;, &quot;r&quot;);
+    if (f == NULL) {
+        return 1;
+    }
+    char linha[256];
+    while (fgets(linha, sizeof linha, f) != NULL) {
+        printf(&quot;log: %s&quot;, linha);
+    }
+    fclose(f);
+    return 0;
+}</code></pre>
+        <p class="obs">O timestamp muda a cada execução — é a hora real da gravação. O resto do texto você controla pelo formato.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m14">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.14.4</p>
+  <p class="enunciado">Implemente <code>char *formatar(const char *fmt, ...)</code> que produz o texto num buffer <strong>alocado no heap</strong> com duas passadas de <code>vsnprintf</code>: a primeira com tamanho 0 só para descobrir o tamanho (o retorno), a segunda para escrever de verdade. Teste com "<code>%s tem %d anos</code>" e "<code>media %.2f de %d provas</code>".</p>
+  <p class="dica"><strong>Dica:</strong> <code>vsnprintf(NULL, 0, fmt, ap)</code> devolve quantos bytes seriam necessários. Use <code>va_copy</code> quando precisar da lista mais de uma vez.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;stdarg.h&gt;
+
+char *formatar(const char *fmt, ...)
+{
+    va_list ap, ap2;
+
+    va_start(ap, fmt);
+    va_copy(ap2, ap);
+    int tam = vsnprintf(NULL, 0, fmt, ap);
+    va_end(ap);
+
+    if (tam &lt; 0) {
+        va_end(ap2);
+        return NULL;
+    }
+
+    char *buf = malloc((size_t)tam + 1);
+    if (buf == NULL) {
+        va_end(ap2);
+        return NULL;
+    }
+
+    vsnprintf(buf, (size_t)tam + 1, fmt, ap2);
+    va_end(ap2);
+    return buf;
+}
+
+int main(void)
+{
+    char *s1 = formatar(&quot;%s tem %d anos&quot;, &quot;Leo&quot;, 23);
+    char *s2 = formatar(&quot;media %.2f de %d provas&quot;, 8.75, 4);
+
+    if (s1 != NULL) {
+        printf(&quot;%s\n&quot;, s1);
+        free(s1);
+    }
+    if (s2 != NULL) {
+        printf(&quot;%s\n&quot;, s2);
+        free(s2);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">O retorno de vsnprintf é o tamanho que seria escrito, mesmo com truncamento; aloque esse valor + 1 para o \0. A memória é sua: free depois.</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t2-m14">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.14.5</p>
+  <p class="enunciado">Escreva <code>char *juntar(int n, const char *sep, ...)</code> que concatena n strings com <code>sep</code> entre elas, usando <code>vsnprintf</code> em duas passadas: construa uma format string com <code>%s</code> e separadores, meça com <code>vsnprintf(NULL, 0, ...)</code> e depois escreva. Ex.: <code>juntar(4, " - ", "azul","verde","amarelo","vermelho")</code> deve dar "azul - verde - amarelo - vermelho".</p>
+  <p class="dica"><strong>Dica:</strong> Construa fmt como "%s - %s - %s - %s" a partir de sep e n, depois rode vsnprintf duas vezes recomeçando o va_start.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;stdarg.h&gt;
+#include &lt;string.h&gt;
+
+char *juntar(int n, const char *sep, ...)
+{
+    size_t fmt_cap = 2 + (size_t)(n &gt; 0 ? (n - 1) : 0) * (strlen(sep) + 2);
+    char *fmt = malloc(fmt_cap + 1);
+    if (fmt == NULL) {
+        return NULL;
+    }
+
+    int p = 0;
+    for (int i = 0; i &lt; n; i++) {
+        p += snprintf(fmt + p, fmt_cap + 1 - (size_t)p,
+                      i &gt; 0 ? &quot;%s%%s&quot; : &quot;%%s&quot;, i &gt; 0 ? sep : &quot;&quot;);
+    }
+
+    va_list ap;
+    va_start(ap, sep);
+    int tam = vsnprintf(NULL, 0, fmt, ap);
+    va_end(ap);
+
+    char *buf = NULL;
+    if (tam &gt;= 0) {
+        buf = malloc((size_t)tam + 1);
+        if (buf != NULL) {
+            va_start(ap, sep);
+            vsnprintf(buf, (size_t)tam + 1, fmt, ap);
+            va_end(ap);
+        }
+    }
+
+    free(fmt);
+    return buf;
+}
+
+int main(void)
+{
+    char *j = juntar(4, &quot; - &quot;, &quot;azul&quot;, &quot;verde&quot;, &quot;amarelo&quot;, &quot;vermelho&quot;);
+    if (j != NULL) {
+        printf(&quot;%s\n&quot;, j);
+        free(j);
+    }
+
+    j = juntar(3, &quot;,&quot;, &quot;a&quot;, &quot;b&quot;, &quot;c&quot;);
+    if (j != NULL) {
+        printf(&quot;%s\n&quot;, j);
+        free(j);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Não confie que a libc avance a sua va_list entre chamadas de vsnprintf — por isso as duas passadas recomeçam com va_start (ou va_copy).</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que as reticências &lt;code&gt;...&lt;/code&gt; indicam na declaração de uma função?&quot;,&quot;opcoes&quot;:[&quot;Que a função nunca termina&quot;,&quot;Que a função aceita um número variável de argumentos&quot;,&quot;Que a função é uma variável global&quot;,&quot;Um erro de sintaxe&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;As reticências marcam a parte variável da lista de parâmetros — o mecanismo do printf.&quot;},{&quot;pergunta&quot;:&quot;Qual tipo de argumento chega como &lt;code&gt;double&lt;/code&gt; a uma função variádica?&quot;,&quot;opcoes&quot;:[&quot;float&quot;,&quot;double&quot;,&quot;long double&quot;,&quot;char&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Pelas default argument promotions, float é promovido a double — por isso va_arg(ap, float) é sempre errado.&quot;},{&quot;pergunta&quot;:&quot;O que faz &lt;code&gt;va_arg(ap, int)&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;Declara ap&quot;,&quot;Devolve o próximo argumento, já tratado como int&quot;,&quot;Termina a lista&quot;,&quot;Reinicia a lista do início&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Cada chamada a va_arg consome e devolve o próximo argumento variádico no tipo pedido.&quot;},{&quot;pergunta&quot;:&quot;Por que &lt;code&gt;va_arg(ap, float)&lt;/code&gt; é errado?&quot;,&quot;opcoes&quot;:[&quot;float ocupa apenas 2 bytes&quot;,&quot;o float chega promovido a double; ler float é comportamento indefinido&quot;,&quot;va_arg só aceita int&quot;,&quot;o compilador não conhece float&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Promoção padrão: char/short→int, float→double. O tipo lido deve ser o tipo após a promoção.&quot;},{&quot;pergunta&quot;:&quot;Qual chamada é perigosa (format string controlada pelo usuário)?&quot;,&quot;opcoes&quot;:[&quot;printf(\&quot;%s\&quot;, buf)&quot;,&quot;printf(buf)&quot;,&quot;puts(buf)&quot;,&quot;fputs(buf, stdout)&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;printf(buf) interpreta o texto do usuário como formato — vetor de vazamento (%x) e escrita (%n). Sempre use printf(\&quot;%s\&quot;, buf).&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Mini-biblioteca de logging</h2>
+  <p>Implemente <code>log.h</code>/<code>log.c</code> e um <code>main.c</code> de teste. A biblioteca expõe <code>void log_msg(int nivel, const char *fmt, ...)</code> com níveis ERROR/WARN/INFO via enum; a função grava em <code>app.log</code> uma linha com timestamp (<code>time.h</code>), o texto do nível e a mensagem formatada por <code>vfprintf</code>. Suporte também um limiar configurável: mensagens de nível abaixo do mínimo são descartadas.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>log.h com include guard (T2.08) e log.c com a implementação real de log_msg.</li><li>Níveis ERROR/WARN/INFO via enum; a linha impressa traz o nome do nível por extenso.</li><li>Timestamp com time.h (strftime) no formato "YYYY-MM-DD HH:MM:SS".</li><li>Limiar configurável (ex.: log_set_level) — nível abaixo do limiar não grava.</li><li>Várias execuções anexam ao mesmo app.log sem corromper nada (modo "a" + fclose conferido).</li><li>Compila com gcc -Wall -Wextra -std=c11 log.c main.c -o app sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="arquivos-texto-e-binario.html">← 2.13 Arquivos: texto e binário</a><a class="btn nav-next" href="estruturas-de-dados-fundamentais.html">2.15 Estruturas de dados fundamentais →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m14">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

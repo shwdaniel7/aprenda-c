@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3.03 — Tipos avançados, storage classes e declarações — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="3">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t3">Trilha 3 — Avançado</a> / Tipos avançados, storage classes e declarações</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">3.03</div>
+    <h1>Tipos avançados, storage classes e declarações</h1>
+    <p class="subtitulo">const, volatile, static/extern, typedef e declarações complexas</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado</span>
+      <span class="chip">Duração: ~35 min</span>
+      <span class="chip">Pré-requisitos: T2.03 (ponteiros), T2.06 (structs), T2.09 (arrays)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t3-m03">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Dominar os qualificadores e classes de armazenamento: usar const com precisão (ponteiro para const versus const ponteiro), entender por que volatile existe, diferenciar extern/static/register/auto/_Thread_local, ler declarações complexas da direita para a esquerda e usar structs auto-referenciais e tipos incompletos.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulos 16 (mais conversões de tipo) e 35 (aspectos avançados de declarações)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 18 (Declarations) — a referência canônica de storage classes e complexidade</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, o capítulo 18 é obrigatório: ele cobre extern/static, qualificadores const/volatile, typedef e declarações complexas. Leia com calma as seções de "declarações-na-linguagem-complexa".</p>
+</section>
+  <section class="card secao">
+  <h2>const, ponteiro para const e const ponteiro</h2>
+  <p>O qualificador <code>const</code> cria <em>valores que não mudam</em> — e o compilador vira seu fiscal. A posição da palavra muda tudo: <code>const int *p</code> = ponteiro para um int que não muda (o ponteiro pode apontar para outro lugar); <code>int *const p</code> = ponteiro fixo apontando para um int mutável; <code>const int *const p</code> = os dois fixos. Leia sempre do lado direito do <code>*</code>: o que está à esquerda do <code>*</code> é o tipo do dado apontado; o que está entre <code>*</code> e o nome é a "natureza" do ponteiro.</p>
+  <ul><li>Tentou <code>*p = x</code> onde p é <code>const int *</code>? Erro de compilação.</li>
+<li>Tentou <code>p = &outra</code> onde p é <code>int *const</code>? Erro de compilação.</li>
+<li>Função que só lê um vetor deve receber <code>const int v[]</code>: promessa explícita ao chamador.</li>
+<li>Cast para remover const (forçar o compilador) é código de cheiro — evite.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — const_ptr.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int a = 10, b = 20;
+    const int *p1 = &amp;a;   /* ponteiro para const: *p1 nao pode mudar */
+    int *const p2 = &amp;a;   /* const ponteiro: p2 nao pode apontar para outro */
+    const int *const p3 = &amp;a;
+
+    p1 = &amp;b;              /* ok: o ponteiro em si pode mudar */
+    *p2 = 30;             /* ok: o int apontado pode mudar */
+    /* *p1 = 99;   erro de compilacao: *p1 e const */
+    /* p2 = &amp;b;    erro de compilacao: p2 e const */
+
+    printf(&quot;a=%d b=%d *p1=%d *p2=%d *p3=%d\n&quot;, a, b, *p1, *p2, *p3);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; const_ptr
+a=30 b=20 *p1=20 *p2=30 *p3=30</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Lendo declarações complexas: da direita para a esquerda</h2>
+  <p>Declarações como <code>int (*pa)[4]</code> assustam até você aplicar a regra: comece do nome e leia para a direita, dando a volta nos parênteses. <code>pa</code> é … leia a direita: nada → volta: <code>*pa</code> = pa é um ponteiro → para a direita: <code>[4]</code> = para um array de 4 → para a esquerda: de <code>int</code>. Logo, <code>pa</code> é "ponteiro para array de 4 int". Compare com <code>int *arr[4]</code>: arr é "array de 4 ponteiros para int". A diferença entre um e outro é feita só pelos parênteses.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — decl.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int arr[4] = {1, 2, 3, 4};
+    int(*pa)[4] = &amp;arr;   /* leia: pa e &quot;ponteiro para array de 4 int&quot; */
+    for (int i = 0; i &lt; 4; i++) {
+        printf(&quot;%d &quot;, (*pa)[i]);
+    }
+    putchar('\n');
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; decl
+1 2 3 4</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>storage classes: extern, static, register, auto, _Thread_local</h2>
+  <p>As <em>storage classes</em> controlam onde a variável mora e o tempo de vida. <code>auto</code> é o padrão (variável local de função, soma e some). <code>register</code> é uma dica esquecida (o compilador decide). <code>static</code> em escopo local dá à variável "memória de longo prazo" entre chamadas; em escopo de arquivo, limita a visibilidade ao arquivo. <code>extern</code> declara algo definido em outro arquivo: o link é feito na fase de linkagem. <code>_Thread_local</code> (C11) cria uma cópia por thread — veremos threads no módulo 06. A melhor pergunta para escolher é sempre: <em>o que deve acontecer com essa variável quando a função termina?</em></p>
+  <ul><li><code>static int contador = 100;</code> dentro de função → persiste entre chamadas.</li>
+<li><code>static</code> no topo do arquivo → chave "privada" daquele .c.</li>
+<li><code>extern int global;</code> → "existe em outro arquivo, me deixa usar aqui".</li>
+<li><code>register</code> é histórico; com otimizadores modernos é inócuo.</li>
+<li><code>_Thread_local</code> → uma instância por thread (C11).</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — stor.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+static int chamadas = 0;   /* static em escopo de arquivo: visivel so neste .c */
+
+static int proximo_id(void)
+{
+    static int contador = 100;   /* static local: persiste entre chamadas */
+    chamadas++;
+    return contador++;
+}
+
+int main(void)
+{
+    for (int i = 0; i &lt; 5; i++) {
+        printf(&quot;id %d\n&quot;, proximo_id());
+    }
+    printf(&quot;chamadas = %d\n&quot;, chamadas);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; stor
+id 100
+id 101
+id 102
+id 103
+id 104
+chamadas = 5</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>typedef com structs e tipos incompletos</h2>
+  <p><code>typedef</code> cria apelidos. Combinado com struct, elimina a repetição da palavra <code>struct</code>. A técnica do <strong>tipo incompleto</strong> é o coração das listas encadeadas: <code>typedef struct No No;</code> anuncia o nome antes do corpo; dentro do próprio struct usamos <code>No *prox</code> (ponteiro, que não precisa do corpo completo). O corpo completo só precisa existir quando o compilador precisar do <em>tamanho</em> do struct. É assim que structs se referenciam.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — no.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+typedef struct No {
+    int valor;
+    struct No *proximo;
+} No;
+
+int main(void)
+{
+    No a = {1, NULL};
+    No b = {2, NULL};
+    No c = {3, NULL};
+    a.proximo = &amp;b;
+    b.proximo = &amp;c;
+    for (No *p = &amp;a; p != NULL; p = p-&gt;proximo) {
+        printf(&quot;%d &quot;, p-&gt;valor);
+    }
+    putchar('\n');
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; no
+1 2 3</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>volatile: quando o valor muda sem o código saber</h2>
+  <p>Um <code>int</code> normal pode ser mantido pelo compilador num registro por otimização — tudo bem, porque nenhum código externo o altera. <code>volatile</code> diz ao compilador: "não confie na sua cópia; releia da memória toda vez". É usado quando o valor muda por fatores fora do fluxo do programa: registradores de hardware (chips), memória compartilhada entre processos, ou variáveis modificadas por interrupções/sinais (que veremos no módulo 05). Sem volatile, o otimizador pode "cachear" a variável e nunca perceber a mudança.</p>
+  <ul><li><code>volatile int registrador;</code> — aponta para um registrador de um periférico.</li>
+<li><code>volatile sig_atomic_t flag</code> — comunicando com um handler de sinal.</li>
+<li>Sem volatile, um loop <code>while (flag) {}</code> compilado em -O2 pode virar loop infinito real.</li>
+<li>volatile não é atômico: impede otimização, não corrida entre threads (ver módulo 07).</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t3-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.03.1</p>
+  <p class="enunciado">Uma função <code>imprime(const int v[], size_t n)</code> que apenas lê o vetor deve aceitar tanto um array normal quanto um literal <code>(int[]){7, 8}</code>. Escreva a função e um main que a chama com <code>nums[]</code> e com o literal. Depois tente <code>const int *p = nums; p[0] = 9;</code> e observe o erro do compilador.</p>
+  <p class="dica"><strong>Dica:</strong> O nome do array "decai" para um ponteiro para o primeiro elemento; com <code>const</code> no parâmetro, a escrita vira erro garantido.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+static void imprime(const int v[], size_t n)
+{
+    for (size_t i = 0; i &lt; n; i++) {
+        printf(&quot;%d &quot;, v[i]);
+    }
+    putchar('\n');
+}
+
+int main(void)
+{
+    int nums[] = {5, 10, 15};
+    const int *p = nums;   /* posso ler atraves de p, mas nao escrever */
+    /* p[0] = 9;   erro: elemento e const */
+    printf(&quot;leitura via const ponteiro: %d\n&quot;, *p);
+    imprime(nums, 3);
+    imprime((int[]){7, 8}, 2);
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real: "leitura via const ponteiro: 5", depois "5 10 15" e "7 8". Remova o comentário na linha proibida e veja o gcc reclamar.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t3-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.03.2</p>
+  <p class="enunciado">Crie um typedef <code>typedef int (*operacao)(int, int);</code> e implemente <code>soma</code>, <code>multiplica</code> e <code>maior</code>. Monte um array <code>operacao ops[] = {soma, multiplica, maior}</code> e chame cada uma com (6, 7) num loop.</p>
+  <p class="dica"><strong>Dica:</strong> array de operação: <code>ops[i](6, 7)</code>. Um array de vetor de ponteiros de função é "array de ponteiros para função que recebe 2 int e devolve int".</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+typedef int (*operacao)(int, int);
+
+static int soma(int a, int b)
+{
+    return a + b;
+}
+
+static int multiplica(int a, int b)
+{
+    return a * b;
+}
+
+static int maior(int a, int b)
+{
+    return a &gt; b ? a : b;
+}
+
+int main(void)
+{
+    operacao ops[] = {soma, multiplica, maior};
+    const char *nomes[] = {&quot;soma&quot;, &quot;multiplica&quot;, &quot;maior&quot;};
+    int a = 6, b = 7;
+    for (size_t i = 0; i &lt; sizeof ops / sizeof ops[0]; i++) {
+        printf(&quot;%s(%d, %d) = %d\n&quot;, nomes[i], a, b, ops[i](a, b));
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real: soma=13, multiplica=42, maior=7. Esse padrão é o motor de "tabelas de operações".</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t3-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.03.3</p>
+  <p class="enunciado">Implemente uma lista encadeada simples usando o padrão de tipo incompleto: <code>typedef struct No No;</code> no topo, corpo depois, funções <code>insere</code> (no início, com malloc) e <code>conta</code>. No main, insira 30, 20, 10 e imprima o total de nós.</p>
+  <p class="dica"><strong>Dica:</strong> O `typedef struct No No;` permite escrever <code>No *prox</code> dentro do próprio struct. Lembre de free() em todos os nós no final.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+typedef struct No No;   /* incomplete type: so o &quot;nome&quot; chamado */
+
+struct No {
+    int valor;
+    No *prox;
+};
+
+static No *insere(No *lista, int v)
+{
+    No *n = malloc(sizeof *n);
+    if (n != NULL) {
+        n-&gt;valor = v;
+        n-&gt;prox = lista;
+    }
+    return n;
+}
+
+static int conta(No *lista)
+{
+    int c = 0;
+    for (No *p = lista; p != NULL; p = p-&gt;prox) {
+        c++;
+    }
+    return c;
+}
+
+int main(void)
+{
+    No *lista = NULL;
+    lista = insere(lista, 30);
+    lista = insere(lista, 20);
+    lista = insere(lista, 10);
+    printf(&quot;nos = %d\n&quot;, conta(lista));
+    while (lista != NULL) {
+        No *tmp = lista;
+        lista = lista-&gt;prox;
+        free(tmp);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real: "nos = 3". Inserir na frente é O(1) — é por isso que `prox` precisa ser um ponteiro.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Em &lt;code&gt;const int *p&lt;/code&gt;, o que é const?&quot;,&quot;opcoes&quot;:[&quot;o ponteiro p&quot;,&quot;o int apontado&quot;,&quot;os dois&quot;,&quot;nenhum&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O &lt;code&gt;const&lt;/code&gt; está à esquerda do &lt;code&gt;*&lt;/code&gt;: modifica o tipo do dado apontado. O ponteiro ainda pode ser reatribuído.&quot;},{&quot;pergunta&quot;:&quot;Em &lt;code&gt;int *const p&lt;/code&gt;, o que é const?&quot;,&quot;opcoes&quot;:[&quot;o int apontado&quot;,&quot;o ponteiro p&quot;,&quot;os dois&quot;,&quot;nenhum&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O &lt;code&gt;const&lt;/code&gt; fica entre &lt;code&gt;*&lt;/code&gt; e o nome: fixa o ponteiro, não o valor.&quot;},{&quot;pergunta&quot;:&quot;Uma variável local &lt;code&gt;static int contador = 0;&lt;/code&gt; dentro de uma função...&quot;,&quot;opcoes&quot;:[&quot;é destruída a cada chamada&quot;,&quot;persiste entre chamadas, inicializada uma única vez&quot;,&quot;torna-se global e visível em outros arquivos&quot;,&quot;não pode ser modificada&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Static local mantém o valor entre chamadas; a inicialização acontece uma vez.&quot;},{&quot;pergunta&quot;:&quot;Qual é a utilidade de &lt;code&gt;volatile&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;Tornar a variável atômica&quot;,&quot;Impedir que o otimizador guarde cópias em registro&quot;,&quot;Acelerar o código&quot;,&quot;Criar uma constante&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Volatile força releitura da memória — essencial para registradores de hardware e flags de sinais.&quot;},{&quot;pergunta&quot;:&quot;&lt;code&gt;typedef struct No No;&lt;/code&gt; antes do corpo do struct é um exemplo de...&quot;,&quot;opcoes&quot;:[&quot;tipo incompleto&quot;,&quot;ponteiro para função&quot;,&quot;array de structs&quot;,&quot;storage class&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Anunciamos o nome do tipo antes do corpo; isso permite auto-referências via ponteiro.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  
+  <nav class="mod-nav"><a class="btn nav-prev" href="como-os-numeros-vivem-na-memoria.html">← 3.02 Como os números vivem na memória</a><a class="btn nav-next" href="unicode-wide-characters-e-localizacao.html">3.04 Unicode, wide characters e localização →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t3-m03">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

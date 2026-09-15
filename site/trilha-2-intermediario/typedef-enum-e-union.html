@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.07 — typedef, enum e union — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / typedef, enum e union</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.07</div>
+    <h1>typedef, enum e union</h1>
+    <p class="subtitulo">apelidos de tipo, constantes nomeadas e memória compartilhada</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~40 min</span>
+      <span class="chip">Pré-requisitos: T2.06</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m07">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Criar apelidos legíveis para tipos com typedef, constantes com nomes usando enum, e entender union — o tipo que compartilha o mesmo espaço de memória para interpretações diferentes.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulos 8–10 (structs, typedefs) e a seção sobre enum/union</p>
+  <p><strong>King (livro em PDF):</strong> Capítulos 16.4–16.6 (typedef, unions, enumerations)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, 16.4 (typedef), 16.5 (unions) e 16.6 (enumerations): foque em valores implícitos do enum e no compartilhamento de memória do union.</p>
+</section>
+  <section class="card secao">
+  <h2>typedef: um apelido para o tipo</h2>
+  <p><code>typedef</code> cria um <strong>apelido</strong> — não um tipo novo, apenas outro nome. Embora seja possível usar os nomes originais, apelidos como <code>Pessoa</code>, <code>Idade</code> ou <code>int32_t</code> deixam o código mais legível e facilitam mudanças futuras.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — typedef.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+typedef int Idade;
+
+typedef struct {
+    char nome[50];
+    int idade;
+} Pessoa;
+
+int main(void)
+{
+    Idade i = 42;
+    Pessoa p;
+
+    p.idade = i;
+    strcpy(p.nome, &quot;Jose&quot;);
+
+    printf(&quot;%s tem %d anos\n&quot;, p.nome, p.idade);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Jose tem 42 anos</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>enum: constantes com nomes</h2>
+  <p>Um <strong>enum</strong> cria constantes inteiras nomeadas. Sem valores explícitos, os membros valem 0, 1, 2, ... na ordem. Com <code>= valor</code> forçamos valores arbitrários (inclusive negativos). Útil para estados, tipos e opções.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — enum.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+enum Cor { VERMELHO, VERDE, AZUL };
+
+int main(void)
+{
+    enum Cor escolha = VERDE;
+
+    printf(&quot;VERMELHO = %d\n&quot;, VERMELHO);
+    printf(&quot;VERDE    = %d\n&quot;, VERDE);
+    printf(&quot;AZUL     = %d\n&quot;, AZUL);
+    printf(&quot;escolha  = %d\n&quot;, escolha);
+
+    if (escolha == VERDE) {
+        printf(&quot;voce escolheu verde.\n&quot;);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>VERMELHO = 0
+VERDE    = 1
+AZUL     = 2
+escolha  = 1
+voce escolheu verde.</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>enum com valores explícitos</h2>
+  <p>Valores explícitos são comuns em protocolos, máscaras e códigos de estado. Aqui podemos atribuir livremente os valores (inclusive negativos):</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — enum-valores.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+enum Estado {
+    DESLIGADO = 0,
+    LIGADO = 1,
+    SUSPENSO = 5,
+    INVALIDO = -1
+};
+
+int main(void)
+{
+    printf(&quot;DESLIGADO=%d LIGADO=%d SUSPENSO=%d INVALIDO=%d\n&quot;,
+           DESLIGADO, LIGADO, SUSPENSO, INVALIDO);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>DESLIGADO=0 LIGADO=1 SUSPENSO=5 INVALIDO=-1</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>union: espaço compartilhado</h2>
+  <p>Uma <strong>union</strong> faz todos os campos <em>compartilharem o mesmo endereço</em>. O tamanho da union é o do maior campo. Escrever em um campo invalida a leitura dos outros — ler um campo "errado" é lixo (o dado bruto reinterpretado).</p>
+<p>Em baixo nível, unions são usadas p/ reinterpretação de bytes, protocolos, variantes de valor único e registradores de hardware.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — union.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+union Dado {
+    int i;
+    float f;
+    unsigned char bytes[4];
+};
+
+int main(void)
+{
+    union Dado d;
+
+    d.i = 0x41424344;   /* bytes 'D','C','B','A' em little-endian */
+
+    printf(&quot;sizeof(union Dado) = %zu\n&quot;, sizeof(union Dado));
+    printf(&quot;d.i    = 0x%08X\n&quot;, d.i);
+    printf(&quot;bytes  = %c %c %c %c\n&quot;,
+           d.bytes[0], d.bytes[1], d.bytes[2], d.bytes[3]);
+    printf(&quot;d.f    = %g (lixo: union guarda um int aqui)\n&quot;, d.f);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>sizeof(union Dado) = 4
+d.i    = 0x41424344
+bytes  = D C B A
+d.f    = 12.1414 (lixo: union guarda um int aqui)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>enum + switch: menus legíveis</h2>
+  <p>Combinar enum com switch torna os menus quase auto-documentados. O <code>default</code> captura entradas inválidas:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — menu.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+typedef enum {
+    OP_SAIR,
+    OP_SOMAR,
+    OP_SUBTRAIR,
+    OP_MULTIPLICAR
+} Opcao;
+
+int main(void)
+{
+    Opcao o;
+    int a = 6, b = 4;
+    char linha[32];
+
+    printf(&quot;Menu (0 sair, 1 somar, 2 subtrair, 3 multiplicar): &quot;);
+    if (fgets(linha, sizeof linha, stdin) == NULL) {
+        return 1;
+    }
+    o = (Opcao)(linha[0] - '0');
+
+    switch (o) {
+    case OP_SOMAR:
+        printf(&quot;%d + %d = %d\n&quot;, a, b, a + b);
+        break;
+    case OP_SUBTRAIR:
+        printf(&quot;%d - %d = %d\n&quot;, a, b, a - b);
+        break;
+    case OP_MULTIPLICAR:
+        printf(&quot;%d * %d = %d\n&quot;, a, b, a * b);
+        break;
+    case OP_SAIR:
+    default:
+        printf(&quot;Tchau!\n&quot;);
+        break;
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; echo 2 | .\menu.exe
+Menu (0 sair, 1 somar, 2 subtrair, 3 multiplicar): 6 - 4 = 2</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.07.1</p>
+  <p class="enunciado">Crie <code>typedef struct { char nome[40]; int matricula; } Aluno;</code>. Inicialize dois alunos e imprima nome + matrícula. Use o typedef em todas as declarações.</p>
+  <p class="dica"><strong>Dica:</strong> Com typedef você escreve <code>Aluno a;</code> — sem "struct" na frente.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+typedef struct {
+    char nome[40];
+    int matricula;
+} Aluno;
+
+int main(void)
+{
+    Aluno a = {&quot;Ana&quot;, 1001};
+    Aluno b;
+    strcpy(b.nome, &quot;Bruno&quot;);
+    b.matricula = 1002;
+
+    printf(&quot;%s - mat %d\n&quot;, a.nome, a.matricula);
+    printf(&quot;%s - mat %d\n&quot;, b.nome, b.matricula);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.07.2</p>
+  <p class="enunciado">Defina um enum <code>DiaSemana</code> (segunda a domingo, começando em 1). Imprima os valores e atribua DOMINGO a uma variável e mostre que vale 7.</p>
+  <p class="dica"><strong>Dica:</strong> Comece com <code>enum DiaSemana { SEGUNDA = 1, TERCA, ... }</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+enum DiaSemana {
+    SEGUNDA = 1,
+    TERCA,
+    QUARTA,
+    QUINTA,
+    SEXTA,
+    SABADO,
+    DOMINGO
+};
+
+int main(void)
+{
+    enum DiaSemana hoje = DOMINGO;
+
+    printf(&quot;SEGUNDA=%d SEXTA=%d DOMINGO=%d\n&quot;, SEGUNDA, SEXTA, DOMINGO);
+    printf(&quot;hoje vale %d\n&quot;, hoje);
+    return 0;
+}</code></pre>
+        <p class="obs">Como SEGUNDA = 1, os demais vão 2..7 automaticamente.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.07.3</p>
+  <p class="enunciado">Escreva a função <code>const char *nome_dia(enum DiaSemana d)</code> que devolve o nome do dia ("Segunda-feira" ... ) via switch. Trate valores fora do intervalo como "Invalido". Teste com QUARTA, DOMINGO e o valor 99.</p>
+  <p class="dica"><strong>Dica:</strong> Cada case retorna um literal; <code>default</code> retorna "Invalido".</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+enum DiaSemana { SEGUNDA = 1, TERCA, QUARTA, QUINTA, SEXTA, SABADO, DOMINGO };
+
+const char *nome_dia(enum DiaSemana d)
+{
+    switch (d) {
+    case SEGUNDA: return &quot;Segunda-feira&quot;;
+    case TERCA:   return &quot;Terca-feira&quot;;
+    case QUARTA:  return &quot;Quarta-feira&quot;;
+    case QUINTA:  return &quot;Quinta-feira&quot;;
+    case SEXTA:   return &quot;Sexta-feira&quot;;
+    case SABADO:  return &quot;Sabado&quot;;
+    case DOMINGO: return &quot;Domingo&quot;;
+    default:      return &quot;Invalido&quot;;
+    }
+}
+
+int main(void)
+{
+    printf(&quot;%s\n&quot;, nome_dia(QUARTA));
+    printf(&quot;%s\n&quot;, nome_dia(DOMINGO));
+    printf(&quot;%s\n&quot;, nome_dia(99));
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.07.4</p>
+  <p class="enunciado">Use uma union para imprimir os 4 bytes de um <code>float</code> como números hex, mostrando o conteúdo do número 1.0f. Explique por que a ordem parece "invertida" (little-endian).</p>
+  <p class="dica"><strong>Dica:</strong> Se <code>u.f = 1.0f</code>, então <code>u.bytes[i]</code> mostra cada byte. 1.0f = 0x3F800000.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+union VisorFloat {
+    float f;
+    unsigned char bytes[4];
+};
+
+int main(void)
+{
+    union VisorFloat u;
+    u.f = 1.0f;
+
+    printf(&quot;float 1.0f = bytes &quot;);
+    for (int i = 0; i &lt; 4; i++) {
+        printf(&quot;%02X &quot;, u.bytes[i]);
+    }
+    printf(&quot;\n&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado algo como "00 00 80 3F": em little-endian o byte menos significativo vem primeiro (0x3F800000 de trás para frente).</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t2-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.07.5</p>
+  <p class="enunciado">Monte um menu de capitu com enum + switch que lê a opção com fgets/scanf e executa: 1 = converter Fahrenheit para Celsius, 2 = Celsius para Fahrenheit, 3 = sair. Valores de teste: 98.6F e 30C. Trate opções inválidas com default.</p>
+  <p class="dica"><strong>Dica:</strong> fgets + sscanf na linha lida é mais robusto que scanf direto.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+typedef enum { OP_SAIR = 3, OP_F_PARA_C = 1, OP_C_PARA_F = 2 } Opcao;
+
+int main(void)
+{
+    char linha[32];
+    double valor;
+
+    printf(&quot;1. F-&gt;C   2. C-&gt;F   3. sair\nOpcao e valor: &quot;);
+    if (fgets(linha, sizeof linha, stdin) == NULL) {
+        return 1;
+    }
+
+    int op;
+    if (sscanf(linha, &quot;%d %lf&quot;, &amp;op, &amp;valor) != 2) {
+        printf(&quot;Entrada invalida\n&quot;);
+        return 1;
+    }
+
+    switch ((Opcao)op) {
+    case OP_F_PARA_C:
+        printf(&quot;%.2f F = %.2f C\n&quot;, valor, (valor - 32.0) * 5.0 / 9.0);
+        break;
+    case OP_C_PARA_F:
+        printf(&quot;%.2f C = %.2f F\n&quot;, valor, valor * 9.0 / 5.0 + 32.0);
+        break;
+    case OP_SAIR:
+        printf(&quot;Ate logo\n&quot;);
+        break;
+    default:
+        printf(&quot;Opcao invalida\n&quot;);
+        break;
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Com "2 30": sai 86.00 F. Com "1 98.6": sai 37.00 C.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que faz &lt;code&gt;typedef&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;Cria um novo tipo de verdade&quot;,&quot;Cria um apelido para um tipo já existente&quot;,&quot;Aloca memória&quot;,&quot;Compara dois tipos&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;typedef só dá outro nome; por baixo é o mesmo tipo.&quot;},{&quot;pergunta&quot;:&quot;Sem valores explícitos, &lt;code&gt;enum Cor {A, B, C}&lt;/code&gt; define A, B, C como...&quot;,&quot;opcoes&quot;:[&quot;1, 2, 3&quot;,&quot;0, 1, 2&quot;,&quot;valores aleatórios&quot;,&quot;símbolos sem valor&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Enums sem inicialização valem 0, 1, 2, ... na ordem de declaração.&quot;},{&quot;pergunta&quot;:&quot;O que é característico de uma union?&quot;,&quot;opcoes&quot;:[&quot;Todos os campos têm espaço próprio&quot;,&quot;Todos os campos compartilham o mesmo endereço de memória&quot;,&quot;Só pode ter um campo&quot;,&quot;É igual a uma struct&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;A union sobrepõe os campos; escrever um invalida a leitura dos outros.&quot;},{&quot;pergunta&quot;:&quot;Qual o tamanho em bytes de uma union com um char e um int?&quot;,&quot;opcoes&quot;:[&quot;5&quot;,&quot;o maior (o int: 4)&quot;,&quot;a soma (5)&quot;,&quot;1&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;A union ocupa o tamanho do maior membro — todos compartilham o mesmo espaço.&quot;},{&quot;pergunta&quot;:&quot;Para que servem os enums em menus?&quot;,&quot;opcoes&quot;:[&quot;Para acelerar o compilador&quot;,&quot;Para dar nomes legíveis às opções e estados&quot;,&quot;Para obrigar o switch&quot;,&quot;Para gerar números aleatórios&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Constantes nomeadas deixam o código claro e segui-lo de mudanças de números mágicos.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  
+  <nav class="mod-nav"><a class="btn nav-prev" href="structs.html">← 2.06 Structs</a><a class="btn nav-next" href="o-pre-processador.html">2.08 O pré-processador →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m07">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

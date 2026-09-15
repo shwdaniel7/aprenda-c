@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4.02 — Codificação segura em C (defensiva) — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="4">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t4">Trilha 4 — Cyber</a> / Codificação segura em C (defensiva)</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">4.02</div>
+    <h1>Codificação segura em C (defensiva)</h1>
+    <p class="subtitulo">Funções perigosas, bounds checking e compilação defensiva</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário/Cyber</span>
+      <span class="chip">Duração: ~1h</span>
+      <span class="chip">Pré-requisitos: T0.01 (gcc), T2.05 (strings e ponteiros)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t4-m02">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Aprender a escrever C à prova de entrada hostil: substituir gets/strcpy/strcat/sprintf e scanf("%s") por variantes com limite, implementar bounds checking explícito, conhecer TOCTOU, e blindar a build com flags (-fstack-protector, -D_FORTIFY_SOURCE, -Wformat-security) e sanitizers (ASan/UBSan) e valgrind.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  
+  
+  <p class="foco"><strong>Foco da leitura:</strong> Consulte a página da OWASP sobre Buffer Overflow (https://owasp.org/www-community/vulnerabilities/Buffer_Overflow) e as entradas CWE-120 (buffer copy sem checagem), CWE-121 (stack-based overflow) e CWE-119 (falha de limites de memória) em https://cwe.mitre.org/ — as CWEs são o vocabulário que usamos para classificar bugs nesta trilha.</p>
+</section>
+  <section class="card secao">
+  <h2>A regra de ouro da entrada de dados</h2>
+  <p>A regra de ouro da codificação segura em C é curta: <strong>nenhuma operação de memória pode assumir que a entrada cabe no alvo</strong>. Sempre que copiar, concatenar ou formatar dados vindos de fora, o programador deve dizer <em>quantos bytes o destino aguenta</em>. Este módulo ensina as três trocas que resolvem 80% dos problemas triviais:</p>
+  <ul><li><code>gets</code> → <code>fgets</code> (com tamanho máximo).</li>
+<li><code>strcpy/strcat/sprintf</code> → versões com limite de destino (<code>snprintf</code>, <code>strncpy</code> com cuidado no NUL, ou cópia manual com tamanho).</li>
+<li><code>scanf("%s", …)</code> → <code>fgets</code> que lê a linha inteira de uma vez.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Caso 1: gets (removida do padrão C11)</h2>
+  <p><code>gets</code> lê do teclado sem nenhum limite e <strong>foi removida do padrão C11</strong> (por isso muitos compiladores emitem um aviso forte). Qualquer linha mais longa que o buffer estoura a pilha. Este exemplo é didático: compile-o no Linux/WSL apenas para ver o aviso do gcc e o comportamento estourado.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — gets_demo.c (VULNERÁVEL)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* gets_demo.c -- compila com WARNING no Linux.
+   gcc -Wall -Wextra -std=c11 gets_demo.c -o gets_demo   (Linux/WSL) */
+#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    char nome[8];
+    printf(&quot;Seu nome: &quot;);
+    gets(nome);          /* sem limite: estoura nome */
+    printf(&quot;Ola, %s!\n&quot;, nome);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ gcc -Wall -Wextra -std=c11 gets_demo.c -o gets_demo
+gets_demo.c: In function 'main':
+warning: implicit declaration of function 'gets' ...
+warning: cast between incompatible function types ...
+$ ./gets_demo
+Seu nome: miguel
+Ola, miguel!</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>A versão corrigida com fgets</h2>
+  <p><code>fgets(ptr, tamanho, stdin)</code> lê <em>no máximo tamanho-1 caracteres</em> e sempre grava o <code>\0</code> no final — é a substituição direta do <code>gets</code>. <code>tamanho</code> aqui é o tamanho total do buffer (8 no nosso caso), não "8-1"; o <code>fgets</code> nunca ultrapassa o alvo.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — gets_fixed.c (SEGURO)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* gets_fixed.c -- versao segura com fgets.
+   gcc -Wall -Wextra -std=c11 gets_fixed.c -o gets_fixed   (compila em qualquer SO) */
+#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    char nome[8];
+    printf(&quot;Seu nome: &quot;);
+    if (fgets(nome, sizeof nome, stdin) == NULL) {
+        return 1;
+    }
+    printf(&quot;Ola, %s&quot;, nome);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ ./gets_fixed
+Seu nome: miguel
+Ola, miguel</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Caso 2: strcpy/strcat/sprintf e a família com limite</h2>
+  <p>As três cópias clássicas não recebem o tamanho do destino:</p>
+  <ul><li><code>strcpy(dest, src)</code> — copia até o <code>\0</code> de src; estoura se src for maior que dest.</li>
+<li><code>strcat(dest, src)</code> — igual, mas <em>anexa</em> após o <code>\0</code> atual de dest; o destino precisa de espaço para o que já tem + o que entra.</li>
+<li><code>sprintf(dest, fmt, …)</code> — formata produzindo uma string; o destino precisa conter o texto formatado.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — copia_perigosa.c (VULNERÁVEL)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* copia_perigosa.c -- demonstra estouro silencioso (VULNERAVEL).
+   gcc -Wall -Wextra -std=c11 copia_perigosa.c -o copia_perigosa
+   Rode no Linux/WSL com ASAN se quiser ver o estouro gritar:
+   gcc -fsanitize=address copia_perigosa.c -o copia_perigosa_asan
+   (o pacote libasan precisa estar instalado: sudo apt install gcc) */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char destino[10];
+    char atacante[64];
+
+    memcpy(atacante, &quot;0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&quot;, 37);
+    atacante[37] = '\0';
+
+    /* destino[10] NAO consegue segurar 37 bytes: estoura a pilha */
+    strcpy(destino, atacante);
+
+    printf(&quot;destino = %s\n&quot;, destino);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ gcc -Wall -Wextra -std=c11 copia_perigosa.c -o copia_perigosa
+copia_perigosa.c: In function 'main':
+warning: 'strcpy' writing 37 bytes into a region of size 10 ...
+$ ./copia_perigosa_asan
+==12345==ERROR: AddressSanitizer: stack-buffer-overflow ...</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>A versão corrigida com limite explícito</h2>
+  <p>A substituição direta é <code>strncpy(dest, src, n)</code> — mas atenção: <code>strncpy</code> <strong>não garante o <code>\0</code> final</strong> se src tiver >= n bytes; por isso o padrão defensivo é <code>strncpy(dest, src, n-1); dest[n-1] = 0;</code>. Para formatação, use <code>snprintf(dest, n, fmt, …)</code>, que grava <code>\0</code> sempre.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — copia_segura.c (SEGURO)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* copia_segura.c -- com limpeza e padrao defensivo.
+   gcc -Wall -Wextra -std=c11 copia_segura.c -o copia_segura  (qualquer SO) */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+#define BUFSZ 32
+
+static void copiar_segura(char *dest, size_t n, const char *src)
+{
+    if (n == 0) return;
+    strncpy(dest, src, n - 1);   /* copia no maximo n-1 */
+    dest[n - 1] = '\0';          /* garante terminacao */
+}
+
+int main(void)
+{
+    char destino[BUFSZ];
+    char entrada[256];
+    char atacante[64];
+
+    memcpy(atacante, &quot;0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&quot;, 37);
+    atacante[37] = '\0';
+
+    copiar_segura(destino, sizeof destino, atacante);
+    puts(&quot;Copiado com limite:&quot;);
+    puts(destino);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ ./copia_segura
+Copiado com limite:
+0123456789ABCDEFGHIJ</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Caso 3: scanf(&quot;%s&quot;) e a versão com fgets</h2>
+  <p><code>scanf("%s", buf)</code> não tem limite e ainda quebra em espaços. A alternativa robusta: ler a linha inteira com <code>fgets</code> e fazer parsing depois com <code>sscanf</code>/manipulação manual (com o buffer já limitado).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — scanf_vs_fgets.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* scanf_vs_fgets.c -- maneiras de ler uma palavra com limite.
+   gcc -Wall -Wextra -std=c11 scanf_vs_fgets.c -o scanf_vs_fgets */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char palavra[16];
+
+    /* MAU: sem limite, estoura se a palavra passar de 15 chars */
+    /* scanf(&quot;%s&quot;, palavra); */
+
+    /* BOM: fgets limita, mas guarda o \n no final */
+    printf(&quot;Digite uma palavra: &quot;);
+    if (fgets(palavra, sizeof palavra, stdin) == NULL) return 1;
+    palavra[strcspn(palavra, &quot;\n&quot;)] = '\0';   /* remove o \n final */
+
+    printf(&quot;Voce digitou: %s\n&quot;, palavra);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ ./scanf_vs_fgets
+Digite uma palavra: senha123
+Voce digitou: senha123</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Bounds checking: o contrato é o tamanho do alvo</h2>
+  <p>Bounds checking = <strong>o código pergunta ao destinatário quantos bytes ele aguenta</strong> antes de qualquer cópia. Quando você escreve funções que recebem buffers (cópia, concatenação, formatação), exija o tamanho como parâmetro e valide na entrada:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — bounds.c (funcao com tamanho)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* bounds.c -- una funcao segura recebe (destino, tamanho, fonte).
+   gcc -Wall -Wextra -std=c11 bounds.c -o bounds  (qualquer SO) */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+static size_t concat_seguro(char *dest, size_t n, const char *src)
+{
+    size_t ja = strnlen(dest, n);      /* quanto ja ha no destino */
+    if (ja &gt;= n) return n;             /* destino cheio */
+    size_t cabem = n - ja - 1;         /* espaco livre (menos o NUL) */
+    strncpy(dest + ja, src, cabem);
+    dest[n - 1] = '\0';
+    return strnlen(dest, n);
+}
+
+int main(void)
+{
+    char log[32] = &quot;inicio: &quot;;
+    concat_seguro(log, sizeof log, &quot;usuario=miguel, acao=login, ok&quot;);
+    puts(log);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ ./bounds
+inicio: usuario=miguel, acao=log</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>TOCTOU (menção)</h2>
+  <p><strong>TOCTOU</strong> (Time-Of-Check To Time-Of-Use) é a classe de bug em que o programa verifica uma condição (ex.: <code>access(caminho, W_OK)</code>), e <em>entre a verificação e o uso</em> o estado muda (ex.: um atacante troca o arquivo por um symlink). Em C, envolve chamadas de sistema atômicas (<code>open</code> com flags corretas) em vez de checar e depois abrir. Lembre-se apenas do nome e do padrão por enquanto — você vai reconhecê-lo na vida real quando vir "chequei, depois usei, sem atomicidade".</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Compilação defensiva: flags que ajudam</h2>
+  <p>O gcc tem proteções que o programador liga <strong>uma vez, na build</strong>. Custo do desenvolvimento no estudo: zero. Em produção: mitigações reais.</p>
+  <ul><li><code>-fstack-protector-all</code> — injeta <em>canários de pilha</em> (valor aleatório perto do return address); se o overflow destruir o canário, o programa aborta automaticamente.</li>
+<li><code>-D_FORTIFY_SOURCE=2</code> — enriquece funções conhecidas (strcpy, sprintf, memcpy) com checagens de tamanho EM TEMPO DE EXECUÇÃO quando o compilador conhece o tamanho do alvo; precisa ser combinado com <code>-O1</code> ou superior.</li>
+<li><code>-Wformat -Wformat-security -Werror=format-security</code> — transforma em <em>erro</em> o uso de format string com entrada do usuário (o bug do módulo 07).</li>
+<li><code>-fno-stack-protector</code> — é a flag de <strong>desativação</strong>; NÃO a use em código real. Só nos módulos de exploração didática (05-07).</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — flags defensivas</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c"># build defensiva recomendada para o codigo REAL (Linux e/ou MinGW):
+gcc -O2 -Wall -Wextra -Wformat -Wformat-security -Werror=format-security     -fstack-protector-all -D_FORTIFY_SOURCE=2 -o app app.c</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Sanitizers (runtime) e valgrind</h2>
+  <p>A compilação defensiva evita, mas o <strong>sanitizer</strong> flagra. O ASan (Address Sanitizer) reescreve seu programa para detectar overflow/use-after-free em tempo de execução; o UBSan faz o mesmo para comportamento indefinido (unsigned wrap está fora, mas nan/invalid, overflow signed etc. entram). Valgrind simula a CPU e caça vazamentos e acessos inválidos sem recompilar.</p>
+  <ul><li><strong>ASan:</strong> <code>gcc -fsanitize=address -g demo.c -o demo</code>. Precisa do <code>libasan</code> — no Ubuntu, instalado junto com o gcc; no MinGW do Windows <em>não está disponível</em>. Use WSL. Ao rodar, a primeira escrita fora do buffer para o programa com um relatório detalhado.</li>
+<li><strong>UBSan:</strong> <code>gcc -fsanitize=undefined -g demo.c -o demo</code>. Acusa divisão por zero, estouro de int com sinal, etc.</li>
+<li><strong>Valgrind:</strong> <code>valgrind --leak-check=full ./demo</code>. Roda o binário normal sem recompilar; reporta leaks e <em>invalid read/write</em>. Mais lento que ASan, mas não exige flags novas.</li>
+<li>No CI (integração contínua) de um projeto real, compile SEMPRE com um sanitizer em uma das jobs — é o teste de regressão de memória mais barato que existe.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — asan ubasan e valgrind</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c"># observando um overflow com ASan (Linux/WSL; precisa do libasan)
+gcc -Wall -g -fsanitize=address copia_perigosa.c -o copia_perigosa_asan
+./copia_perigosa_asan</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>==14725==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7fff...
+    #0 0x... in main copia_perigosa.c:11
+  ...
+  The signal is caused by a WRITE memory access.
+  SUMMARY: AddressSanitizer: stack-buffer-overflow ...</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Como se defender</h2>
+  
+  <ul><li>Nunca use <code>gets</code>, <code>strcpy</code>, <code>strcat</code>, <code>sprintf</code> ou <code>scanf("%s", …)</code> sem limite — use <code>fgets</code> e <code>snprintf</code>, ou suas próprias funções com tamanho do destino.</li>
+<li>Todo buffer recebe <strong>tamanho de alvo</strong> nas funções que você escrever; um <code>char *buf</code> sem <code>size_t n</code> ao lado é um bilhete de estouro.</li>
+<li>Trate toda entrada como hostil: tamanho baseado em <code>sizeof</code>/parâmetro, nunca em um comprimento declarado pelo remetente.</li>
+<li>Compile com o combo defensivo (<code>-fstack-protector-all -D_FORTIFY_SOURCE=2 -Wformat-security -Werror=format-security</code>).</li>
+<li>Rode ASan (WSL) ou valgrind em testes; ambos transformam "estourou silenciosamente" em "parou com endereço e pilha de chamadas".</li>
+<li>Lide com o return value das chamadas de I/O (<code>NULL</code> do <code>fgets</code>) — entrada truncada ainda é entrada válida.</li>
+<li>Empacote as regras no seu time: code review tem checklist mínimo (procure gets/strcpy/sprintf na busca de texto do repositório).</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t4-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.02.1</p>
+  <p class="enunciado">Escreva <code>login.c</code> que pergunta uma senha com <code>fgets</code> num buffer de 16 bytes e imprime quantos caracteres foram digitados (com <code>strlen</code>) e se a senha está totalmente contida no buffer <em>hint: compare strlen com o espaço disponível</em>. Depois teste digitando uma linha de 40 caracteres: o programa NÃO deve estourar e deve imprimir o tamanho truncado.</p>
+  <p class="dica"><strong>Dica:</strong> Use <code>fgets(pass, sizeof pass, stdin)</code>; depois remova o <code>\n</code> com <code>pass[strcspn(pass, "\n")] = 0</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char pass[16];
+    printf(&quot;Senha: &quot;);
+    if (fgets(pass, sizeof pass, stdin) == NULL) return 1;
+    pass[strcspn(pass, &quot;\n&quot;)] = '\0';
+    printf(&quot;Recebi %zu caracteres\n&quot;, strlen(pass));
+    if (strlen(pass) &gt;= sizeof pass) {
+        printf(&quot;Atencao: entrada truncada\n&quot;);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Com 40 caracteres, <code>fgets</code> guarda apenas os primeiros 15 + NUL; <code>strlen</code> retorna 15 e o aviso dispara.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t4-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.02.2</p>
+  <p class="enunciado">Crie <code>concat.c</code> com uma função <code>concat_seguro</code> (como na seção de bounds) e monte a mensagem "erro na linha 7" a partir de duas strings, garantindo que nunca estoure um buffer de 20 bytes. Mostre com uma entrada longa que o resultado é truncado, não corrompido.</p>
+  <p class="dica"><strong>Dica:</strong> Use <code>snprintf(dest, n, "%s%s", a, b)</code> — mais simples e sempre termina com NUL.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    char msg[20];
+    const char *pre = &quot;erro na linha &quot;;
+    snprintf(msg, sizeof msg, &quot;%s%s&quot;, pre, &quot;7&quot;);
+    puts(msg);
+
+    /* entrada hostil longa: truncada, nunca estoura */
+    snprintf(msg, sizeof msg, &quot;%s%s&quot;,
+             pre, &quot;123456789012345678901234567890&quot;);
+    puts(msg);
+    return 0;
+}</code></pre>
+        <p class="obs">Note que <code>snprintf</code> retorna o tamanho que <em>seria</em> escrito — útil para detectar truncamento (float no buffer).</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t4-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.02.3</p>
+  <p class="enunciado">Compile <code>copia_perigosa.c</code> com <code>-fsanitize=address</code> no WSL e rode. Leia o relatório do ASan: identifique a linha do estouro e o endereço. Depois recompile a versão segura e confirme que o ASan fica quieto.</p>
+  <p class="dica"><strong>Dica:</strong> Procure no relatório o texto "stack-buffer-overflow" e a linha com <code>copia_perigosa.c:N</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ gcc -Wall -g -fsanitize=address copia_perigosa.c -o copia_perigosa_asan
+$ ./copia_perigosa_asan
+==14725==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x...
+    #0 0x... in main copia_perigosa.c:11
+SUMMARY: AddressSanitizer: stack-buffer-overflow</code></pre>
+        <p class="obs">Para a mesma detecção sem recompilar, rode <code>valgrind ./copia_perigosa</code> — ele acusa "Invalid write of size N".</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual a maneira correta de ler uma string com limite em C?&quot;,&quot;opcoes&quot;:[&quot;fgets(nome, sizeof nome, stdin)&quot;,&quot;scanf(\&quot;%s\&quot;, nome)&quot;,&quot;gets(nome)&quot;,&quot;strcpy(nome, stdin)&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;fgets recebe o tamanho do buffer e grava o NUL; scanf \&quot;%s\&quot; e gets não têm limite.&quot;},{&quot;pergunta&quot;:&quot;O que a flag -fstack-protector-all faz?&quot;,&quot;opcoes&quot;:[&quot;Adiciona um canário de pilha que aborta o programa se o overflow destruí-lo&quot;,&quot;Impede qualquer warning do compilador&quot;,&quot;Remove a pilha da memória&quot;,&quot;Impede o uso de ponteiros&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O canário é um valor aleatório colocado antes do return address; corrompê-lo (overflow) é detectado e o processo aborta.&quot;},{&quot;pergunta&quot;:&quot;Por que strncpy(dest, src, n) sozinho não é considerado seguro?&quot;,&quot;opcoes&quot;:[&quot;Porque ele não garante o &#39;\\0&#39; final se src for maior ou igual a n&quot;,&quot;Porque ele é mais lento que strcpy&quot;,&quot;Porque ele limita demais o destino&quot;,&quot;Porque ele só funciona em arquivos&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;strncpy não termina a string quando o tamanho de src &gt;= n; o padrão é usar n-1 e forçar dest[n-1] = 0.&quot;},{&quot;pergunta&quot;:&quot;O que é TOCTOU?&quot;,&quot;opcoes&quot;:[&quot;Uma classe de bug que ocorre quando o estado muda entre a verificação e o uso (check-to-use não atômico)&quot;,&quot;Um tipo de buffer na pilha&quot;,&quot;Um protocolo de rede seguro&quot;,&quot;Um compilador alternativo&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;TOCTOU = Time-Of-Check To Time-Of-Use: verificou, e depois o mundo mudou antes do uso.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Mini-biblioteca strsafe</h2>
+  <p>Escreva <code>strsafe.h/.c</code> com três funções defensivas: (1) <code>strs_copiar(dest, n, src)</code>, (2) <code>strs_anexar(dest, n, src)</code> e (3) <code>strs_escrever(dest, n, fmt, …)</code> (wrapper de vsnprintf). Todas garantem NUL final e retornam <code>-1</code> em truncamento (com errno = ENAMETOOLONG se quiser sofisticar). Depois escreva um teste main que tenta estourar cada função com entradas de 10x o tamanho do buffer e comprove: nada estoura, tudo termina em 0. Compile o projeto com as flags defensivas da seção.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>As três funções aceitam (destino, tamanho, fonte/args) — o tamanho do alvo é sempre explícito.</li><li>Nenhuma função usa gets/strcpy/strcat/sprintf sem limite.</li><li>Compila com o combo defensivo sem warnings: <code>gcc -Wall -Wextra -Wformat-security -Werror=format-security -fstack-protector-all</code>.</li><li>O teste com entradas gigantes não gera nenhum estouro (ASan silencioso no WSL ou valgrind limpo).</li><li>Cada função retorna uma indicação (0 ok / -1 truncou).</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="visao-do-atacante-defensor-e-montagem-do-laboratorio.html">← 4.01 Visão do atacante × defensor e montagem do laboratório</a><a class="btn nav-next" href="anatomia-da-memoria-de-um-processo.html">4.03 Anatomia da memória de um processo →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t4-m02">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

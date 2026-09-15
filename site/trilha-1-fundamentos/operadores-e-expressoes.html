@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.04 — Operadores e expressões — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="1">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t1">Trilha 1 — Fundamentos</a> / Operadores e expressões</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">1.04</div>
+    <h1>Operadores e expressões</h1>
+    <p class="subtitulo">aritmética, precedência, atribuições compostas e lógica</p>
+    <div class="chips">
+      <span class="chip">Nível: Iniciante</span>
+      <span class="chip">Duração: ~40 min</span>
+      <span class="chip">Pré-requisitos: T1.03</span>
+    </div>
+    <button class="btn btn-done" data-mod="t1-m04">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Dominar a aritmética de C (inclusive a diferença entre divisão inteira e real), a prioridade entre operadores, as atribuições compostas, o incremento/decremento e os operadores relacionais e lógicos com seu curto-circuito.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Seção 3.2 — operadores e expressões</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 4 — Expressões</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, capítulo 4 é ouro: leia com muita atenção as seções sobre divisão inteira, operadores de incremento e a tabela de precedência. No Beej, a seção de operadores do tutorial serve como resumo rápido.</p>
+</section>
+  <section class="card secao">
+  <h2>Aritmética: + - * / %</h2>
+  <p>Os cinco operadores aritméticos do C são <code>+ - * / %</code>. O último, <code>%</code>, é o <strong>resto da divisão inteira</strong> (também chamado de módulo): <code>7 % 3</code> vale <code>1</code>, porque 7 dividido por 3 dá 2 com resto 1.</p>
+<p>A divisão merece destaque: com dois inteiros, <code>/</code> faz <strong>divisão inteira</strong> e trunca o resultado (<code>7 / 2</code> vale <code>3</code>). Se pelo menos um dos operandos for de ponto flutuante, a divisão é real (<code>7.0 / 2</code> vale <code>3.5</code>).</p>
+<p>Com números negativos, <code>%</code> em C acompanha o sinal do dividendo: <code>-7 % 3</code> vale <code>-1</code> e <code>7 % -3</code> vale <code>1</code>.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Precedência e associatividade</h2>
+  <p>A <strong>precedência</strong> decide quem opera primeiro quando a expressão mistura operadores (<code>2 + 3 * 4</code> é 14, não 20). A <strong>associatividade</strong> decide a ordem entre operadores do mesmo nível (todos da esquerda para a direita no caso de <code>* / %</code> e <code>+ -</code>).</p>
+  <ul><li><code>()</code> — parênteses: sempre primeiro, use sem medo.</li>
+<li><code>++ --</code> — incremento/decremento (pós/pré).</li>
+<li><code>* / %</code> — multiplicativos (esquerda → direita).</li>
+<li><code>+ -</code> — aditivos (esquerda → direita).</li>
+<li><code>&lt; &lt;= &gt; &gt;=</code>, depois <code>== !=</code> — relacionais (comparação).</li>
+<li><code>&amp;&amp;</code>, depois <code>||</code> — lógicos (vêm ainda nesta trilha).</li>
+<li>Regra de ouro: quando houver dúvida, use parênteses — legibilidade conta mais que "saber de cor".</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Atribuição composta</h2>
+  <p>C permite atalhos para "mude a variável usando ela mesma": <code>x += 5</code> é o mesmo que <code>x = x + 5</code>. Isso vale para <code>+= -= *= /= %=</code>. É do jeito que o código "real" em C costuma ser escrito.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — operadores combinados</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int saldo = 500;
+
+    saldo += 150;
+    printf(&quot;apos deposito: %d\n&quot;, saldo);
+
+    saldo -= 80;
+    printf(&quot;apos saque: %d\n&quot;, saldo);
+
+    saldo *= 2;
+    printf(&quot;apos dobrar: %d\n&quot;, saldo);
+
+    saldo /= 3;
+    printf(&quot;apos dividir: %d\n&quot;, saldo);
+
+    saldo %= 100;
+    printf(&quot;resto por 100: %d\n&quot;, saldo);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>apos deposito: 650
+apos saque: 570
+apos dobrar: 1140
+apos dividir: 380
+resto por 100: 80</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Incremento e decremento: ++ e --</h2>
+  <p><code>x++</code> soma 1 a <code>x</code>; <code>x--</code> subtrai 1. A diferença entre <strong>pré</strong> e <strong>pós</strong> aparece quando o operador está no meio de uma expressão: no <strong>pós</strong> (<code>x++</code>) a expressão usa o valor <em>antigo</em>; no <strong>pré</strong> (<code>++x</code>) usa o valor <em>novo</em>.</p>
+<p><strong>Atenção (regra de ouro):</strong> não misture incremento com outras operações na mesma expressão — <code>b = a++ + a</code> gera resultado indefinido em C. Use <code>++</code>/<code>--</code> como instrução isolada, ou dentro de <code>for</code> (módulo 06), e pronto.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Relacionais e lógicos: verdade como número</h2>
+  <p>Operadores relacionais — <code>== != &lt; &lt;= &gt; &gt;=</code> — retornam <code>1</code> (verdadeiro) ou <code>0</code> (falso). C não tem tipo booleano obrigatório: <em>qualquer valor diferente de zero é "verdadeiro"</em>, e o zero é "falso".</p>
+<p>Os lógicos <code>&amp;&amp;</code> (e), <code>||</code> (ou) e <code>!</code> (não) seguem a mesma lógica, e ainda têm um comportamento especial de <strong>curto-circuito</strong>: no <code>&amp;&amp;</code>, se a primeira parte for falsa, a segunda nem é avaliada; no <code>||</code>, se a primeira for verdadeira, a segunda é pulada. Isso será útil (e perigoso) adiante.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — lógica</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int x = 5;
+
+    printf(&quot;x &gt; 3 (1 para sim): %d\n&quot;, x &gt; 3);
+    printf(&quot;(x &gt; 3) &amp;&amp; (x &lt; 10): %d\n&quot;, x &gt; 3 &amp;&amp; x &lt; 10);
+    printf(&quot;(x &lt; 3) || (x == 5): %d\n&quot;, x &lt; 3 || x == 5);
+    printf(&quot;!(x &gt; 3): %d\n&quot;, !(x &gt; 3));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>x &gt; 3 (1 para sim): 1
+(x &gt; 3) &amp;&amp; (x &lt; 10): 1
+(x &lt; 3) || (x == 5): 1
+!(x &gt; 3): 0</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Programa: segundos em horas, minutos e segundos</h2>
+  <p>Um uso clássico de <code>/</code> e <code>%</code>: decompor um total de segundos em horas, minutos e segundos.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — segundos.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int total = 7543;
+    int horas, minutos, segundos;
+
+    horas = total / 3600;
+    minutos = (total % 3600) / 60;
+    segundos = total % 60;
+
+    printf(&quot;%d segundos = %dh %dm %ds\n&quot;, total, horas, minutos, segundos);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>7543 segundos = 2h 5m 43s</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Programa: juros compostos passo a passo</h2>
+  <p>Aqui as atribuições compostas trabalham juntas: a cada ano o montante recebe mais 10% dele mesmo.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — juros.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double montante = 1000.0;
+    double taxa = 10.0;   /* % ao ano */
+    int anos = 3;
+
+    montante += montante * taxa / 100.0;  /* ano 1 */
+    montante += montante * taxa / 100.0;  /* ano 2 */
+    montante += montante * taxa / 100.0;  /* ano 3 */
+
+    printf(&quot;apos %d anos: R$ %.2f\n&quot;, anos, montante);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>apos 3 anos: R$ 1331.00</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t1-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.04.1</p>
+  <p class="enunciado">Leia um número inteiro de três algarismos (ex.: 287) e imprima os algarismos da unidade, dezena e centena separadamente.</p>
+  <p class="dica"><strong>Dica:</strong> unidade = n % 10; dezena = (n / 10) % 10; centena = n / 100.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n, u, d, c;
+
+    printf(&quot;Digite um numero de 3 algarismos: &quot;);
+    scanf(&quot;%d&quot;, &amp;n);
+
+    u = n % 10;
+    d = (n / 10) % 10;
+    c = n / 100;
+
+    printf(&quot;unidade: %d\n&quot;, u);
+    printf(&quot;dezena: %d\n&quot;, d);
+    printf(&quot;centena: %d\n&quot;, c);
+    return 0;
+}</code></pre>
+        <p class="obs">Para 287: unidade 7, dezena 8, centena 2.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t1-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.04.2</p>
+  <p class="enunciado">Leia dois inteiros e imprima o quociente e o resto da divisão inteira, além do resultado da divisão real usando uma conversão.</p>
+  <p class="dica"><strong>Dica:</strong> Para a divisão real, escreva <code>(double) a / b</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int a, b;
+
+    printf(&quot;Digite dois inteiros: &quot;);
+    scanf(&quot;%d %d&quot;, &amp;a, &amp;b);
+
+    printf(&quot;%d / %d = %d (quociente)\n&quot;, a, b, a / b);
+    printf(&quot;%d %% %d = %d (resto)\n&quot;, a, b, a % b);
+    printf(&quot;%d / %d = %.2f (divisao real)\n&quot;, a, b, (double) a / b);
+    return 0;
+}</code></pre>
+        <p class="obs">Repare no <code>%%</code> para imprimir um símbolo de porcentagem na frente.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t1-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.04.3</p>
+  <p class="enunciado">Sem rodar, calcule no papel o valor de <code>x</code> após <code>int x = 3; x *= 2; x += 4; x -= x % 5;</code>. Depois confirme com um programa.</p>
+  <p class="dica"><strong>Dica:</strong> x % 5 avalia com o x daquele momento. Use o programa para conferir cada passo.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int x = 3;
+
+    x *= 2;
+    printf(&quot;passo 1: %d\n&quot;, x);
+    x += 4;
+    printf(&quot;passo 2: %d\n&quot;, x);
+    x -= x % 5;
+    printf(&quot;passo 3: %d\n&quot;, x);
+    return 0;
+}</code></pre>
+        <p class="obs">Passos: 6, depois 10, depois 10 - (10 % 5) = 10 - 0 = 10. Atenção: o módulo usa o valor atual de x.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t1-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.04.4</p>
+  <p class="enunciado">Leia duas notas (double) e imprima a média ponderada com pesos 2 e 3 — mas desta vez declare uma variável <code>peso1</code> e <code>peso2</code> e escreva a conta com parênteses em toda parte, mesmo onde não precisa.</p>
+  <p class="dica"><strong>Dica:</strong> Use <code>(n1 * peso1 + n2 * peso2) / (peso1 + peso2)</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double n1 = 6.5;
+    double n2 = 8.0;
+    double peso1 = 2.0;
+    double peso2 = 3.0;
+    double media = (n1 * peso1 + n2 * peso2) / (peso1 + peso2);
+
+    printf(&quot;media ponderada: %.2f\n&quot;, media);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t1-m04">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.04.5</p>
+  <p class="enunciado">Escreva um programa que demonstra o curto-circuito: faça uma condição <code>(0 && funcaoPegaLado())</code> onde a função segunda teria um efeito (imprime um "aviso"), e mostre que com o && o aviso NÃO é impresso. Depois troque para <code>||</code> e veja o aviso.</p>
+  <p class="dica"><strong>Dica:</strong> funcao que imprime e retorna 1: o retorno precisa existir para a expressão compilar.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int aviso(void)
+{
+    printf(&quot;  [efeito colateral executado]\n&quot;);
+    return 1;
+}
+
+int main(void)
+{
+    int a = 0;
+
+    printf(&quot;Caso 1: (0 &amp;&amp; aviso())\n&quot;);
+    if (a &amp;&amp; aviso()) {
+        printf(&quot;  entrou no if\n&quot;);
+    }
+
+    printf(&quot;Caso 2: a || aviso()\n&quot;);
+    if (a || aviso()) {
+        printf(&quot;  entrou no if\n&quot;);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">No caso 1, o && é o primeiro operando falso, então aviso() nem roda. No caso 2, o || tem o primeiro operando falso, então aviso() roda para decidir.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Quanto vale &lt;code&gt;17 % 5&lt;/code&gt; em C?&quot;,&quot;opcoes&quot;:[&quot;2&quot;,&quot;3&quot;,&quot;3.4&quot;,&quot;17&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;17 dividido por 5 dá 3 com resto 2; % retorna o resto.&quot;},{&quot;pergunta&quot;:&quot;O que imprime &lt;code&gt;printf(\&quot;%d\&quot;, 7 / 2)&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;3&quot;,&quot;3.5&quot;,&quot;2&quot;,&quot;4&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Dois inteiros fazem divisão inteira com truncamento: 7/2 = 3.&quot;},{&quot;pergunta&quot;:&quot;Qual o valor de &lt;code&gt;2 + 3 * 4&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;20&quot;,&quot;14&quot;,&quot;24&quot;,&quot;18&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;A multiplicação precede a adição: 2 + 12 = 14.&quot;},{&quot;pergunta&quot;:&quot;&lt;code&gt;x += 3&lt;/code&gt; é equivalente a:&quot;,&quot;opcoes&quot;:[&quot;x = x + 3&quot;,&quot;x = 3&quot;,&quot;x++ 3&quot;,&quot;3 + = x&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;A atribuição composta soma 3 ao valor atual de x.&quot;},{&quot;pergunta&quot;:&quot;No curto-circuito de &lt;code&gt;0 &amp;&amp; funcao()&lt;/code&gt;:&quot;,&quot;opcoes&quot;:[&quot;funcao() não é chamada, pois o &amp;&amp; já sabe que o resultado é falso&quot;,&quot;funcao() é sempre chamada antes do &amp;&amp;&quot;,&quot;o programa para de executar&quot;,&quot;o resultado é um erro de compilação&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Se a primeira parte do &amp;&amp; é falsa, o resultado já é falso — a segunda parte é pulada.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Um &quot;relógio&quot; que avança minutos</h2>
+  <p>Crie <code>relogio.c</code>: leia uma hora no formato "HH MM" (ex.: 23 58) e a quantidade de minutos a avançar; calcule a nova hora corretamente (incluindo a virada de 23:59 para 00:00). Use <code>/</code>, <code>%</code>, <code>+=</code> e variáveis intermediárias. Imprima a hora de saída no formato <code>HH:MM</code> com largura fixa (<code>%02d</code>).</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Lê hora, minuto e avanço com scanf.</li><li>Trata a virada do dia: saídas como 23:58 + 5 = 00:03.</li><li>Usa pelo menos um <code>=</code> / <code>%</code> e uma atribuição composta.</li><li>Imprime com <code>%02d:%02d</code> e compila sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="entrada-e-saida-formatada-printf-e-scanf.html">← 1.03 Entrada e saída formatada: printf e scanf</a><a class="btn nav-next" href="selecao-if-else-if-switch.html">1.05 Seleção: if, else if, switch →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t1-m04">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

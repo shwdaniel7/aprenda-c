@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.10 — Escopo, duração e organização — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="1">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t1">Trilha 1 — Fundamentos</a> / Escopo, duração e organização</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">1.10</div>
+    <h1>Escopo, duração e organização</h1>
+    <p class="subtitulo">onde as variáveis vivem e por quanto tempo</p>
+    <div class="chips">
+      <span class="chip">Nível: Iniciante</span>
+      <span class="chip">Duração: ~30 min</span>
+      <span class="chip">Pré-requisitos: T1.09</span>
+    </div>
+    <button class="btn btn-done" data-mod="t1-m10">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Compreender escopo de bloco vs de arquivo, a duração automática vs estática, o papel do static como estado interno de funções, e as boas práticas de organização — incluindo o porquê de evitar variáveis globais e a ideia de múltiplos arquivos.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 13 — escopo e duração</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 10 — Organização de programas</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, capítulo 10 fala de organização e de como dividir um programa em arquivos — leia a parte conceitual mesmo sem compilar 10 arquivos. No Beej, o capítulo sobre escopo tem o vocabulário exato (automatic/static duration, block/file scope).</p>
+</section>
+  <section class="card secao">
+  <h2>Escopo de bloco: a variável que só existe na chave</h2>
+  <p>Tudo o que é declarado dentro de <code>{ }</code> (um bloco) existe apenas dentro dele: é o <strong>escopo de bloco</strong>. Fora do bloco, a variável não é visível — e o mesmo nome pode ser reutilizado em outro bloco. Uma variável declarada dentro da função é "local" à função; um <code>for</code> com a própria variável (<code>int i</code>) é uma das formas preferidas de limitar até onde ela vale.</p>
+<p>Sombreamento: se um bloco interno declara um nome igual ao de um bloco externo, o interno "esconde" o externo (shadowing). É legal, mas confunde — evite.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Escopo de arquivo (globais): fique de olho</h2>
+  <p>Declarar fora de toda função cria uma variável de <strong>escopo de arquivo</strong> (global): visível em todo o arquivo, de qualquer função. Isso pode parecer prático (não precisa passar parâmetro), mas é uma armadilha: qualquer função pode alterar, e o fluxo do programa vira uma sopa. A regra de ouro deste módulo: <strong>use parâmetros e retornos — evite globais</strong>.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — globais</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int total_bruto = 0;   /* global: visivel em todo o arquivo */
+
+void soma_bruto(int valor)
+{
+    total_bruto += valor;
+}
+
+int main(void)
+{
+    soma_bruto(10);
+    soma_bruto(25);
+
+    printf(&quot;total bruto: %d\n&quot;, total_bruto);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>total bruto: 35</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Duração: automática vs estática</h2>
+  <p>Escopo é <em>onde</em> o nome é visível; <strong>duração</strong> é <em>por quanto tempo</em> o espaço existe na memória. são dois conceitos independentes!</p>
+  <ul><li><strong>Automática</strong> (padrão para locais): a variável é criada na entrada do bloco e destruída na saída. Cada chamada de função "recomeça do zero".</li>
+<li><strong>Estática</strong> (<code>static</code> na declaração): o espaço persiste a <em>vida inteira do programa</em>; a variável guarda seu valor entre chamadas, mesmo dentro da função.</li>
+<li>Uma variável local <code>static</code> tem duração estática, mas escopo de bloco (só é acessível dentro). É o melhor dos dois mundos para "lembrar" sem poluir o global.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>static local: o estado que sobrevive</h2>
+  <p>Aqui está o truque clássico: uma variável estática local que conta quantas vezes a função foi chamada. Estática local OU global? Ou ambas — cada uma com seu escopo.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — static</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int proximo_id(void)
+{
+    static int contador = 0;   /* preservado entre chamadas */
+    contador++;
+    return contador;
+}
+
+int main(void)
+{
+    printf(&quot;id: %d\n&quot;, proximo_id());
+    printf(&quot;id: %d\n&quot;, proximo_id());
+    printf(&quot;id: %d\n&quot;, proximo_id());
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>id: 1
+id: 2
+id: 3</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Boas práticas de organização</h2>
+  
+  <ul><li>Declare as variáveis no <strong>menor escopo possível</strong> — perto do uso, dentro do menor bloco que precisa dela.</li>
+<li>Preira parâmetros + retorno a globais: a função fica previsível e testável.</li>
+<li>Dê nomes claros. Uma função deve caber em um sentido (ex.: <code>media</code>, <code>eh_primo</code>).</li>
+<li>Uma função, uma responsabilidade. Se você precisa de comentário "e aqui faz também", divida.</li>
+<li>Use constantes com <code>const</code> para valores que não devem mudar.</li>
+<li>Quando (e somente quando) precisar de estado persistente, prefira <code>static</code> local a global.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Múltiplos arquivos: a ideia em vinte segundos</h2>
+  <p>Programas reais se dividem em vários arquivos: um <code>.c</code> implementa e um <code>.h</code> declara (protótipos + constantes) — assim outras partes <code>#include</code> o <code>.h</code> e usam as funções sem precisar dos detalhes. O gcc compila todos os <code>.c</code> juntos: <code>gcc main.c util.c util.h -o prog</code>. Os mecanismos finos (headers, makefiles, linkagem) ficam para a Trilha 2; aqui você só precisa saber que o padrão existe e qual é o "o quê" de cada arquivo.</p>
+  
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t1-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.10.1</p>
+  <p class="enunciado">Escreva uma função <code>novo_id(void)</code> com uma variável estática que retorna 1, 2, 3... a cada chamada, e um main que chama 5 vezes imprimindo os ids.</p>
+  <p class="dica"><strong>Dica:</strong> Estática local: <code>static int n = 0;</code> e <code>n++</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int novo_id(void)
+{
+    static int n = 0;
+    n++;
+    return n;
+}
+
+int main(void)
+{
+    int i;
+
+    for (i = 1; i &lt;= 5; i++) {
+        printf(&quot;id %d: %d\n&quot;, i, novo_id());
+    }
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t1-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.10.2</p>
+  <p class="enunciado">Preveja a saída do programa abaixo (que tem sombreamento) e depois confirme rodando: uma variável global <code>x = 1</code>, um main que declara <code>x = 2</code> e um bloco interno declara <code>x = 3</code>, imprimindo na ordem.</p>
+  <p class="dica"><strong>Dica:</strong> O nome mais interno "vence" dentro do seu escopo.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int x = 1;   /* global */
+
+int main(void)
+{
+    int x = 2;   /* local de main */
+
+    printf(&quot;1) %d\n&quot;, x);
+
+    {
+        int x = 3;   /* local do bloco interno */
+        printf(&quot;2) %d\n&quot;, x);
+    }
+
+    printf(&quot;3) %d\n&quot;, x);
+    return 0;
+}</code></pre>
+        <p class="obs">Imprime 2, 3, 2: o x interno vale apenas dentro do próprio bloco.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t1-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.10.3</p>
+  <p class="enunciado">Refatore: o código abaixo usa uma global <code>saldo</code>. Reescreva-o sem global, com <code>saldo</code> local em main e funções que recebem/retornam o valor.</p>
+  <p class="dica"><strong>Dica:</strong> Crie <code>int depositar(int saldo, int valor)</code> retornando o novo saldo.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int depositar(int saldo, int valor)
+{
+    return saldo + valor;
+}
+
+int sacar(int saldo, int valor)
+{
+    if (valor &lt;= saldo) {
+        return saldo - valor;
+    }
+    return saldo;
+}
+
+int main(void)
+{
+    int saldo = 100;
+
+    saldo = depositar(saldo, 50);
+    printf(&quot;apos deposito: %d\n&quot;, saldo);
+
+    saldo = sacar(saldo, 130);
+    printf(&quot;apos saque: %d\n&quot;, saldo);
+
+    saldo = sacar(saldo, 130);
+    printf(&quot;apos saque (negado): %d\n&quot;, saldo);
+    return 0;
+}</code></pre>
+        <p class="obs">Nenhuma variável global. O histórico do saldo vive no main e "viaja" pelos parâmetros/retornos. O segundo saque de 130 é recusado porque o saldo (20) não cobre o valor.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t1-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.10.4</p>
+  <p class="enunciado">Crie uma função <code>proxima_par(int n)</code> que, para n par, retorna n e para ímpar retorna n+1 — mas use uma estática local para guardar o último valor devolvido e imprima-o.</p>
+  <p class="dica"><strong>Dica:</strong> A estática guarda o "último retorno"; lembre de usar apenas dentro da função.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int proxima_par(int n)
+{
+    static int ultimo = 0;
+
+    if (n % 2 != 0) {
+        n = n + 1;
+    }
+    ultimo = n;
+    printf(&quot;  (ultimo devolvido: %d)\n&quot;, ultimo);
+    return n;
+}
+
+int main(void)
+{
+    printf(&quot;proxima_par(5): %d\n&quot;, proxima_par(5));
+    printf(&quot;proxima_par(6): %d\n&quot;, proxima_par(6));
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t1-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.10.5</p>
+  <p class="enunciado">Escreva um contador de eventos: uma função <code>registrar(void)</code> que incrementa um total (estático), uma <code>consultar(void)</code> que retorna o total e uma <code>resetar(void)</code> que zera. Um main que registra 3x, consulta, reseta e consulta de novo.</p>
+  <p class="dica"><strong>Dica:</strong> Todas as três precisam enxergar a MESMA variável estática — declare-a em escopo de arquivo mas com <code>static</code> (internal linkage), assim ela não vaza para o resto: <code>static int total;</code> no topo.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+static int total = 0;   /* static de arquivo: visivel so neste .c */
+
+void registrar(void)
+{
+    total++;
+}
+
+int consultar(void)
+{
+    return total;
+}
+
+void resetar(void)
+{
+    total = 0;
+}
+
+int main(void)
+{
+    registrar();
+    registrar();
+    registrar();
+
+    printf(&quot;total: %d\n&quot;, consultar());
+
+    resetar();
+    printf(&quot;apos reset: %d\n&quot;, consultar());
+    return 0;
+}</code></pre>
+        <p class="obs">O static de arquivo dá "privacidade": só este arquivo enxerga a variável — um meio-termo entre global pública e local.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Escopo de bloco significa que a variável:&quot;,&quot;opcoes&quot;:[&quot;só existe dentro das chaves onde foi declarada&quot;,&quot;existe no arquivo inteiro&quot;,&quot;dura a vida toda do programa&quot;,&quot;é visível para todas as funções&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Dentro de { } é local; fora das chaves o nome não existe.&quot;},{&quot;pergunta&quot;:&quot;Uma variável local &lt;code&gt;static&lt;/code&gt;:&quot;,&quot;opcoes&quot;:[&quot;tem duração estática (persiste entre chamadas) mas escopo de bloco (só visível na função)&quot;,&quot;vira global automaticamente&quot;,&quot;não pode ser usada em funções&quot;,&quot;é destruída a cada chamada&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Static local = memória que persiste + nome que não vaza. O melhor dos mundos.&quot;},{&quot;pergunta&quot;:&quot;Por que evitar variáveis globais na maioria dos casos?&quot;,&quot;opcoes&quot;:[&quot;qualquer função pode alterá-las, tornando o fluxo imprevisível&quot;,&quot;elas ocupam memória demais&quot;,&quot;o compilador proíbe&quot;,&quot;elas não se pode ler&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Com globais, a ordem das chamadas muda o estado global; é difícil raciocinar e testar.&quot;},{&quot;pergunta&quot;:&quot;Duração automática significa que a variável:&quot;,&quot;opcoes&quot;:[&quot;é criada na entrada do bloco e destruída na saída&quot;,&quot;dura até o fim do programa&quot;,&quot;é guardada em disco&quot;,&quot;só pode ser lida uma vez&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Locais automáticas \&quot;morrem\&quot; ao sair do bloco — recompartilhadas em cada chamada.&quot;},{&quot;pergunta&quot;:&quot;Num projeto multi-arquivo, o que normalmente fica no arquivo .h?&quot;,&quot;opcoes&quot;:[&quot;protótipos (declarações) e constantes, para os outros incluírem&quot;,&quot;a implementação completa de todas as funções&quot;,&quot;o arquivo com a função main&quot;,&quot;nunca nada&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O .c implementa; o .h declara — os outros arquivos #include o .h e usam as funções.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Painel de estatísticas do jogador</h2>
+  <p>Crie <code>painel.c</code>: um "painel" em que várias funções compartilham estado: <code>ganhar(int pts)</code>, <code>perder(int pts)</code>, <code>consultar_pontos()</code>, <code>consultar_partidas()</code> e <code>resetar()</code>. Use <code>static</code> de arquivo para os contadores, funções pequenas e um menu do-while que lê comandos (g de ganhar, p de perder, c consultar, r resetar, s sair).</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Estado compartilhado via static de arquivo (sem globais não estáticos).</li><li>5+ funções pequenas com responsabilidades únicas.</li><li>Menu do-while com scanf e switch/if.</li><li>Sem avisos com <code>-Wall -Wextra -std=c11</code>.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="funcoes.html">← 1.09 Funções</a><a class="btn nav-next" href="erros-comuns-e-depuracao.html">1.11 Erros comuns e depuração →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t1-m10">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

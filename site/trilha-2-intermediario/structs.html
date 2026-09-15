@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.06 — Structs — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / Structs</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.06</div>
+    <h1>Structs</h1>
+    <p class="subtitulo">agrupando dados: declaração, . e -&gt;, cópia, arrays de structs e padding</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~40 min</span>
+      <span class="chip">Pré-requisitos: T2.01, T2.03 e T2.05</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m06">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Criar tipos de dado compostos com struct, inicializá-los (inclusive designated), acessar campos com . e ->, entender passagem por valor vs por ponteiro, e saber que comparar structs exige comparação campo a campo.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 8 (Structs)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 16 (Structures, Unions, and Enumerations)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, inicialização e acesso a campos, structs como parâmetros/retorno e typed safe. No King, fique atento à discussão de padding/bytes (as regras por trás do sizeof) na seção 16.</p>
+</section>
+  <section class="card secao">
+  <h2>O que é uma struct</h2>
+  <p>Uma <strong>struct</strong> agrupa várias variáveis relacionadas em um único "objeto", que pode ser copiado, passado a funções e armazenado em arrays. A sintaxe declara o <em>molde</em> (tipo) e depois criamos variáveis do tipo.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — pessoa.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+struct Pessoa {
+    char nome[50];
+    int idade;
+    float altura;
+};
+
+int main(void)
+{
+    struct Pessoa p;
+
+    p.idade = 30;
+    p.altura = 1.75f;
+    strcpy(p.nome, &quot;Marina&quot;);
+
+    printf(&quot;nome: %s\n&quot;, p.nome);
+    printf(&quot;idade: %d\n&quot;, p.idade);
+    printf(&quot;altura: %.2f\n&quot;, p.altura);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>nome: Marina
+idade: 30
+altura: 1.75</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Inicializadores e designated</h2>
+  <p>Como arrays, structs podem ser inicializadas por lista <code>{...}</code> na ordem dos campos. C99 adicionou os <em>designated initializers</em>: <code>.campo = valor</code>, que permitem inicializar fora de ordem e deixam o código autoexplicativo.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — inicial.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+struct Pessoa {
+    char nome[50];
+    int idade;
+    float altura;
+};
+
+int main(void)
+{
+    struct Pessoa a = {&quot;Ana&quot;, 25, 1.65f};
+    struct Pessoa b = {.altura = 1.80f, .idade = 33, .nome = &quot;Bruno&quot;};
+
+    printf(&quot;%s, %d anos, %.2f m\n&quot;, a.nome, a.idade, a.altura);
+    printf(&quot;%s, %d anos, %.2f m\n&quot;, b.nome, b.idade, b.altura);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Ana, 25 anos, 1.65 m
+Bruno, 33 anos, 1.80 m</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Passagem por valor vs por ponteiro (-&gt;)</h2>
+  <p>Por padrão, uma struct entra na função <strong>por cópia</strong>: alterar o parâmetro não muda o original. Para modificar o original passamos um ponteiro e usamos o operador <strong><code>-&gt;</code></strong> (que é açúcar para <code>(*p).campo</code>). Structs grandes também são passadas por ponteiro por eficiência.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — passagem.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+struct Pessoa {
+    char nome[50];
+    int idade;
+};
+
+void aniversario_valor(struct Pessoa p)      /* muda a copia */
+{
+    p.idade++;
+}
+
+void aniversario_ponteiro(struct Pessoa *p)  /* muda o original */
+{
+    p-&gt;idade++;
+}
+
+int main(void)
+{
+    struct Pessoa maria = {&quot;Maria&quot;, 20};
+
+    aniversario_valor(maria);
+    printf(&quot;depois de valor:    %d\n&quot;, maria.idade);
+
+    aniversario_ponteiro(&amp;maria);
+    printf(&quot;depois de ponteiro: %d\n&quot;, maria.idade);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>depois de valor:    20
+depois de ponteiro: 21</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Cópia com = e arrays de structs</h2>
+  <p>Structs se copiam inteiras com <code>=</code> (campo a campo, incluindo os arrays internos). E assim como int ou char, structs vivem confortavelmente em arrays — o que permite a "tabela" clássica de cadastro:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — turma.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+struct Aluno {
+    char nome[40];
+    int nota;
+};
+
+int main(void)
+{
+    struct Aluno turma[4] = {
+        {&quot;Ana&quot;, 8},
+        {&quot;Bruno&quot;, 6},
+        {&quot;Carla&quot;, 9},
+        {&quot;Diego&quot;, 7},
+    };
+    int melhor = 0;
+
+    for (int i = 1; i &lt; 4; i++) {
+        if (turma[i].nota &gt; turma[melhor].nota) {
+            melhor = i;
+        }
+    }
+
+    printf(&quot;Melhor nota: %s com %d\n&quot;, turma[melhor].nome, turma[melhor].nota);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Melhor nota: Carla com 9</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Comparar structs é campo a campo; e o padding</h2>
+  <p>Não existe <code>a == b</code> entre structs (dica: por causa do padding!). A arquitetura alinha campos em fronteiras de 4/8 bytes, deixando "buracos" entre eles — comparar os bytes brutos com <code>memcmp</code> compararia lixo. Por isso comparamos campo a campo.</p>
+<p><code>offsetof</code> (de <code>&lt;stddef.h&gt;</code>) mostra onde cada campo mora, e a ordem dos campos muda o tamanho total:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — padding.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stddef.h&gt;
+
+struct Compacto {
+    char a;
+    char b;
+    int c;
+};
+
+struct Folgado {
+    char a;
+    int c;
+    char b;
+};
+
+int main(void)
+{
+    printf(&quot;sizeof(struct Compacto) = %zu\n&quot;, sizeof(struct Compacto));
+    printf(&quot;offsetof a=%zu b=%zu c=%zu\n&quot;,
+           offsetof(struct Compacto, a),
+           offsetof(struct Compacto, b),
+           offsetof(struct Compacto, c));
+
+    printf(&quot;sizeof(struct Folgado) = %zu\n&quot;, sizeof(struct Folgado));
+    printf(&quot;offsetof a=%zu c=%zu b=%zu\n&quot;,
+           offsetof(struct Folgado, a),
+           offsetof(struct Folgado, c),
+           offsetof(struct Folgado, b));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>sizeof(struct Compacto) = 8
+offsetof a=0 b=1 c=4
+sizeof(struct Folgado) = 12
+offsetof a=0 c=4 b=8</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.06.1</p>
+  <p class="enunciado">Declare uma struct <code>Produto</code> com <code>nome[30]</code>, <code>preco</code> (double) e <code>estoque</code> (int). Crie duas variáveis inicializadas por lista e imprima todas as informações. Depois baixe o preço da segunda em 10%.</p>
+  <p class="dica"><strong>Dica:</strong> Acesse com <code>p.preco</code> etc. para modificar um campo, basta atribuir.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+struct Produto {
+    char nome[30];
+    double preco;
+    int estoque;
+};
+
+int main(void)
+{
+    struct Produto a = {&quot;Arroz&quot;, 22.50, 40};
+    struct Produto b = {&quot;Feijao&quot;, 9.90, 15};
+
+    printf(&quot;%s: R$ %.2f (estoque %d)\n&quot;, a.nome, a.preco, a.estoque);
+    printf(&quot;%s: R$ %.2f (estoque %d)\n&quot;, b.nome, b.preco, b.estoque);
+
+    b.preco *= 0.90;   /* desconto de 10%% */
+    printf(&quot;com desconto: %s: R$ %.2f\n&quot;, b.nome, b.preco);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.06.2</p>
+  <p class="enunciado">Escreva a versão por valor e a versão por ponteiro de uma função <code>aplicar_cupom(struct Produto p/struct Produto *p, double desconto)</code> e mostre no main que a versão por valor não altera o original e a por ponteiro altera.</p>
+  <p class="dica"><strong>Dica:</strong> No ponteiro use <code>p-&gt;preco *= (1 - desconto)</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+struct Produto {
+    char nome[30];
+    double preco;
+};
+
+void cupom_valor(struct Produto p, double desconto)
+{
+    p.preco *= 1.0 - desconto;
+}
+
+void cupom_ponteiro(struct Produto *p, double desconto)
+{
+    p-&gt;preco *= 1.0 - desconto;
+}
+
+int main(void)
+{
+    struct Produto camiseta = {&quot;Camiseta&quot;, 50.0};
+
+    cupom_valor(camiseta, 0.20);
+    printf(&quot;apos por valor:   %.2f\n&quot;, camiseta.preco);
+
+    cupom_ponteiro(&amp;camiseta, 0.20);
+    printf(&quot;apos por ponteiro: %.2f\n&quot;, camiseta.preco);
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado: 50.00 (o valor não muda na cópia) e depois 40.00.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.06.3</p>
+  <p class="enunciado">Crie um array de structs <code>Aluno</code> (nome e nota) e escreva uma função <code>buscar(struct Aluno turma[], int n, const char *nome)</code> que devolve o índice do aluno ou -1 se não existir. Teste procurando "Carla" (deve achar) e "Zeca" (não deve).</p>
+  <p class="dica"><strong>Dica:</strong> Compare com <code>strcmp</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+struct Aluno {
+    char nome[40];
+    int nota;
+};
+
+int buscar(struct Aluno turma[], int n, const char *nome)
+{
+    for (int i = 0; i &lt; n; i++) {
+        if (strcmp(turma[i].nome, nome) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int main(void)
+{
+    struct Aluno turma[3] = {
+        {&quot;Ana&quot;, 8},
+        {&quot;Bruno&quot;, 6},
+        {&quot;Carla&quot;, 9},
+    };
+
+    int i = buscar(turma, 3, &quot;Carla&quot;);
+    printf(&quot;Carla no indice %d\n&quot;, i);
+
+    i = buscar(turma, 3, &quot;Zeca&quot;);
+    printf(&quot;Zeca no indice %d\n&quot;, i);
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado: Carla no índice 2 e Zeca no índice -1.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.06.4</p>
+  <p class="enunciado">Crie uma struct <code>Pessoa</code> com um campo <code>nascimento</code> que é outra struct <code>Data</code> (dia, mes, ano). Inicialize com designated (ex.: nascimento .ano = 1999) e imprima no formato dd/mm/aaaa.</p>
+  <p class="dica"><strong>Dica:</strong> Acesso aninhado: <code>p.nascimento.ano</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+struct Data {
+    int dia;
+    int mes;
+    int ano;
+};
+
+struct Pessoa {
+    char nome[40];
+    struct Data nascimento;
+};
+
+int main(void)
+{
+    struct Pessoa ana = {
+        .nome = &quot;Ana&quot;,
+        .nascimento = {.dia = 10, .mes = 3, .ano = 1999},
+    };
+
+    printf(&quot;%s nasceu em %02d/%02d/%04d\n&quot;,
+           ana.nome, ana.nascimento.dia,
+           ana.nascimento.mes, ana.nascimento.ano);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t2-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.06.5</p>
+  <p class="enunciado">Ordene um array de <code>Aluno</code> por nota (decrescente) com bubble sort, comparando <code>nota</code>. Imprima o ranking antes e depois. A ordenação deve ser estável no nome em caso de empate.</p>
+  <p class="dica"><strong>Dica:</strong> Compare vizinhos com <code>if (turma[j].nota &lt; turma[j+1].nota)</code> e troque a struct inteira com uma variável temporária do tipo struct.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+struct Aluno {
+    char nome[40];
+    int nota;
+};
+
+int main(void)
+{
+    struct Aluno turma[5] = {
+        {&quot;Ana&quot;, 8}, {&quot;Bruno&quot;, 6}, {&quot;Carla&quot;, 9},
+        {&quot;Diego&quot;, 7}, {&quot;Elisa&quot;, 8},
+    };
+
+    for (int i = 0; i &lt; 5; i++) {
+        for (int j = 0; j &lt; 4 - i; j++) {
+            if (turma[j].nota &lt; turma[j + 1].nota) {
+                struct Aluno tmp = turma[j];
+                turma[j] = turma[j + 1];
+                turma[j + 1] = tmp;
+            }
+        }
+    }
+
+    printf(&quot;ranking\n&quot;);
+    for (int i = 0; i &lt; 5; i++) {
+        printf(&quot;%d. %s (%d)\n&quot;, i + 1, turma[i].nome, turma[i].nota);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">A struct inteira é copiada na troca (autorizada pelo =). Saída: Carla(9), Ana(8), Elisa(8), Diego(7), Bruno(6).</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que é uma struct em C?&quot;,&quot;opcoes&quot;:[&quot;Uma função que guarda dados&quot;,&quot;Um tipo que agrupa várias variáveis relacionadas&quot;,&quot;Um ponteiro especial&quot;,&quot;Uma biblioteca padrão&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Uma struct define um novo tipo que reúne campos de tipos possivelmente diferentes.&quot;},{&quot;pergunta&quot;:&quot;Qual operador acessa um campo a partir de um ponteiro para struct?&quot;,&quot;opcoes&quot;:[&quot;.&quot;,&quot;-&gt;&quot;,&quot;&gt;&gt;&quot;,&quot;*&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;&lt;code&gt;p-&amp;gt;campo&lt;/code&gt; é açúcar para &lt;code&gt;(*p).campo&lt;/code&gt;.&quot;},{&quot;pergunta&quot;:&quot;Por que não usamos &lt;code&gt;a == b&lt;/code&gt; para comparar structs?&quot;,&quot;opcoes&quot;:[&quot;C não tem esse operador para structs — a comparação é feita campo a campo&quot;,&quot;Porque dá warning lento&quot;,&quot;Porque structs não podem ser comparadas mesmo campo a campo&quot;,&quot;Porque o operador é &lt;&gt; &quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O C não define == para structs. Comparamos campo a campo (o padding tornaria memcmp enganoso).&quot;},{&quot;pergunta&quot;:&quot;Passar uma struct por valor a uma função...&quot;,&quot;opcoes&quot;:[&quot;modifica o original automaticamente&quot;,&quot;copia a struct; alterações não refletem fora&quot;,&quot;gera erro de compilação&quot;,&quot;é obrigatório para structs pequenas&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Parâmetros por valor são cópias; para alterar o original, passe um ponteiro.&quot;},{&quot;pergunta&quot;:&quot;O que é padding em uma struct?&quot;,&quot;opcoes&quot;:[&quot;Um método de compactação automático&quot;,&quot;Bytes de alinhamento inseridos entre campos&quot;,&quot;a soma dos campos&quot;,&quot;o equivalente ao &#39;\\0&#39; de strings&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;A arquitetura alinha os campos; o compilador insere bytes \&quot;buracos\&quot;, o que afeta o sizeof.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Cadastro de alunos</h2>
+  <p>Construa um mini-cadastro com struct <code>Aluno</code> (nome, nota1, nota2, media) e um array fixo de até 30 alunos. O programa apresenta um menu: (1) incluir aluno (lê nome e notas, calcula média), (2) listar, (3) buscar por nome, (4) melhor e pior média, (5) encerrar. Reuse funções com ponteiros e arrays de structs dos módulos anteriores.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Menu funcionando com switch e enum (T2.07 já à frente — pode usar int por enquanto).</li><li>Cálculo de média armazenado no próprio struct.</li><li>Busca por nome retornando "não encontrado" quando não existir.</li><li>Nenhum buffer estourado (fgets + limites).</li><li>Compila com -Wall -Wextra sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="alocacao-dinamica-de-memoria.html">← 2.05 Alocação dinâmica de memória</a><a class="btn nav-next" href="typedef-enum-e-union.html">2.07 typedef, enum e union →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m06">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

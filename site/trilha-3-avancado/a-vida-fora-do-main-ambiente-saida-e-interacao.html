@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3.11 — A vida fora do main: ambiente, saída e interação — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="3">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t3">Trilha 3 — Avançado</a> / A vida fora do main: ambiente, saída e interação</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">3.11</div>
+    <h1>A vida fora do main: ambiente, saída e interação</h1>
+    <p class="subtitulo">argv/argc, variáveis de ambiente, stdin/stdout/stderr e códigos de saída: a interface invisível entre o seu programa e o resto do sistema.</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: Conhecer funções e passagem de argumentos (T1.12). Saber trabalhar com vários arquivos (T2.09). Tratar erros com elegância (T3.01).</span>
+    </div>
+    <button class="btn btn-done" data-mod="t3-m11">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Entender o contrato que todo programa C tem com o sistema operacional: parâmetros da linha de comando (argc/argv), variáveis de ambiente (getenv), os três fluxos padrão (stdin/out/err), buffers e códigos de saída — e como montar pequenas ferramentas de linha de comando que participam de pipes e redirecionamentos como os utilitários UNIX clássicos (grep, cat, head, wc).</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Beej cap. &quot;The Outside Environment&quot; (cap. 18): main(), return code, argc/argv, getenv.</p>
+  <p><strong>King (livro em PDF):</strong> King cap. 13 (strings, ainda útil para strcmp em argv) e cap. 22.</p>
+  <p class="foco"><strong>Foco da leitura:</strong> Foque em argc/argv (ler argumentos com loops sobre argv), getenv (variáveis de ambiente) e a sintaxe de redirect/pipes para testar.</p>
+</section>
+  <section class="card secao">
+  <h2>argv/argc: os parâmetros da linha de comando</h2>
+  <p>Todo programa C recebe do sistema operacional a linha de comando que o chamou: <code>argc</code> conta quantos itens (strings) vieram e <code>argv</code> é um vetor de strings com elas. <code>argv[0]</code> é o próprio nome/caminho do programa; <code>argv[1]</code> em diante são os argumentos do usuário.</p>
+<p>É com esse vetor que ferramentas como <code>head</code>, <code>wc</code> e o seu próprio utilitário decidem o que fazer. No exemplo, imprimimos a contagem e todos os argumentos — incluindo o caminho completo do executável no Windows.</p>
+<p>Duas escolhas de design importantes: (a) nunca assuma que o usuário passou o argumento que você espera — valide <code>argc</code>; (b) para opções curtas (-v, -n 5), compare com <code>strcmp</code>.</p>
+  <ul><li><code>argc</code> — quantidade de strings em <code>argv</code> (≥ 1).</li>
+<li><code>argv[0]</code> — nome/caminho do programa; <code>argv[argc]</code> é sempre NULL.</li>
+<li>Argumentos são sempre strings: números precisam de <code>atoi()</code>/<code>strtol()</code>.</li>
+<li>Valide <code>argc</code> antes de usar <code>argv[1]</code> em diante.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1101</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(int argc, char *argv[]) {
+    printf(&quot;argc = %d\n&quot;, argc);
+    for (int i = 0; i &lt; argc; i++) {
+        printf(&quot;argv[%d] = %s\n&quot;, i, argv[i]);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .argv-info.exe um dois tres
+&gt; argv[1] = um
+&gt; argv[2] = dois
+&gt; argv[3] = tres</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O ambiente: getenv() e as variáveis de ambiente</h2>
+  <p>Além da linha de comando, o sistema entrega ao processo um <strong>ambiente</strong>: um conjunto de pares chave=valor que configura a execução (PATH, USER, COMPUTERNAME, HOME...). Em C, <code>getenv(nome)</code> devolve a string do valor ou NULL se não existir.</p>
+<p>É por isso que programas leem configuração sem pedir nada ao usuário: você pode usar o <code>getenv</code> para obter um diretório de logs, um nível de verbosidade, uma flag de debug. No Windows, <code>USERNAME</code> e <code>COMPUTERNAME</code> costumam existir; <code>HOME</code> costuma não ser definido.</p>
+<p>O retorno NULL de <code>getenv</code> é seu amigo: sempre trate. Nunca imprima o ponteiro direto sem checar, senão a função imprime "(null)" (indefinido).</p>
+  <ul><li><code>getenv("NOME")</code> — devolve o valor (string) ou NULL.</li>
+<li>Variáveis comuns no Windows: USERNAME, COMPUTERNAME, PATH.</li>
+<li>Sempre teste o retorno antes de usar (evita impressão de NULL).</li>
+<li>Outra via: o parâmetro <code>envp[]</code> de main — fornecido sem garantia no padrão.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1102</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(void) {
+    const char *user = getenv(&quot;USERNAME&quot;);
+    const char *comp = getenv(&quot;COMPUTERNAME&quot;);
+    const char *path = getenv(&quot;PATH&quot;);
+
+    printf(&quot;USERNAME     = %s\n&quot;, user ? user : &quot;(nao definido)&quot;);
+    printf(&quot;COMPUTERNAME = %s\n&quot;, comp ? comp : &quot;(nao definido)&quot;);
+    printf(&quot;PATH (ini)   = %s\n&quot;, path ? path : &quot;(nao definido)&quot;);
+
+    const char *x = getenv(&quot;VARIAVEL_INEXISTENTE&quot;);
+    printf(&quot;VARIAVEL_INEXISTENTE = %s\n&quot;, x ? x : &quot;(nao definido)&quot;);
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .getenv.exe
+&gt; USERNAME     = daniel
+&gt; COMPUTERNAME = DESKTOP-6VGRE8J
+&gt; PATH (ini)   = C:\Users\daniel\AppData\Local\Programs\...\bin;... (trecho)
+&gt; VARIAVEL_INEXISTENTE = (nao definido)
+&gt; 
+&gt; (Os valores refletem o ambiente da máquina onde o programa roda.)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>stdin, stdout e stderr: os três fluxos padrão</h2>
+  <p>Qualquer processo em um sistema moderno herda três fluxos de I/O pré-abertos: <code>stdin</code> (entrada), <code>stdout</code> (saída normal) e <code>stderr</code> (mensagens de erro/diagnóstico). O sistema operacional não os distingue por destino — quem decide é quem invoca o processo, via redirecionamento.</p>
+<p>A distinção entre stdout e stderr não é cosmética: ela existe para que, num pipe (<code>progA | progB</code>), apenas a saída de dados flua para o pipe, enquanto erros podem ir para o terminal, para um arquivo (2&gt;) ou sumir (2&gt;NUL).</p>
+<p>No exemplo, escrevemos em stdout os dados e em stderr o diagnóstico começando com "iniciando". Redirecionando apenas o stdout, o diagnóstico ainda aparece — foi para o stderr.</p>
+  <ul><li>Três fluxos pré-abertos: stdin, stdout, stderr (já declarados em &lt;stdio.h&gt;).</li>
+<li><code>printf</code> = stdout; <code>fprintf(stderr, ...)</code> = diagnóstico.</li>
+<li>Pipe: captura só o stdout do produtor; stderr segue para o terminal, salvo redireção.</li>
+<li>No Windows: <code>prog 1&gt;saida.txt 2&gt;erros.txt</code> e <code>prog | filtro</code>.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1103</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    fprintf(stderr, &quot;iniciando processamento\n&quot;);
+
+    int linhas = 0;
+    char buf[256];
+    while (fgets(buf, sizeof buf, stdin)) {
+        printf(&quot;%s&quot;, buf);
+        linhas++;
+    }
+
+    fprintf(stderr, &quot;linhas processadas: %d\n&quot;, linhas);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; (echo primeira linha; echo segunda linha; echo terceira linha; echo quarta linha) | .iltro.exe 2&gt; saida.txt
+&gt; [stderr] iniciando processamento
+&gt; [stderr] linhas processadas: 4
+&gt; [stdout, no arquivo saida.txt]
+&gt; primeira linha
+&gt; segunda linha
+&gt; terceira linha
+&gt; quarta linha</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Códigos de saída: a linguagem do sucesso</h2>
+  <p>Quando um programa termina, ele devolve ao shell um <strong>código de saída</strong>: 0 para sucesso, qualquer outro valor para falha (por convenção, 1 para erro genérico). O Windows olha isso em <code>$LASTEXITCODE</code> no PowerShell, e scripts usam esse número para decidir se continuam.</p>
+<p>Você controla o código de três formas: pelo <code>return</code> da main, por <code>exit(codigo)</code> (que funciona de qualquer ponto, inclusive dentro de funções) e por <code>_Exit(codigo)</code>. A diferença prática: <code>exit</code> roda os <code>atexit</code> e "flushes" a saída; <code>_Exit</code> pula tudo.</p>
+<p>O programa de exemplo testa as três vias. É a base para criar seus próprios "utilitários" que os scripts do Quality System conseguem interpretar.</p>
+  <ul><li>0 = sucesso; não-zero = falha (convenção: 1 genérico, específicos para casos próprios).</li>
+<li><code>return</code> da main e <code>exit(c)</code> são equivalentes na prática.</li>
+<li><code>atexit()</code> registra funções chamadas no exit normal.</li>
+<li>Leia o código do shell: PowerShell usa <code>$LASTEXITCODE</code>.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1104</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+void fim_de_jogo(void) {
+    printf(&quot;(atexit) encerramento normal detectado\n&quot;);
+}
+
+int main(int argc, char *argv[]) {
+    atexit(fim_de_jogo);
+
+    if (argc &lt; 2) {
+        fprintf(stderr, &quot;uso: %s &lt;palavra&gt;\n&quot;, argv[0]);
+        return 2;
+    }
+
+    if (strcmp(argv[1], &quot;ok&quot;) == 0) {
+        printf(&quot;tudo certo\n&quot;);
+        return 0;
+    }
+
+    if (strcmp(argv[1], &quot;erro&quot;) == 0) {
+        fprintf(stderr, &quot;algo deu errado\n&quot;);
+        return 1;
+    }
+
+    printf(&quot;codigo de saida customizado: 42\n&quot;);
+    exit(42);
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .atexit.exe
+&gt; (com argumento &quot;ok&quot;)
+&gt; tudo certo
+&gt; (atexit) encerramento normal detectado
+&gt; [exit 0]
+&gt; (com argumento &quot;erro&quot;)
+&gt; algo deu errado
+&gt; [stderr, exit 1]
+&gt; (com argumento &quot;anything&quot;)
+&gt; codigo de saida customizado: 42
+&gt; [exit 42]</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Ferramenta 1: um eco que repete argumentos</h2>
+  <p>Vamos construir algo útil com o que temos: um eco de linha de comando que repete os argumentos, um por linha, com índice. É o "cat de argumentos" — e o embrião de utilitários maiores.</p>
+<p>Aqui a validação de numero de argumentos e o loop sobre argv aparecem na prática. Passe sem argumentos e o programa avisa e sai com código 1 em vez de quebrar.</p>
+<p>Detalhe profissional: o rotulo [1], [2]... ajuda o usuário a conferir, e o loop usa <code>argc</code> como teto — nunca estoura o vetor.</p>
+  <ul><li>Loop sobre argv de 1 até argc-1: <code>for (int i = 1; i &lt; argc; i++)</code>.</li>
+<li>Imprima com printf dentro do loop, rotulando índice.</li>
+<li>Sem argumentos: avise no stderr e retorne 1.</li>
+<li>Esse padrão é a espinha dorsal de head, wc, grep-lite.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1105</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(int argc, char *argv[]) {
+    if (argc &lt; 2) {
+        fprintf(stderr, &quot;uso: %s &lt;palavra&gt; [palavra ...]\n&quot;, argv[0]);
+        return 1;
+    }
+
+    for (int i = 1; i &lt; argc; i++) {
+        printf(&quot;[%d] %s\n&quot;, i, argv[i]);
+    }
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .exit-codigos.exe um dois
+&gt; [1] um
+&gt; [2] dois</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Ferramenta 2: leitura interativa numérica</h2>
+  <p>Terminamos com a melhor prática de interação: ler um número do usuário de forma segura. Em vez de <code>scanf</code> direto (frágil), ler a linha inteira com <code>fgets</code> e parsear com <code>strtol</code> confiando no retorno.</p>
+<p><code>strtol</code> devolve o número e, se você passar <code>&amp;fim</code>, deixa nele o endereço onde o número terminou — se a linha tiver lixo após o número, <code>*fim</code> não aponta para o '\n'. Essa é a checagem da "entrada toda válida".</p>
+<p>O loop pede até o usuário digitar 0 ou um número de 1 a 5; entradas ruidosas são rejeitadas com mensagem clara, sem travar. É o padrão de qualquer menu de Quality System.</p>
+  <ul><li><code>fgets</code> para capturar a linha; <code>strtol</code> para converter.</li>
+<li>Cheque o retorno de strtol e o <code>*fim</code> (lixo após o número).</li>
+<li><code>errno</code> pode indicar overflow; zere antes de chamar.</li>
+<li>Mantenha o loop até uma entrada válida — nunca recorra a recursão para isso.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — t3m1106</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;errno.h&gt;
+
+int main(void) {
+    while (1) {
+        printf(&quot;digite um numero de 1 a 5 (0 para sair): &quot;);
+        fflush(stdout);
+
+        char linha[64];
+        if (!fgets(linha, sizeof linha, stdin)) break;
+
+        errno = 0;
+        char *fim = NULL;
+        long val = strtol(linha, &amp;fim, 10);
+
+        if (fim == linha || errno == ERANGE || (*fim != '\n' &amp;&amp; *fim != '\0')) {
+            printf(&quot;entrada invalida, tente novamente\n&quot;);
+            continue;
+        }
+
+        if (val == 0) {
+            printf(&quot;saindo\n&quot;);
+            break;
+        }
+        if (val &lt; 1 || val &gt; 5) {
+            printf(&quot;fora da faixa (1 a 5)\n&quot;);
+            continue;
+        }
+
+        printf(&quot;num: %ld\n&quot;, val);
+    }
+
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; .entrada-segura.exe
+&gt; digite um numero de 1 a 5 (0 para sair): set
+&gt; entrada invalida, tente novamente
+&gt; digite um numero de 1 a 5 (0 para sair): 3
+&gt; num: 3
+&gt; digite um numero de 1 a 5 (0 para sair): 0
+&gt; saindo
+&gt; 
+&gt; (Entrada simulada com &quot;set&quot;, &quot;3&quot;, &quot;0&quot;.)</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t3-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel nIntermediário">Nível Intermediário</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.11.1</p>
+  <p class="enunciado">Liste todas as variáveis de ambiente de interesse: imprima USERNAME, COMPUTERNAME e HOME/USERPROFILE (numa segunda tentativa, se não existir, imprima "nao definida"), e PATH por inteiro. Use getenv com fallback.</p>
+  <p class="dica"><strong>Dica:</strong> Um helper imprime nome e valor, tratando NULL: <code>printf("%s = %s\n", n, v ? v : "(nao definido)")</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+void mostra(const char *nome) {
+    const char *v = getenv(nome);
+    printf(&quot;%s = %s\n&quot;, nome, v ? v : &quot;(nao definido)&quot;);
+}
+
+int main(void) {
+    mostra(&quot;USERNAME&quot;);
+    mostra(&quot;COMPUTERNAME&quot;);
+    mostra(&quot;USERPROFILE&quot;);
+    mostra(&quot;PATH&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">./ex11_1</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t3-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel nIntermediário">Nível Intermediário</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.11.2</p>
+  <p class="enunciado">Crie um filtro de grep-lite: leia linhas da stdin e imprima em stdout apenas as que contêm a palavra recebida em argv[1]; em stderr, imprima quantas linhas tinham a palavra. Teste com o arquivo notas.txt (caneta azul, borracha branca, lapis vermelho, regua caneta e lapis) buscando "caneta".</p>
+  <p class="dica"><strong>Dica:</strong> Use strstr(buf, palavra) para buscar; conte as ocorrências; escreva o total com fprintf(stderr,...).</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(int argc, char *argv[]) {
+    if (argc &lt; 2) {
+        fprintf(stderr, &quot;uso: %s &lt;palavra&gt;\n&quot;, argv[0]);
+        return 1;
+    }
+
+    char buf[512];
+    int vistos = 0;
+    while (fgets(buf, sizeof buf, stdin)) {
+        if (strstr(buf, argv[1])) {
+            printf(&quot;%s&quot;, buf);
+            vistos++;
+        }
+    }
+
+    fprintf(stderr, &quot;linhas com '%s': %d\n&quot;, argv[1], vistos);
+    return 0;
+}</code></pre>
+        <p class="obs">./ex11_2 — say com Get-Content notas.txt | .\ex11_2.exe caneta imprime 2 linhas no stdout (caneta azul; regua caneta e lapis) e o total no stderr.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t3-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel nAvançado">Nível Avançado</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.11.3</p>
+  <p class="enunciado">Escreva um utilitario reverse que inverte os caracteres de cada linha da stdin e imprime na stdout. Teste com uma linha "abc" e confira o resultado "cba".</p>
+  <p class="dica"><strong>Dica:</strong> Leia com fgets, remova o \n final (strcspn), e imprima os caracteres de tras para frente com um loop de strlen-1 a 0.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void) {
+    char buf[512];
+    while (fgets(buf, sizeof buf, stdin)) {
+        buf[strcspn(buf, &quot;\n&quot;)] = '\0';
+        size_t n = strlen(buf);
+        for (size_t i = n; i &gt; 0; i--) {
+            putchar(buf[i - 1]);
+        }
+        putchar('\n');
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">./ex11_3 — com "abc" imprime "cba".</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t3-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel nAvançado">Nível Avançado</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.11.4</p>
+  <p class="enunciado">Implemente um head-lite: receba um número N em argv[1] e imprima as N primeiras linhas da stdin na stdout. Teste com N=2 e o notas.txt, conferindo as duas primeiras linhas.</p>
+  <p class="dica"><strong>Dica:</strong> Converta com atoi ou strtol; conte as linhas com um contador e pare quando atingir N.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(int argc, char *argv[]) {
+    if (argc &lt; 2) {
+        fprintf(stderr, &quot;uso: %s &lt;n&gt;\n&quot;, argv[0]);
+        return 1;
+    }
+
+    int n = atoi(argv[1]);
+    if (n &lt;= 0) {
+        fprintf(stderr, &quot;n deve ser positivo\n&quot;);
+        return 1;
+    }
+
+    char buf[512];
+    int linhas = 0;
+    while (linhas &lt; n &amp;&amp; fgets(buf, sizeof buf, stdin)) {
+        printf(&quot;%s&quot;, buf);
+        linhas++;
+    }
+
+    return 0;
+}</code></pre>
+        <p class="obs">./ex11_4 — com N=2 e o notas.txt imprime as duas primeiras linhas.</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t3-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel nAvançado">Nível Avançado</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.11.5</p>
+  <p class="enunciado">Implemente um wc-lite: conte linhas, palavras e caracteres da stdin e imprima no formato "linhas palavras caracteres". Teste duas vezes: redirecionando o arquivo e via pipe.</p>
+  <p class="dica"><strong>Dica:</strong> Conte \n para linhas; para palavras, detecte transições de nao-espaco para espaco. "Caracteres" são todos os chars lidos.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    long linhas = 0, palavras = 0, chars = 0;
+    int em_palavra = 0;
+    int c;
+
+    while ((c = getchar()) != EOF) {
+        chars++;
+        if (c == '\n') linhas++;
+        if (c == ' ' || c == '\n' || c == '\t') {
+            em_palavra = 0;
+        } else if (!em_palavra) {
+            em_palavra = 1;
+            palavras++;
+        }
+    }
+
+    printf(&quot;%ld %ld %ld\n&quot;, linhas, palavras, chars);
+    return 0;
+}</code></pre>
+        <p class="obs">./ex11_5 — com as 4 linhas do notas.txt via pipe (Get-Content notas.txt | .\ex11_5.exe) imprime "4 10 64": 4 linhas, 10 palavras, 64 caracteres (os 60 das palavras mais as 4 quebras de linha). Redirecionando o arquivo direto, o total de caracteres muda por causa dos \r\n do Windows.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que contém argv[0] em um programa C?&quot;,&quot;opcoes&quot;:[&quot;O primeiro argumento do usuário&quot;,&quot;O caminho/nome do programa&quot;,&quot;Sempre NULL&quot;,&quot;O número de argumentos&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;argv[0] é o nome/caminho pelo qual o programa foi invocado; os argumentos do usuário começam em argv[1].&quot;},{&quot;pergunta&quot;:&quot;O que getenv(\&quot;USERNAME\&quot;) devolve se a variável não existir?&quot;,&quot;opcoes&quot;:[&quot;A string vazia \\\&quot;\\\&quot;&quot;,&quot;O valor 0&quot;,&quot;NULL&quot;,&quot;Um erro de compilação&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;getenv devolve NULL quando a variável não está definida; sempre confira antes de usar.&quot;},{&quot;pergunta&quot;:&quot;Qual a diferença prática entre stdout e stderr?&quot;,&quot;opcoes&quot;:[&quot;Um é binário e o outro texto&quot;,&quot;Quem redireciona decide: stdout vai para o pipe/arquivo; stderr vai para o terminal a menos que redirecionado&quot;,&quot;stderr é mais lento&quot;,&quot;Não há diferença&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;São fluxos independentes: o pipe captura só stdout; stderr segue para o terminal, salvo 2&gt;...&quot;},{&quot;pergunta&quot;:&quot;Qual código de saída indica sucesso em C/Windows?&quot;,&quot;opcoes&quot;:[&quot;1&quot;,&quot;-1&quot;,&quot;Qualquer valor par&quot;,&quot;0&quot;],&quot;correta&quot;:3,&quot;explicacao&quot;:&quot;0 é o convencional sucesso; qualquer não-zero indica falha.&quot;},{&quot;pergunta&quot;:&quot;Para ler um número da stdin com validação, qual a melhor combinação?&quot;,&quot;opcoes&quot;:[&quot;scanf(\&quot;%d\&quot;) sem checar retorno&quot;,&quot;gets + atoi&quot;,&quot;fgets da linha + strtol conferindo retorno e *fim&quot;,&quot;sscanf(\&quot;%s\&quot;)&quot;],&quot;correta&quot;:2,&quot;explicacao&quot;:&quot;Ler a linha inteira e converter com strtol permite rejeitar entradas inválidas sem travar.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Seu mini-conjunto de utilitários</h2>
+  <p>Empacote as ferramentas em um único programa "util.c" que interpreta a primeira palavra de argv como subcomando e executa: "grep palavra", "head N", "wc" e "reverse" sobre a stdin. Formato de saída igual ao dos exercícios. Imprima no stderr as mensagens de erro quando o subcomando não existir, e de uso quando faltar argumento; devolva 1 nesses casos e 0 no sucesso.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Um único binário que lê o subcomando via strcmp sobre argv[1].</li><li>Implementa grep-lite, head-lite, wc-lite e reverse reutilizando as mesmas lógicas.</li><li>Trata caso de subcomando desconhecido com stderr + exit 1.</li><li>Trata ausência de argumento obrigatório (ex.: grep sem palavra) com uso + exit 1.</li><li>Cada subcomando devolve 0 em sucesso.</li><li>Testável com Get-Content notas.txt | .\util.exe grep caneta.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="numeros-exatos-bits-e-layouts-compactos.html">← 3.10 Números exatos, bits e layouts compactos</a><a class="btn nav-next" href="sistema-de-arquivos-e-persistencia-projeto-final.html">3.12 Sistema de arquivos e persistência (projeto final) →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t3-m11">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

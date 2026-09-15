@@ -1,0 +1,23 @@
+# Artefatos das verificacoes de build (compile-check)
+build/_tmp/
+
+# Binarios e objetos
+*.exe
+*.o
+*.obj
+*.out
+*.a
+*.lib
+
+# Logs e config local
+*.log
+*.tmp
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node (caso um dia precise)
+node_modules/
+package-lock.json

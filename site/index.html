@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roadmap — Aprenda C</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-trilha="">
+<header class="site-header">
+  <a class="brand" href="index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="index.html">Roadmap</a>
+    <a href="exercicios/index.html">Exercícios</a>
+    <a href="projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="landing">
+  <section class="hero">
+    <h1>⌘ Aprenda <b>C</b></h1>
+    <p class="tagline">Do zero ao avançado, com trilha de <b>Cyber</b> — conteúdo original + Beej's Guide + King.</p>
+    <div class="hero-actions">
+      <a class="btn" href="#roadmap">Começar agora ↓</a>
+      <a class="btn ghost" href="#fontes">Fontes externas</a>
+    </div>
+  </section>
+
+  <section class="card como-usar">
+    <h2>Como usar este site</h2>
+    <ol>
+      <li>Comece pela <a href="#t0">Trilha 0 (Setup)</a> para deixar seu ambiente pronto (você já tem gcc).</li>
+      <li>Avance pelos módulos em ordem. Cada um tem teoria, exemplos compiláveis, leitura guiada (Beej/King), exercícios com solução e um quiz.</li>
+      <li>Compile e rode os exemplos com o gcc (ex.: <code>gcc prog.c -o prog && ./prog</code>). No Windows use <code>prog.exe</code>.</li>
+      <li>Marque os módulos como concluídos — seu progresso fica salvo neste navegador.</li>
+      <li>A Trilha 4 (Cyber) exige Linux: veja o <a href="trilha-4-cyber/visao-do-atacante-defensor-e-montagem-do-laboratorio.html">primeiro módulo da trilha</a> para montar WSL2 ou uma VM.</li>
+    </ol>
+  </section>
+
+  <section class="roadmap" id="roadmap">
+    <section class="trilha" id="t0">
+  <header class="trilha-head">
+    <span class="trilha-icone">🛠️</span>
+    <div>
+      <h2>Trilha 0: Setup</h2>
+      <p class="trilha-desc">Prepare seu ambiente: gcc, editor, terminal e depuração. Feita esta trilha, você consegue compilar e rodar qualquer exemplo do curso.</p>
+    </div>
+    <div class="progresso" data-trilha="0"><div class="barra"><span class="barra-fill" style="background:#9aa0a6"></span></div><span class="pct">0/1</span></div>
+  </header>
+  <div class="mod-grid"><a class="mod-card" href="trilha-0-setup/preparando-o-ambiente-de-desenvolvimento.html" data-mod="t0-m01">
+  <span class="mod-num">0.01</span>
+  <span class="mod-titulo">Preparando o ambiente de desenvolvimento</span>
+  <span class="mod-status">○</span>
+</a></div>
+</section>
+<section class="trilha" id="t1">
+  <header class="trilha-head">
+    <span class="trilha-icone">🌱</span>
+    <div>
+      <h2>Trilha 1: Fundamentos</h2>
+      <p class="trilha-desc">Da História do C até funções e organização de programas. Todo o básico para escrever programas sólidos em C.</p>
+    </div>
+    <div class="progresso" data-trilha="1"><div class="barra"><span class="barra-fill" style="background:#3b82f6"></span></div><span class="pct">0/12</span></div>
+  </header>
+  <div class="mod-grid"><a class="mod-card" href="trilha-1-fundamentos/introducao-a-linguagem-c.html" data-mod="t1-m01">
+  <span class="mod-num">1.01</span>
+  <span class="mod-titulo">Introdução à linguagem C</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-1-fundamentos/variaveis-tipos-e-atribuicao.html" data-mod="t1-m02">
+  <span class="mod-num">1.02</span>
+  <span class="mod-titulo">Variáveis, tipos e atribuição</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-1-fundamentos/entrada-e-saida-formatada-printf-e-scanf.html" data-mod="t1-m03">
+  <span class="mod-num">1.03</span>
+  <span class="mod-titulo">Entrada e saída formatada: printf e scanf</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-1-fundamentos/operadores-e-expressoes.html" data-mod="t1-m04">
+  <span class="mod-num">1.04</span>
+  <span class="mod-titulo">Operadores e expressões</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-1-fundamentos/selecao-if-else-if-switch.html" data-mod="t1-m05">
+  <span class="mod-num">1.05</span>
+  <span class="mod-titulo">Seleção: if, else if, switch</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-1-fundamentos/loops-while-do-while-e-for.html" data-mod="t1-m06">
+  <span class="mod-num">1.06</span>
+  <span class="mod-titulo">Loops: while, do-while e for</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-1-fundamentos/tipos-basicos-a-fundo.html" data-mod="t1-m07">
+  <span class="mod-num">1.07</span>
+  <span class="mod-titulo">Tipos básicos a fundo</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-1-fundamentos/arrays.html" data-mod="t1-m08">
+  <span class="mod-num">1.08</span>
+  <span class="mod-titulo">Arrays</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-1-fundamentos/funcoes.html" data-mod="t1-m09">
+  <span class="mod-num">1.09</span>
+  <span class="mod-titulo">Funções</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-1-fundamentos/escopo-duracao-e-organizacao.html" data-mod="t1-m10">
+  <span class="mod-num">1.10</span>
+  <span class="mod-titulo">Escopo, duração e organização</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-1-fundamentos/erros-comuns-e-depuracao.html" data-mod="t1-m11">
+  <span class="mod-num">1.11</span>
+  <span class="mod-titulo">Erros comuns e depuração</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-1-fundamentos/tudo-junto-programa-de-linha-de-comando.html" data-mod="t1-m12">
+  <span class="mod-num">1.12</span>
+  <span class="mod-titulo">Tudo junto: programa de linha de comando</span>
+  <span class="mod-status">○</span>
+</a></div>
+</section>
+<section class="trilha" id="t2">
+  <header class="trilha-head">
+    <span class="trilha-icone">🚀</span>
+    <div>
+      <h2>Trilha 2: Intermediário</h2>
+      <p class="trilha-desc">Ponteiros, strings, memória dinâmica, structs, pré-processador, bitwise e recursão. Aqui o C faz "clic".</p>
+    </div>
+    <div class="progresso" data-trilha="2"><div class="barra"><span class="barra-fill" style="background:#f59e0b"></span></div><span class="pct">0/15</span></div>
+  </header>
+  <div class="mod-grid"><a class="mod-card" href="trilha-2-intermediario/ponteiros-o-coracao-do-c.html" data-mod="t2-m01">
+  <span class="mod-num">2.01</span>
+  <span class="mod-titulo">Ponteiros: o coração do C</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/ponteiros-e-arrays-aritmetica-de-ponteiros.html" data-mod="t2-m02">
+  <span class="mod-num">2.02</span>
+  <span class="mod-titulo">Ponteiros e arrays: aritmética de ponteiros</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/strings-em-c.html" data-mod="t2-m03">
+  <span class="mod-num">2.03</span>
+  <span class="mod-titulo">Strings em C</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/manipulando-strings.html" data-mod="t2-m04">
+  <span class="mod-num">2.04</span>
+  <span class="mod-titulo">Manipulando strings</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/alocacao-dinamica-de-memoria.html" data-mod="t2-m05">
+  <span class="mod-num">2.05</span>
+  <span class="mod-titulo">Alocação dinâmica de memória</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/structs.html" data-mod="t2-m06">
+  <span class="mod-num">2.06</span>
+  <span class="mod-titulo">Structs</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/typedef-enum-e-union.html" data-mod="t2-m07">
+  <span class="mod-num">2.07</span>
+  <span class="mod-titulo">typedef, enum e union</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/o-pre-processador.html" data-mod="t2-m08">
+  <span class="mod-num">2.08</span>
+  <span class="mod-titulo">O pré-processador</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/programas-multiarquivo-e-compilacao-separada.html" data-mod="t2-m09">
+  <span class="mod-num">2.09</span>
+  <span class="mod-titulo">Programas multiarquivo e compilação separada</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/operacoes-bit-a-bit.html" data-mod="t2-m10">
+  <span class="mod-num">2.10</span>
+  <span class="mod-titulo">Operações bit a bit</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/ponteiros-para-funcoes-e-ponteiros-para-ponteiros.html" data-mod="t2-m11">
+  <span class="mod-num">2.11</span>
+  <span class="mod-titulo">Ponteiros para funções e ponteiros para ponteiros</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/estruturas-de-dados-listas-encadeadas-e-recursao.html" data-mod="t2-m12">
+  <span class="mod-num">2.12</span>
+  <span class="mod-titulo">Estruturas de dados: listas encadeadas e recursão</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/arquivos-texto-e-binario.html" data-mod="t2-m13">
+  <span class="mod-num">2.13</span>
+  <span class="mod-titulo">Arquivos: texto e binário</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/funcoes-variadicas-va-list.html" data-mod="t2-m14">
+  <span class="mod-num">2.14</span>
+  <span class="mod-titulo">Funções variádicas: va_list</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-2-intermediario/estruturas-de-dados-fundamentais.html" data-mod="t2-m15">
+  <span class="mod-num">2.15</span>
+  <span class="mod-titulo">Estruturas de dados fundamentais</span>
+  <span class="mod-status">○</span>
+</a></div>
+</section>
+<section class="trilha" id="t3">
+  <header class="trilha-head">
+    <span class="trilha-icone">🧠</span>
+    <div>
+      <h2>Trilha 3: Avançado</h2>
+      <p class="trilha-desc">Stdlib, erros, Unicode, signals, threads, atomics, sockets e programação de baixo nível.</p>
+    </div>
+    <div class="progresso" data-trilha="3"><div class="barra"><span class="barra-fill" style="background:#8b5cf6"></span></div><span class="pct">0/12</span></div>
+  </header>
+  <div class="mod-grid"><a class="mod-card" href="trilha-3-avancado/biblioteca-padrao-e-tratamento-de-erros.html" data-mod="t3-m01">
+  <span class="mod-num">3.01</span>
+  <span class="mod-titulo">Biblioteca padrão e tratamento de erros</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-3-avancado/como-os-numeros-vivem-na-memoria.html" data-mod="t3-m02">
+  <span class="mod-num">3.02</span>
+  <span class="mod-titulo">Como os números vivem na memória</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-3-avancado/tipos-avancados-storage-classes-e-declaracoes.html" data-mod="t3-m03">
+  <span class="mod-num">3.03</span>
+  <span class="mod-titulo">Tipos avançados, storage classes e declarações</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-3-avancado/unicode-wide-characters-e-localizacao.html" data-mod="t3-m04">
+  <span class="mod-num">3.04</span>
+  <span class="mod-titulo">Unicode, wide characters e localização</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-3-avancado/sinais-as-interrupcoes-do-so.html" data-mod="t3-m05">
+  <span class="mod-num">3.05</span>
+  <span class="mod-titulo">Sinais: as interrupções do SO</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-3-avancado/threads-com-pthreads.html" data-mod="t3-m06">
+  <span class="mod-num">3.06</span>
+  <span class="mod-titulo">Threads com pthreads</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-3-avancado/atomicos-e-sincronizacao-sem-locks.html" data-mod="t3-m07">
+  <span class="mod-num">3.07</span>
+  <span class="mod-titulo">Atômicos e sincronização sem locks</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-3-avancado/sockets-com-posix-no-linux-wsl.html" data-mod="t3-m08">
+  <span class="mod-num">3.08</span>
+  <span class="mod-titulo">Sockets com POSIX (no Linux/WSL)</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-3-avancado/tempo-e-datas-sob-o-olhar-do-qs.html" data-mod="t3-m09">
+  <span class="mod-num">3.09</span>
+  <span class="mod-titulo">Tempo e datas (sob o olhar do QS)</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-3-avancado/numeros-exatos-bits-e-layouts-compactos.html" data-mod="t3-m10">
+  <span class="mod-num">3.10</span>
+  <span class="mod-titulo">Números exatos, bits e layouts compactos</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-3-avancado/a-vida-fora-do-main-ambiente-saida-e-interacao.html" data-mod="t3-m11">
+  <span class="mod-num">3.11</span>
+  <span class="mod-titulo">A vida fora do main: ambiente, saída e interação</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-3-avancado/sistema-de-arquivos-e-persistencia-projeto-final.html" data-mod="t3-m12">
+  <span class="mod-num">3.12</span>
+  <span class="mod-titulo">Sistema de arquivos e persistência (projeto final)</span>
+  <span class="mod-status">○</span>
+</a></div>
+</section>
+<section class="trilha" id="t4">
+  <header class="trilha-head">
+    <span class="trilha-icone">🛡️</span>
+    <div>
+      <h2>Trilha 4: Cyber</h2>
+      <p class="trilha-desc">Ofensiva + defensiva: codificação segura, anatomia de memória, buffer overflow, ROP, format strings, shellcode e redes em C.</p>
+    </div>
+    <div class="progresso" data-trilha="4"><div class="barra"><span class="barra-fill" style="background:#ef4444"></span></div><span class="pct">0/10</span></div>
+  </header>
+  <div class="mod-grid"><a class="mod-card" href="trilha-4-cyber/visao-do-atacante-defensor-e-montagem-do-laboratorio.html" data-mod="t4-m01">
+  <span class="mod-num">4.01</span>
+  <span class="mod-titulo">Visão do atacante × defensor e montagem do laboratório</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-4-cyber/codificacao-segura-em-c-defensiva.html" data-mod="t4-m02">
+  <span class="mod-num">4.02</span>
+  <span class="mod-titulo">Codificação segura em C (defensiva)</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-4-cyber/anatomia-da-memoria-de-um-processo.html" data-mod="t4-m03">
+  <span class="mod-num">4.03</span>
+  <span class="mod-titulo">Anatomia da memória de um processo</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-4-cyber/ferramentas-de-analise-gdb-objdump-readelf-strings-e-strace.html" data-mod="t4-m04">
+  <span class="mod-num">4.04</span>
+  <span class="mod-titulo">Ferramentas de análise: gdb, objdump, readelf, strings e strace</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-4-cyber/buffer-overflow-classico-stack-ret2shellcode-em-32-bits.html" data-mod="t4-m05">
+  <span class="mod-num">4.05</span>
+  <span class="mod-titulo">Buffer overflow clássico (stack): ret2shellcode em 32 bits</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-4-cyber/mitigacoes-e-bypasses-nx-ret2libc-aslr-pie-canario-e-rop.html" data-mod="t4-m06">
+  <span class="mod-num">4.06</span>
+  <span class="mod-titulo">Mitigações e bypasses: NX→ret2libc, ASLR, PIE, canário e ROP</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-4-cyber/format-string-bugs-leak-escrita-e-a-regra-da-format-string-explicita.html" data-mod="t4-m07">
+  <span class="mod-num">4.07</span>
+  <span class="mod-titulo">Format string bugs: leak, escrita e a regra da format string explícita</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-4-cyber/heap-integer-overflow-e-use-after-free.html" data-mod="t4-m08">
+  <span class="mod-num">4.08</span>
+  <span class="mod-titulo">Heap, integer overflow e use-after-free</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-4-cyber/redes-ofensivas-em-c-shells-shellcode-e-packet-crafting.html" data-mod="t4-m09">
+  <span class="mod-num">4.09</span>
+  <span class="mod-titulo">Redes ofensivas em C: shells, shellcode e packet crafting</span>
+  <span class="mod-status">○</span>
+</a>
+<a class="mod-card" href="trilha-4-cyber/capstone-ctf-pwn-auditoria-definitiva.html" data-mod="t4-m10">
+  <span class="mod-num">4.10</span>
+  <span class="mod-titulo">Capstone: CTF pwn + auditoria definitiva</span>
+  <span class="mod-status">○</span>
+</a></div>
+</section>
+  </section>
+
+  <section class="card carga" id="carga">
+  <h2>⏱️ Carga horária estimada</h2>
+  <table class="tabela-carga">
+    <thead><tr><th>Trilha</th><th>Módulos</th><th>Aulas (site)</th><th>Prática</th><th>Total estimado</th></tr></thead>
+    <tbody>
+<tr>
+  <td>Trilha 0: Setup</td>
+  <td>1</td>
+  <td>45 min</td>
+  <td>1,3h–1,8h</td>
+  <td>2,1h – 2,6h</td>
+</tr>
+<tr>
+  <td>Trilha 1: Fundamentos</td>
+  <td>12</td>
+  <td>8,2h</td>
+  <td>27,2h–36,2h</td>
+  <td>35,4h – 44,4h</td>
+</tr>
+<tr>
+  <td>Trilha 2: Intermediário</td>
+  <td>15</td>
+  <td>10,2h</td>
+  <td>36,9h–51,9h</td>
+  <td>47h – 62h</td>
+</tr>
+<tr>
+  <td>Trilha 3: Avançado</td>
+  <td>12</td>
+  <td>7,3h</td>
+  <td>23,4h–35,4h</td>
+  <td>30,7h – 42,7h</td>
+</tr>
+<tr>
+  <td>Trilha 4: Cyber</td>
+  <td>10</td>
+  <td>7,8h</td>
+  <td>28,9h–58,9h</td>
+  <td>36,8h – 66,8h</td>
+</tr>
+<tr class="total"><td>TOTAL</td><td>50</td><td>34,3h</td><td>117,8h–184,3h</td><td>152h – 218,5h</td></tr>
+    </tbody>
+  </table>
+  <p class="carga-rodape">Aulas = tempo médio só da página (teoria, exemplos e quiz); a leitura guiada de Beej/King é opcional e não entra na conta. Prática = exercícios, quizzes e projetos, estimados pelo nível de cada um. Na média, o curso completo (incluindo a Trilha Cyber) fica em ~150–220h — com 8–10h/semana, ≈ 4–6 meses; só as trilhas 1–3, para "saber C de verdade", ≈ 3–4 meses.</p>
+</section>
+
+  <section class="card fontes" id="fontes">
+    <h2>📚 Fontes externas (gratuitas e recomendadas)</h2>
+    <ul>
+      <li><a href="https://beej.us/guide/bgc/" target="_blank" rel="noopener">Beej's Guide to C</a> — principal tutorial deste curso (você também tem o .html salvo).</li>
+      <li><a href="http://knking.com/books/c2/" target="_blank" rel="noopener">C Programming: A Modern Approach (King)</a> — seu PDF; referência teórica profunda.</li>
+      <li><a href="https://en.cppreference.com/w/c" target="_blank" rel="noopener">cppreference</a> — referência completa da linguagem e da stdlib.</li>
+      <li><a href="https://learn-c.org/" target="_blank" rel="noopener">learn-c.org</a> — tutoriais interativos rápidos.</li>
+      <li><a href="https://cs50.harvard.edu/x/" target="_blank" rel="noopener">CS50 (Harvard)</a> — curso gratuito que ensina C em contexto.</li>
+      <li><a href="https://exercism.org/tracks/c" target="_blank" rel="noopener">Exercism – C</a> — exercícios com mentoria.</li>
+      <li><a href="https://pwn.college/" target="_blank" rel="noopener">pwn.college</a> — trilha de segurança/binary exploitation.</li>
+      <li><a href="https://exploit.education/" target="_blank" rel="noopener">Exploit Education</a> — labs Phoenix/Protostar/Nebula.</li>
+      <li><a href="https://github.com/RPISEC/MBE" target="_blank" rel="noopener">RPISEC Modern Binary Exploitation</a> — curso gratuito de exploit dev.</li>
+      <li><a href="https://www.youtube.com/@LiveOverflow" target="_blank" rel="noopener">LiveOverflow (YouTube)</a> — vídeos de binary exploitation.</li>
+      <li><a href="https://beej.us/guide/bgnet/" target="_blank" rel="noopener">Beej's Guide to Network Programming</a> — sockets em C.</li>
+      <li>Livros clássicos: <em>The C Programming Language</em> (K&amp;R), <em>Hacking: The Art of Exploitation</em>, <em>The Shellcoder's Handbook</em>.</li>
+    </ul>
+  </section>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="assets/js/progress.js"></script>
+<script src="assets/js/highlight.js"></script>
+<script src="assets/js/quiz.js"></script>
+</body>
+</html>

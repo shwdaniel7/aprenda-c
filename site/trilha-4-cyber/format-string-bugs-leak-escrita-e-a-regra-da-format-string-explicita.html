@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4.07 — Format string bugs: leak, escrita e a regra da format string explícita — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="4">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t4">Trilha 4 — Cyber</a> / Format string bugs: leak, escrita e a regra da format string explícita</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">4.07</div>
+    <h1>Format string bugs: leak, escrita e a regra da format string explícita</h1>
+    <p class="subtitulo">Quando printf(buf) vira leitura e escrita de memória</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado/Cyber</span>
+      <span class="chip">Duração: ~40 min</span>
+      <span class="chip">Pré-requisitos: T4.03 (memória), T2.05 (strings/printf), T4.04 (gdb)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t4-m07">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Entender o bug de format string (CWE-134): como printf variadic consome argumentos a mais (leak com %x/%p/%s e escrita com %n), ler a pilha com posicionamento (%N$), escrever em endereço arbitrário em 32 bits (GOT overwrite teórico) e aplicar a defesa definitiva: format string explícita, sempre.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  
+  
+  <p class="foco"><strong>Foco da leitura:</strong> Consulte o CTF-Wiki, seção "Format String" (https://ctf-wiki.org), para a técnica de escrita posicional e GOT overwrite, e o artigo clássico de Tim Newsham, "Format String Attacks" (1998, disponível em vários mirrors acadêmicos) — referências históricas que explicam a mecânica %n palavra por palavra.</p>
+</section>
+  <section class="card secao">
+  <h2>O bug é a entrada virar format string</h2>
+  <p><code>printf(entrada_usuario)</code> em vez de <code>printf("%s", entrada_usuario)</code> faz o <em>conteúdo digitado ser interpretado como format</em>. Como <code>printf</code> é <strong>variadic</strong> (não sabe quantos argumentos existem), ele apenas <em>consome</em> o que estiver nos registradores/na pilha — inclusive dados que o programador nunca quis passar. O atacante não escreve nada na memória: ele <strong>lê e escreve usando a própria printf como ponteiro controlado</strong>.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Leak: %p e %x leem valores do stack/registradores</h2>
+  <p>O exemplo clássico: cada <code>%x</code>/<code>%p</code> imprime o próximo "argumento". Envie uma pilha de <code>%p.</code> e veja ponteiros da pilha e da libc vazando — é o tipo de leak que o módulo 06 transforma em exploit (calcula a base da libc).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — fmt_leak.c (VULNERÁVEL)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* fmt_leak.c -- printf(buf) com entrada do usuario (VULNERAVEL, CWE-134).
+   gcc -Wall -Wextra -std=c11 fmt_leak.c -o fmt_leak   (qualquer SO) */
+#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    char buf[200];
+    printf(&quot;digite: &quot;);
+    if (fgets(buf, sizeof buf, stdin) == NULL) return 1;
+    printf(buf);                  /* VULNERAVEL: buf vira format */
+    printf(&quot;\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ ./fmt_leak
+digite: AAAA%p.%p.%p.%p.%p.%p.
+AAAA0x7fff1234abcd.0x7f00...08.0x1.0x7fff5678cdef.0x70252e70252e7025.0x41414141</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Posicionamento: %N$p lê o N-ésimo argumento</h2>
+  <p>Para ler um valor que sabemos estar em determinada posição (ex.: nossos próprios "AAAA" lá no fundo), usamos posicionamento direto: <code>%5$p</code> imprime o 5º argumento. Estratégia de descoberta no lab: envie <code>AAAA.00A-%1$p.%2$p...%25$p.</code> e procure onde aparece <code>0x41414141</code>; aquele índice é o seu "bing shel" — será usado para leituras e escritas. Atente que em 64-bit os 5 primeiros argumentos são registradores (RSI, RDX, RCX, R8, R9) e a partir do 6º são slots da pilha. Já em 32-bit tudo vem da pilha.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — localizando o offset</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">$ ./fmt_leak
+digite: AAAA.00A-%1$p.%2$p.%3$p.%4$p.%5$p.%6$p.%7$p.%8$p.%9$p.%10$p.
+AAAA.00A-0x7ffff7a1...0x70252e25732425... 0x41414141
+      ^^^^ procura por 0x41414141 -&gt; neste lab caiu no %10$p</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>%s e o crash de leitura</h2>
+  <p><code>%s</code> trata o argumento como <em>ponteiro para string</em> e lê o que aponta — ao acertar um ponteiro válido da libc (vazado com %p), o atacante <strong>dereferencia endereço arbitrário</strong> e puxa bytes de lá (técnica de dump de memória). Quando o endereço é inválido, o processo morre com SIGSEGV — essencial também para <em>crash forense</em>: o offset do crash revela o endereço usado.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>%n: a escrita — valor gravado é a &quot;conta&quot; de caracteres</h2>
+  <p><code>%n</code> grava <em>quantos caracteres já foram impressos</em> no endereço dado pelo argumento — abrindo uma <strong>write primitive</strong>. Combine com vazamentos de precisão (<code>%Nu</code> imprime N espaços para inflar a conta) e posicionamento: para escrever o valor <code>0x41414141</code> num alvo no índice 6, envie <code>[4 bytes do endereço do alvo][%8u][%6$n]</code>... — o clássico didático é o <code>AAAA%6$n</code>, onde os quatro A representam o endereço (substituídos por um endereço real).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — fmt_write 32-bit</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* fmt_write.c -- alvo de escrita (VULNERAVEL, CWE-134).
+   Compile 32-bit para seguir o exemplo:  (Linux/WSL)
+   sudo apt install gcc-multilib
+   gcc -m32 -fno-stack-protector -Wall -Wextra -std=c11 fmt_write.c -o fmt_write */
+#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int alvo = 0x1111;
+    char buf[200];
+    printf(&quot;digite: &quot;);
+    if (fgets(buf, sizeof buf, stdin) == NULL) return 1;
+    printf(buf);                  /* VULNERAVEL */
+    printf(&quot;\nalvo = 0x%x\n&quot;, alvo);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ python3 -c 'import struct,sys; p=struct.pack(&quot;&lt;I&quot;, 0xbffff5e0); sys.stdout.buffer.write(p + b&quot;%6$n&quot;)' | ./fmt_write
+digite:
+alvo = 0x11ef
+# o %6$n gravou no endereco 0xbffff5e0 (os 4 bytes do inicio do
+# buffer) a quantidade de caracteres ja impressos (0x11ef = 4591);
+# antes, alvo era 0x1111. A escrita aconteceu.</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>e onde dorme o poder de verdade: GOT overwrite (teoria, 32-bit)</h2>
+  <p>Em binários com <strong>RELRO parcial</strong> (padrão antigo/CMake sem -z now), a GOT é gravável e guarda o endereço resolvido de funções como <code>puts</code>. Se o atacante sobrescreve <code>puts@GOT</code> para <code>system</code>, a próxima chamada a <code>puts(arg</code> passa a ser <code>system(arg)</code> — e se <code>arg</code> vier do usuário (ex.: a própria string do buffer), vira <code>system("…")</code>. É o mesmo <code>%n</code> de antes, agora mirando a GOT — ou a PLT/GOT entry. <strong>Defesa viva:</strong> <code>-Wl,-z,relro,-z,now</code> (full RELRO) torna a GOT read-only após o carregamento e mata esse vetor; e lembre que lemos escrevendo com <code>%n</code> em alvos exatos depende de leak+buffer posicionado (módulo 04/06).</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Mitigação: a regra da format string explícita</h2>
+  <p>A correção é estrutural, não cosmética:</p>
+  <ul><li><strong>Nunca passe dados para printf/scanf/fprintf/snprintf como format.</strong> O primeiro parâmetro é <em>sempre</em> uma string de formato (literal ou constante): <code>printf("%s", buf)</code>.</li>
+<li>Regra de busca no code review: procurar <code>printf(variavel);</code>, <code>fprintf(fp, dado);</code>, <code>snprintf(b, n, variavel)</code>.</li>
+<li>Deixe o compilador vigiar: <code>-Wformat -Wformat-security -Wformat-nonliteral -Werror=format-security</code> transforma o padrão em erro de build.</li>
+<li>Se a string precisa ser "gerada" (log com partes enviadas), monte o FORMAT fixo e passe os dados como args: <code>printf("user=%s", usuario)</code> — nunca <code>printf(usuario)</code>.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — regra da format</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c"># build que TRANSFORMA o bug em erro:
+gcc -Wall -Wextra -Wformat -Wformat-security -Wformat-nonliteral \
+    -Werror=format-security fmt_leak.c -o fmt_leak_fortificado
+
+# e a correcao em codigo:
+printf(buf);        -&gt;      printf(&quot;%s&quot;, buf);</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>fmt_leak.c: In function 'main':
+fmt_leak.c:12:13: error: format not a string literal and no format arguments
+   12 |     printf(buf);</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Como se defender</h2>
+  
+  <ul><li>Regra inegociável: format string explícita em 100% das chamadas (a busca de texto no repositório acha o resto).</li>
+<li>Fail fast no build com <code>-Werror=format-security</code> — o CI deve recusar o padrão, não avisar.</li>
+<li>Mantenha full RELRO (<code>-z relro -z now</code>): sem GOT gravável, sobra pouco onde escrever com %n.</li>
+<li>Não vaze endereços: mensagens de erro/log que imprimem ponteiros ou <code>%p</code> são leak deliberado.</li>
+<li>Em logs com conteúdo do usuário ex.: <code>snprintf(linha, n, "%s", entrada)</code> e depois <code>fprintf(fp, "%s", linha)</code> — os dois lados explícitos — evita que o dado chegue "nu" a uma função variadic.</li>
+<li>O bug também aparece em <code>sprintf/strftime/…</code>: a regra vale para qualquer função com format.</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t4-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.07.1</p>
+  <p class="enunciado">Rode <code>fmt_leak</code> (qualquer SO) com a entrada <code>AAAA.%x.%x.%x.%x.%x.%x.</code> e depois com <code>AAAA.%7$p.%8$p.%9$p.</code>. Faça um teste de posicionamento até achar onde entram os 0x41414141 (seus AAAA). Anote o índice encontrado na sua sessão.</p>
+  <p class="dica"><strong>Dica:</strong> Aumente o range: <code>AAAA-%1$p...-%30$p</code> e busque por 0x41414141 — resp = index.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ ./fmt_leak
+digite: AAAA-%1$p-%2$p-%3$p-%10$p-%20$p-%30$p.
+...
+$ ./fmt_leak
+digite: AAAA-%7$p-%8$p-%9$p.
+...
+# exemplo: neste binario 64-bit os AAAA caem no %17$p.
+# O indice e LOCAL: voce determinou, nao precisa ser o do texto.</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t4-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.07.2</p>
+  <p class="enunciado">Depois de achar o índice, vire o vetor de leitura em vetor de escrita: compile <code>fmt_write</code> 32-bit (<code>-m32</code>, multilib) com ASLR desligado por sessão e use o endereço real de <code>alvo</code> (descubra no gdb com <code>p &alvo</code> — ou, mais simples, coloque alvo como global e leia com objdump -t) para que <code>%6$n</code> mude o valor de alvo. Registre antes/depois.</p>
+  <p class="dica"><strong>Dica:</strong> Se o %N$n não cair no seu endereço, redescubra o índice do buf nesse binário 32-bit (o procedimento do exercício 1).</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ gcc -m32 -fno-stack-protector -Wall -Wextra -std=c11 fmt_write.c -o fmt_write
+$ gdb ./fmt_write -ex &quot;break main&quot; -ex &quot;run&quot; -ex &quot;p &amp;alvo&quot; -ex &quot;quit&quot;
+$1 = (int *) 0xbffff5e0
+$ python3 -c 'import struct,sys; sys.stdout.buffer.write(struct.pack(&quot;&lt;I&quot;,0xbffff5e0)+b&quot;%6$n&quot;)' | ./fmt_write
+digite:
+alvo = 0x11ef   # antes era 0x1111; agora vale n.
+</code></pre>
+        <p class="obs">O valor novo (0x11ef = 4591) vem da contagem de caracteres já impressa até o %n; para valores grandes use <code>%Nu</code> para inflar a contagem.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t4-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.07.3</p>
+  <p class="enunciado">Recompile o <code>fmt_leak</code> com <code>-Wformat-security -Werror=format-security</code> e confira que a build falha apontando a linha do <code>printf(buf)</code>. Depois corrija para <code>printf("%s", buf)</code> e recompile sem warnings.</p>
+  <p class="dica"><strong>Dica:</strong> O compilador sabe que um "format não literal" é o uso perigoso; a correção é o literal "%s".</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ gcc -Wall -Wextra -Wformat-security -Werror=format-security fmt_leak.c -o x
+fmt_leak.c:12:13: error: format not a string literal and no format arguments
+$ sed -i 's/printf(buf)/printf(&quot;%s&quot;, buf)/' fmt_leak.c
+$ gcc -Wall -Wextra -Wformat-security -Werror=format-security fmt_leak.c -o x
+# compila limpo
+$ ./x
+digite: AAAA%p.%p.
+AAAA%p.%p.     # agora imprime literal, sem leak</code></pre>
+        </details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O bug de format string acontece quando…&quot;,&quot;opcoes&quot;:[&quot;Uma string vinda do usuário é passada como argumento de format (ex.: printf(entrada))&quot;,&quot;O printf não tem \n no fim&quot;,&quot;Usamos fgets em vez de gets&quot;,&quot;O compilador otimiza demais&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;printf(variavel) interpreta o conteúdo como formato: %x,%p,%s leem e %n escreve memória.&quot;},{&quot;pergunta&quot;:&quot;O que %n faz em uma format string?&quot;,&quot;opcoes&quot;:[&quot;Grava a quantidade de caracteres já impressos no endereço apontado pelo argumento&quot;,&quot;Imprime a variável em nova linha&quot;,&quot;Lê uma string da rede&quot;,&quot;Retorna o endereço de printf&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;%n NÃO imprime: se escreve em memória. É a write primitive do bug.&quot;},{&quot;pergunta&quot;:&quot;Para que serve o %N$p (posicionamento direto)?&quot;,&quot;opcoes&quot;:[&quot;Acessar o N-ésimo argumento da pilha de forma determinística (localizar nossos bytes, endereços, etc.)&quot;,&quot;Imprimir N páginas&quot;,&quot;Declarar N variáveis&quot;,&quot;Pular N linhas do código&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O posicionamento permite varrer os argumentos e achar o índice onde nossa entrada aparece — essencial para leak e write.&quot;},{&quot;pergunta&quot;:&quot;Qual defesa bloqueia FORMAT string na origem, impede GOT overwrite e é checkada no build?&quot;,&quot;opcoes&quot;:[&quot;Format explícita (printf(\&quot;%s\&quot;, b)) + -Werror=format-security + full RELRO&quot;,&quot;Usar apenas printf sem porcentagens&quot;,&quot;Colocar senha no programa&quot;,&quot;Desligar o compilador&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O tripé defesa: nunca dados como format, compilador que falha o build, e GOT read-only (full RELRO).&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Relatório: do leak ao %n (32-bit)</h2>
+  <p>Em <code>~/labs/4.07</code>, produza um relatório <code>format.md</code> (no WSL) contendo: (1) o fmt_leak 64-bit com a varredura de posicionamento e o índice onde os AAAA aparecem; (2) o fmt_write 32-bit com antes/depois de <code>alvo</code> e o endereço usado; (3) um parágrafo explicando como esse <em>leak</em> alimenta o ret2libc do módulo 06 (base = valor_vazado − offset_na_libc); (4) a prova de que <code>-Werror=format-security</code> falha o build com o padrão perigoso; (5) a correção final do código com diff (before/after).</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Índice do posicionamento determinado e documentado (seu, não o do texto).</li><li>Escrita de alvo com %N$n demonstrada com endereço real.</li><li>Cálculo base da libc a partir de um valor vazado coerente.</li><li>Build com -Werror=format-security falhando e a correção aplicada.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="mitigacoes-e-bypasses-nx-ret2libc-aslr-pie-canario-e-rop.html">← 4.06 Mitigações e bypasses: NX→ret2libc, ASLR, PIE, canário e ROP</a><a class="btn nav-next" href="heap-integer-overflow-e-use-after-free.html">4.08 Heap, integer overflow e use-after-free →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t4-m07">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.09 — Funções — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="1">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t1">Trilha 1 — Fundamentos</a> / Funções</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">1.09</div>
+    <h1>Funções</h1>
+    <p class="subtitulo">definição, protótipo, retorno e recursão de degustação</p>
+    <div class="chips">
+      <span class="chip">Nível: Iniciante</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: T1.08</span>
+    </div>
+    <button class="btn btn-done" data-mod="t1-m09">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Aprender a criar funções: definição, protótipo (declaração), retorno, parâmetros, chamada e a crucial passagem por valor. Incluir uma degustação de recursão simples (fatorial) — a teoria profunda fica para a Trilha 2.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 4 — Funções</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 9 — Funções</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, capítulo 9 é obrigatório: leia especialmente a seção sobre passagem por valor e protótipos. No Beej, o capítulo 4 dá um bom panorama com exemplos curtos.</p>
+</section>
+  <section class="card secao">
+  <h2>Por que funções?</h2>
+  <p>Uma <strong>função</strong> é uma unidade de código com nome, que recebe <strong>parâmetros</strong> (opcionais), faz algo e <strong>retorna</strong> um valor (ou nada, com <code>void</code>). Funções dão nome às partes do programa, eliminam duplicação e isolam erros. Um programa bem dividido em funções pequenas é lido quase como prosa.</p>
+<p>Peça por peça de uma definição: <code>retorno nome(parametros) { corpo }</code>.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Anatomia: retorno, parâmetros, corpo</h2>
+  <p>No exemplo, <code>media</code> recebe duas notas e devolve a média. Repare que o <code>return</code> envia o valor para quem chamou, e que chamar a função dentro de um <code>printf</code> é comum.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — definindo</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+double media(double n1, double n2)
+{
+    return (n1 + n2) / 2.0;
+}
+
+int main(void)
+{
+    printf(&quot;media de 7.5 e 8.5: %.2f\n&quot;, media(7.5, 8.5));
+    printf(&quot;media de 10.0 e 2.0: %.2f\n&quot;, media(10.0, 2.0));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>media de 7.5 e 8.5: 8.00
+media de 10.0 e 2.0: 6.00</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Protótipos: declare antes de usar</h2>
+  <p>O compilador lê o arquivo de cima para baixo. Se <code>main</code> aparece antes da função que ela chama, o gcc reclamará ("implicit declaration") — um warning. A solução é colocar um <strong>protótipo</strong> (só o cabeçalho + <code>;</code>) antes do <code>main</code>. É o profissional: todo cabeçalho costuma vir no topo.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — protótipos</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int eh_par(int n);   /* protótipo: declara a função antes do uso */
+
+int main(void)
+{
+    int x = 8;
+
+    if (eh_par(x)) {
+        printf(&quot;%d e par\n&quot;, x);
+    } else {
+        printf(&quot;%d e impar\n&quot;, x);
+    }
+    return 0;
+}
+
+int eh_par(int n)
+{
+    return n % 2 == 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>8 e par</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Passagem por valor: a cópia que não volta</h2>
+  <p>Em C, os parâmetros são <strong>cópias</strong>: a função recebe o <em>valor</em>, não a variável. Mexer no parâmetro <em>não</em> altera a variável do chamador. Por isso a "troca" abaixo não troca nada — e por isso precisamos de ponteiros (Trilha 2) para funções que modificam o chamador.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — passagem por valor</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void tenta_trocar(int a, int b)
+{
+    int temp = a;
+    a = b;
+    b = temp;
+}
+
+int main(void)
+{
+    int x = 1;
+    int y = 2;
+
+    printf(&quot;antes da chamada: x=%d y=%d\n&quot;, x, y);
+    tenta_trocar(x, y);
+    printf(&quot;depois da chamada: x=%d y=%d\n&quot;, x, y);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>antes da chamada: x=1 y=2
+depois da chamada: x=1 y=2</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>main(void) vs main()</h2>
+  <p><code>int main(void)</code> declara que <code>main</code> não recebe argumentos. <code>int main()</code> é a sintaxe "antiga", que em C de verdade significa "recebe o que vier" (sem protótipo). O padrão recomenda <strong><code>int main(void)</code></strong> — e é o que usamos em todo o curso. (Quando quisermos ler argumentos do terminal, será <code>int main(int argc, char *argv[])</code>, no módulo 1.12.)</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Recursão: a função que chama a si mesma (degustação)</h2>
+  <p>Uma função pode chamar a si mesma: isso é <strong>recursão</strong>. Ela precisa de um <em>caso base</em> que para a cadeia e um <em>passo recursivo</em> que se aproxima dele. O fatorial é o exemplo clássico: <code>n! = n × (n-1)!</code>, com <code>0! = 1</code>. Recursão a fundo (quando usar, quando evitar, pilha) é assunto da Trilha 2 — aqui é degustação.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — recursão</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+long long fatorial(int n)
+{
+    if (n &lt;= 1) {
+        return 1;
+    }
+    return n * fatorial(n - 1);
+}
+
+int main(void)
+{
+    int n;
+
+    printf(&quot;Fatorial de qual numero? &quot;);
+    scanf(&quot;%d&quot;, &amp;n);
+
+    printf(&quot;%d! = %lld\n&quot;, n, fatorial(n));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Fatorial de qual numero? 10
+10! = 3628800</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Programa: teste de primalidade como função</h2>
+  <p>Fechando com o <code>eh_primo</code> reescrito como função: a função devolve 1 (verdadeiro) ou 0 (falso), e o <code>main</code> fica pequeno, contando a história.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — primo-função</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int eh_primo(int n)
+{
+    int i;
+
+    if (n &lt; 2) {
+        return 0;
+    }
+    for (i = 2; i * i &lt;= n; i++) {
+        if (n % i == 0) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int main(void)
+{
+    int n;
+
+    printf(&quot;Digite um numero: &quot;);
+    scanf(&quot;%d&quot;, &amp;n);
+
+    if (eh_primo(n)) {
+        printf(&quot;%d e primo\n&quot;, n);
+    } else {
+        printf(&quot;%d nao e primo\n&quot;, n);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Digite um numero: 29
+29 e primo</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t1-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.09.1</p>
+  <p class="enunciado">Escreva uma função <code>potencia(int base, int exp)</code> que calcula base^exp com um loop (exp >= 0) e a chame no main para 2^10, 3^4 e 5^0.</p>
+  <p class="dica"><strong>Dica:</strong> Acumule o resultado multiplicando pela base, exp vezes.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int potencia(int base, int exp)
+{
+    int i;
+    int resultado = 1;
+
+    for (i = 0; i &lt; exp; i++) {
+        resultado *= base;
+    }
+    return resultado;
+}
+
+int main(void)
+{
+    printf(&quot;2^10 = %d\n&quot;, potencia(2, 10));
+    printf(&quot;3^4  = %d\n&quot;, potencia(3, 4));
+    printf(&quot;5^0  = %d\n&quot;, potencia(5, 0));
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t1-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.09.2</p>
+  <p class="enunciado">Escreva uma função <code>max3(int a, int b, int c)</code> que devolve o maior dos três, e um main que lê três números e imprime o resultado.</p>
+  <p class="dica"><strong>Dica:</strong> Use a técnica "maior até agora" dentro da função.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int max3(int a, int b, int c)
+{
+    int maior = a;
+
+    if (b &gt; maior) {
+        maior = b;
+    }
+    if (c &gt; maior) {
+        maior = c;
+    }
+    return maior;
+}
+
+int main(void)
+{
+    int x, y, z;
+
+    printf(&quot;Digite tres numeros: &quot;);
+    scanf(&quot;%d %d %d&quot;, &amp;x, &amp;y, &amp;z);
+
+    printf(&quot;maior: %d\n&quot;, max3(x, y, z));
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t1-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.09.3</p>
+  <p class="enunciado">Implemente a soma de 1 a n de forma RECURSIVA (somar de n até 1). Imprima o resultado para n = 100.</p>
+  <p class="dica"><strong>Dica:</strong> Caso base: se <= 1, devolve 1; senão, n + soma(n-1).</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int soma_ate(int n)
+{
+    if (n &lt;= 1) {
+        return 1;
+    }
+    return n + soma_ate(n - 1);
+}
+
+int main(void)
+{
+    printf(&quot;soma de 1 a 100: %d\n&quot;, soma_ate(100));
+    return 0;
+}</code></pre>
+        <p class="obs">Recursão a fundo fica para a Trilha 2; aqui é apenas o "gosto" do conceito.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t1-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.09.4</p>
+  <p class="enunciado">Escreva uma função <code>fib(int n)</code> ITERATIVA que devolve o n-ésimo termo de Fibonacci (1, 1, 2, 3, 5, 8...) e imprima fibonacci de 1 a 10.</p>
+  <p class="dica"><strong>Dica:</strong> Guarde um "atual" e um "anterior", atualizando em cada volta.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int fib(int n)
+{
+    int a = 1, b = 1, i, prox;
+
+    for (i = 3; i &lt;= n; i++) {
+        prox = a + b;
+        a = b;
+        b = prox;
+    }
+    return b;
+}
+
+int main(void)
+{
+    int i;
+
+    for (i = 1; i &lt;= 10; i++) {
+        printf(&quot;fib(%d) = %d\n&quot;, i, fib(i));
+    }
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t1-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.09.5</p>
+  <p class="enunciado">Crie uma função <code>eh_digito_par(int n)</code> que devolve 1 se TODOS os dígitos de n forem pares (0, 2, 4, 6, 8), e 0 caso contrário. Teste com 2468 (1) e 123 (0).</p>
+  <p class="dica"><strong>Dica:</strong> Vá "arrancando" dígitos com % e /, retornando 0 ao achar um ímpar.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int eh_digito_par(int n)
+{
+    if (n &lt; 0) {
+        n = -n;
+    }
+    if (n == 0) {
+        return 1;   /* 0 e par */
+    }
+
+    while (n &gt; 0) {
+        if ((n % 10) % 2 != 0) {
+            return 0;
+        }
+        n = n / 10;
+    }
+    return 1;
+}
+
+int main(void)
+{
+    printf(&quot;2468: %d\n&quot;, eh_digito_par(2468));
+    printf(&quot;123: %d\n&quot;, eh_digito_par(123));
+    printf(&quot;0: %d\n&quot;, eh_digito_par(0));
+    return 0;
+}</code></pre>
+        </details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que é um PROTÓTIPO de função?&quot;,&quot;opcoes&quot;:[&quot;a declaração (cabeçalho + ;) antes do uso, evitando warnings&quot;,&quot;o primeiro esboço da função, não compilável&quot;,&quot;a função main sempre&quot;,&quot;um comentário explicando a função&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Colocamos o cabeçalho com ; no topo para o compilador conhecer a função antes do main.&quot;},{&quot;pergunta&quot;:&quot;Em \&quot;passagem por valor\&quot;, o que a função recebe?&quot;,&quot;opcoes&quot;:[&quot;uma cópia do valor — mexer no parâmetro não altera o chamador&quot;,&quot;o endereço da variável&quot;,&quot;um ponteiro para o chamador&quot;,&quot;a variável original&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Parâmetros são cópias; por isso a \&quot;troca\&quot; com dois ints não troca nada fora.&quot;},{&quot;pergunta&quot;:&quot;Qual a assinatura correta e recomendada para main sem argumentos?&quot;,&quot;opcoes&quot;:[&quot;int main(void)&quot;,&quot;void main()&quot;,&quot;int main&quot;,&quot;main(int argc)&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;void deixa explícito que não há parâmetros; é o padrão recomendado.&quot;},{&quot;pergunta&quot;:&quot;Toda função que devolve um valor deve ter:&quot;,&quot;opcoes&quot;:[&quot;um return no caminho certo&quot;,&quot;um printf&quot;,&quot;pelo menos 2 parâmetros&quot;,&quot;um protótipo obrigatório&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;A função deve devolver o valor via return (em todos os caminhos possíveis).&quot;},{&quot;pergunta&quot;:&quot;O que a recursão SEMPRE precisa ter para não entrar em loop infinito?&quot;,&quot;opcoes&quot;:[&quot;um caso base que para a cadeia&quot;,&quot;um contador global&quot;,&quot;a função main&quot;,&quot;uma variável static&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Sem caso base, as chamadas encadeadas nunca terminam (estouro de pilha).&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  
+  <nav class="mod-nav"><a class="btn nav-prev" href="arrays.html">← 1.08 Arrays</a><a class="btn nav-next" href="escopo-duracao-e-organizacao.html">1.10 Escopo, duração e organização →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t1-m09">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

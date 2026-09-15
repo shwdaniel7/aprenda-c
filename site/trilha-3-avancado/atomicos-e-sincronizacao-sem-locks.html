@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3.07 — Atômicos e sincronização sem locks — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="3">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t3">Trilha 3 — Avançado</a> / Atômicos e sincronização sem locks</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">3.07</div>
+    <h1>Atômicos e sincronização sem locks</h1>
+    <p class="subtitulo">atomic_int, fetch_add, CAS e memory_order</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado</span>
+      <span class="chip">Duração: ~25 min</span>
+      <span class="chip">Pré-requisitos: T3.06 (threads e data race)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t3-m07">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Usar os tipos atômicos de C11 (stdatomic.h) para incrementar/ler/escrever sem mutex, entender a operação compare-and-swap (CAS) que resolve o "quem chega primeiro", conhecer atomic_flag, e captar a ideia de memory_order — a régua com que o hardware ordena as operações atômicas.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 40 (atômicos)</p>
+  <p><strong>King (livro em PDF):</strong> C11 draft (seções 7.17 de stdatomic.h) quando precisar detalhar</p>
+  <p class="foco"><strong>Foco da leitura:</strong> Rode os exemplos lado a lado com o módulo 06: o contador atômico dá o mesmo resultado do mutex, mas sem fechadura. Em Linux, compile e rode com -fsanitize=thread para ver a diferença na prática.</p>
+</section>
+  <section class="card secao">
+  <h2>O contador atômico: sem mutex, sem corrida</h2>
+  <p>Um <code>atomic_int</code> é um int que o hardware promete manipular "sem rasgar": cada operação atômica é indivisível. O incremente <code>atomic_fetch_add(&contador, 1)</code> é "ler, somar 1, escrever" feito numa única instrução (RMW — read-modify-write) do processador. Quatro threads fazem isso em paralelo e o total fecha em 4.000.000 — igual ao mutex do módulo 06, mas sem travar ninguém. Atômicos são particularmente bons no coletivo "cada thread lê valores simples sem fila de espera".</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — aconta.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdatomic.h&gt;
+#include &lt;pthread.h&gt;
+
+#define NTHREADS 4
+#define VEZES 1000000
+
+static atomic_int contador = 0;
+
+static void *conta(void *arg)
+{
+    (void)arg;
+    for (int i = 0; i &lt; VEZES; i++) {
+        atomic_fetch_add(&amp;contador, 1);
+    }
+    return NULL;
+}
+
+int main(void)
+{
+    pthread_t t[NTHREADS];
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        pthread_create(&amp;t[i], NULL, conta, NULL);
+    }
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        pthread_join(t[i], NULL);
+    }
+    printf(&quot;esperado %d, obtido %d\n&quot;, NTHREADS * VEZES, atomic_load(&amp;contador));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; aconta
+esperado 4000000, obtido 4000000</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Compare-and-swap: a eleição do vencedor</h2>
+  <p>O CAS resolve o problema "só o primeiro passa". <code>atomic_compare_exchange_strong(&vencedor, &esperado, id)</code> fica: <em>se o valor atual é igual a *esperado, troca para id e volta true; senão, devolve false e grava o atual em *esperado</em>. Quatro threads disputam: exatamente uma encontra <code>-1</code> e escreve o id (o "vencedor"); as outras três veem a mudança e se declaram perdedoras. Isso é o coração de lock-free structures, contadores com únicos, e de implementações de "uma vez só".</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — cas.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdatomic.h&gt;
+#include &lt;pthread.h&gt;
+
+#define NTHREADS 4
+
+static atomic_int vencedor = -1;
+
+static void *corre(void *arg)
+{
+    int id = *(int *)arg;
+    int esperado = -1;
+    if (atomic_compare_exchange_strong(&amp;vencedor, &amp;esperado, id)) {
+        printf(&quot;thread %d venceu!\n&quot;, id);
+    } else {
+        printf(&quot;thread %d perdeu para %d\n&quot;, id, atomic_load(&amp;vencedor));
+    }
+    return NULL;
+}
+
+int main(void)
+{
+    pthread_t t[NTHREADS];
+    int ids[NTHREADS];
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        ids[i] = i + 1;
+        pthread_create(&amp;t[i], NULL, corre, &amp;ids[i]);
+    }
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        pthread_join(t[i], NULL);
+    }
+    printf(&quot;vencedor final: %d\n&quot;, atomic_load(&amp;vencedor));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; cas
+thread 1 venceu!
+thread 2 perdeu para 1
+thread 3 perdeu para 1
+thread 4 perdeu para 1
+vencedor final: 1</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>memory_order: por que o atômico é mais fino que parece</h2>
+  <p>Um atômico não "blinda" nada além daquele acesso — o mundo ao redor pode ser lido fora de ordem pelo processador (reorder). O <strong>memory_order</strong> diz com que força o compilador barra essas reordenações. <code>memory_order_relaxed</code>: só a própria operação, ordem de outras leituras é livre (bom para contadores). <code>memory_order_acquire</code>/<code>release</code>: emparelha assimetria — produzir dados e publicar uma flag com release garante que quem ler a flag com acquire vê todos os dados anteriores. <code>memory_order_seq_cst</code> (padrão das funções que você já usou): a ordem total mais forte — tudo vira "uma fila única". A lição prática: para avisos simples (flag de status), seq_cst/acquire-release resolve; para contadores de hot path, relaxed é honesto e rápido.</p>
+  <ul><li>relaxed — sem barreiras; ok para incrementos que ninguém usa para sincronizar.</li>
+<li>acquire (lado de quem lê a flag) — garante que leituras seguintes não passem antes.</li>
+<li>release (lado de quem publica) — garante que escritas anteriores não passem depois.</li>
+<li>seq_cst — ordem total única de todas as operações; o padrão de atomic_fetch_add? Não! o padrão das primitivas é seq_cst.</li>
+<li>Regra de ouro: release/acquire é o casal; relaxed é para "só somar"; seq_cst quando tiver dúvida.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Atômico vs mutex na prática</h2>
+  <p>Mutex e atômico resolvem problemas diferentes. O mutex dá <em>exclusão de trecho inteiro</em>: várias operações acontecem "sem cortes" (protege a receita do buffer, como no produtor-consumidor). O atômico vale onde o momento crítico é <em>uma única operação</em> (incrementar, trocar um valor). Traduzindo: se o seu "critico" é contador++ ou escrever uma flag — atômico. Se é 5 linhas mexendo em 3 variáveis — mutex. Para comparar na prática, o spinlock do exercício 2 é o mutex "feito à mão" com atomic_flag.</p>
+  <ul><li>Contador compartilhado, flag de status, "quem chegou primeiro" → atômico.</li>
+<li>Fila circular, lista encadeada, transação de 3 campos → mutex.</li>
+<li>Num lock-free, cada parte individual é atômica; o conjunto precisa de CAS para compor.</li>
+<li>Atômico não substitui mutex para "ações compostas"; mutex não é barato como um contador.</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t3-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.07.1</p>
+  <p class="enunciado">Rode o exercício da data race do módulo 06 (contador++ com 4 threads), mas troque long por atomic_int e o incremento por atomic_fetch_add. Imprima o total esperado e obtido, com a marca "(data race corrigida)". O resultado deve fechar em 4.000.000 toda vez.</p>
+  <p class="dica"><strong>Dica:</strong> Diferente do mutex, aqui não há lock/unlock: a própria instrução RMW garante a indivisibilidade.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdatomic.h&gt;
+#include &lt;pthread.h&gt;
+
+#define NTHREADS 4
+#define VEZES 1000000
+
+static atomic_int contador = 0;
+
+static void *conta(void *arg)
+{
+    (void)arg;
+    for (int i = 0; i &lt; VEZES; i++) {
+        atomic_fetch_add(&amp;contador, 1);
+    }
+    return NULL;
+}
+
+int main(void)
+{
+    pthread_t t[NTHREADS];
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        pthread_create(&amp;t[i], NULL, conta, NULL);
+    }
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        pthread_join(t[i], NULL);
+    }
+    printf(&quot;esperado %d, obtido %d (data race corrigida)\n&quot;,
+           NTHREADS * VEZES, atomic_load(&amp;contador));
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real: "esperado 4000000, obtido 4000000 (data race corrigida)" em todas as execuções.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t3-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.07.2</p>
+  <p class="enunciado">Implemente um spinlock manual: uma variável atomic_flag trava a porta; cada thread faz "espera ocupada" com atomic_flag_test_and_set enquanto a porta estiver fechada, incrementa um long protegido e destrava com atomic_flag_clear. O total deve ser 400.000.</p>
+  <p class="dica"><strong>Dica:</strong> atomic_flag é 0/1; test_and_set devolve o valor antigo — se era 1, outro segura a porta; loop enquanto isso.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdatomic.h&gt;
+#include &lt;pthread.h&gt;
+
+#define NTHREADS 4
+#define VEZES 100000
+
+static atomic_flag trava = ATOMIC_FLAG_INIT;
+static long contador = 0;
+
+static void *conta(void *arg)
+{
+    (void)arg;
+    for (int i = 0; i &lt; VEZES; i++) {
+        while (atomic_flag_test_and_set(&amp;trava)) {
+            /* espera ocupada (spinlock) */
+        }
+        contador++;
+        atomic_flag_clear(&amp;trava);
+    }
+    return NULL;
+}
+
+int main(void)
+{
+    pthread_t t[NTHREADS];
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        pthread_create(&amp;t[i], NULL, conta, NULL);
+    }
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        pthread_join(t[i], NULL);
+    }
+    printf(&quot;esperado %d, obtido %ld\n&quot;, NTHREADS * VEZES, contador);
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real: "esperado 400000, obtido 400000". (Spinlock é a versão atômica do mutex: simples, mas "queima" CPU na espera.)</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t3-m07">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.07.3</p>
+  <p class="enunciado">Thread A (trabalha) muda o status_atomico de 0 → 1 → 2. Thread B (observa) faz atomic_load em loop e guarda os estados distintos que viu (sem repetições consecutivas), parando ao ver 2. Imprima os estados observados e o status final.</p>
+  <p class="dica"><strong>Dica:</strong> O observador pode perder o 0 ou o 1 se a transição for rapidíssima — compilação com -O2 deixa isso até mais provável. Isso não é bug: o atômico só garante o valor lido, não que você "pegue todos".</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdatomic.h&gt;
+#include &lt;pthread.h&gt;
+
+static atomic_int status = 0;   /* 0 = pronto, 1 = trabalhando, 2 = feito */
+
+static void *trabalha(void *arg)
+{
+    (void)arg;
+    atomic_store(&amp;status, 1);
+    volatile double acc = 0.0;
+    for (int i = 0; i &lt; 100000000; i++) {
+        acc += 1.0e-12;
+    }
+    if (acc &lt; 0.0) {
+        printf(&quot;impossivel\n&quot;);
+    }
+    atomic_store(&amp;status, 2);
+    return NULL;
+}
+
+static void *observa(void *arg)
+{
+    (void)arg;
+    int vistos[4];
+    size_t n = 0;
+    int ultimo = -1;
+    for (;;) {
+        int v = atomic_load(&amp;status);
+        if (v != ultimo) {
+            vistos[n++] = v;
+            ultimo = v;
+        }
+        if (v == 2) {
+            break;
+        }
+    }
+    printf(&quot;estados observados: &quot;);
+    for (size_t i = 0; i &lt; n; i++) {
+        printf(&quot;%d%s&quot;, vistos[i], i + 1 &lt; n ? &quot; &quot; : &quot;&quot;);
+    }
+    printf(&quot;\n&quot;);
+    return NULL;
+}
+
+int main(void)
+{
+    pthread_t a, b;
+    pthread_create(&amp;a, NULL, trabalha, NULL);
+    pthread_create(&amp;b, NULL, observa, NULL);
+    pthread_join(a, NULL);
+    pthread_join(b, NULL);
+    printf(&quot;status final: %d\n&quot;, atomic_load(&amp;status));
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real desta execução: "estados observados: 1 2" e "status final: 2" (a thread B "perdeu" o 0 porque a troca 1 aconteceu antes do primeiro load). Em execuções mais lentas ele pode ver "0 1 2". Ambas são corretas.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que atomic_fetch_add(&amp;c, 1) garante de diferente de c++?&quot;,&quot;opcoes&quot;:[&quot;Nada&quot;,&quot;Que a operação \&quot;ler, somar, escrever\&quot; é indivisível entre threads&quot;,&quot;Que c fica const&quot;,&quot;Que é maior que c&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;fetch_add é um RMW atômico: nenhuma outra thread observa um valor \&quot;pela metade\&quot; da operação.&quot;},{&quot;pergunta&quot;:&quot;Para que serve atomic_compare_exchange_strong?&quot;,&quot;opcoes&quot;:[&quot;Somar valores&quot;,&quot;Trocar o valor só se ele ainda for o esperado — resolver \&quot;quem elege o vencedor\&quot;&quot;,&quot;Criar uma thread&quot;,&quot;Esperar um mutex&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;CAS combina \&quot;compare\&quot; e \&quot;exchange\&quot;: se igual ao esperado, troca; senão, devolve o atual.&quot;},{&quot;pergunta&quot;:&quot;Qual memory_order é o mais fraco (sem barreiras)?&quot;,&quot;opcoes&quot;:[&quot;seq_cst&quot;,&quot;acquire&quot;,&quot;release&quot;,&quot;relaxed&quot;],&quot;correta&quot;:3,&quot;explicacao&quot;:&quot;relaxed garante só a atomicidade da operação, sem reordenar nada mais — ideal para contadores.&quot;},{&quot;pergunta&quot;:&quot;Quando usar mutex em vez de atômico?&quot;,&quot;opcoes&quot;:[&quot;Criar threads&quot;,&quot;Ao proteger um trecho com várias operações/variáveis juntas&quot;,&quot;Ao somar contadores&quot;,&quot;Nunca: atômico substitui mutex sempre&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Mutex dá exclusão mútua de trechos inteiros; atômico só garante operações unitárias.&quot;},{&quot;pergunta&quot;:&quot;O observador que \&quot;perdeu\&quot; o estado 0 do exercício 3 indica bug?&quot;,&quot;opcoes&quot;:[&quot;Sim, o atômico falhou&quot;,&quot;Não: o atômico garante o valor lido em cada load, não que todos os estados intermediários sejam vistos&quot;,&quot;Sim, faltou memory_order_relaxed&quot;,&quot;Não, mas precisa de mutex&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Cada load lê um valor atômico coerente; um estado de vida curtíssima pode nunca ser amostrado.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  
+  <nav class="mod-nav"><a class="btn nav-prev" href="threads-com-pthreads.html">← 3.06 Threads com pthreads</a><a class="btn nav-next" href="sockets-com-posix-no-linux-wsl.html">3.08 Sockets com POSIX (no Linux/WSL) →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t3-m07">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

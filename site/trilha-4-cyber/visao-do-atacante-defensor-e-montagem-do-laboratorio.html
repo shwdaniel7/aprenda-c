@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4.01 — Visão do atacante × defensor e montagem do laboratório — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="4">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t4">Trilha 4 — Cyber</a> / Visão do atacante × defensor e montagem do laboratório</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">4.01</div>
+    <h1>Visão do atacante × defensor e montagem do laboratório</h1>
+    <p class="subtitulo">Mentalidade ofensiva/defensiva + WSL2 ou VM prontos para o resto da trilha</p>
+    <div class="chips">
+      <span class="chip">Nível: Introdução/Cyber</span>
+      <span class="chip">Duração: ~35 min</span>
+      <span class="chip">Pré-requisitos: T0.01 (compilar e rodar no gcc), T0.02 (primeiros passos no gdb)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t4-m01">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Entender o que um atacante (e um defensor) procura em código C, conhecer casos reais educacionais de referência e montar um laboratório Linux isolado (WSL2 ou VM) com gcc, gdb, valgrind, pwndbg e peda, criando a pasta labs/ para todos os exercícios da trilha.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  
+  
+  <p class="foco"><strong>Foco da leitura:</strong> Use a trilha de intro-ctf do pwn.college (https://pwn.college/) para ver como desafios de pwn funcionam na prática, e o site do Exploit Education (https://exploit.education/) para conhecer os labs Phoenix/Protostar que usaremos nos módulos finais. Ambos são gratuitos, éticos e voltados a aprendizado.</p>
+</section>
+  <section class="card secao">
+  <h2>Aviso ético e legal (leia antes de tudo)</h2>
+  <p>Esta trilha trabalha com <strong>técnicas ofensivas de baixo nível</strong>: overflow, exploits, shellcode e redes. Isso é <strong>conhecimento necessário para defender</strong> — não existe defesa séria sem entender o ataque. <strong>Regra inegociável:</strong> rode APENAS em ambiente controlado (WSL2/VM isolada), nunca em produção, nunca em rede de terceiros, nunca contra um sistema sem autorização explícita por escrito do proprietário.</p>
+<p>Todo exemplo desta trilha é <strong>didático</strong>: binários vulneráveis criados por você, para você, dentro de um diretório <code>labs/</code>. Não há malware real, exfiltração nem C2 real em nenhum bloco. Você vai gerar <em>mini-exploits</em> acadêmicos — os mesmos que as equipes de segurança (red team) e os pesquisadores (defesa) produzem nos seus estudos.</p>
+<p>Ao terminar os exercícios, <strong>destrua ou isole</strong> os binários de exploração do seu sistema principal. Manter artefatos de exploit soltos por aí é má prática.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Duas visões, um mesmo código</h2>
+  <p>A segurança de um software não é uma propriedade que se adiciona no final: ela nasce da forma como o programador trata <strong>entrada</strong>, <strong>memória</strong> e <strong>confiança</strong>. Veja o que cada lado enxerga no mesmo programa C:</p>
+  <ul><li><strong>Entrada não validada</strong> — o atacante procura a primeira linha que lê dado externo sem checar tamanho/conteúdo: <code>gets</code>, <code>strcpy</code>, <code>scanf("%s")</code>, <code>printf(dado)</code>. O defensor procura exatamente os mesmos pontos para substituí-los por versões limitadas.</li>
+<li><strong>Memória</strong> — o atacante procura onde uma escrita pode estourar um buffer, corromper um ponteiro ou um endereço de retorno. O defensor procura as mesmas escritas para impor limites, canários e sanitização.</li>
+<li><strong>Confiança</strong> — o atacante procura o que o programa assume sobre o ambiente (variável de ambiente, banco de dados, arquivo de config, timeout). O defensor procura o que pode ser falsificado ou manipulado.</li>
+<li><strong>Superfícies de ataque</strong> — o atacante mapeia tudo que recebe bytes de fora; o defensor reduz esse mapa ao mínimo (menos entrada, menos privilégio, menos código exposto).</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Estudos de caso (contexto educacional)</h2>
+  <p>Conhecer falhas reais ajuda a entender por que esta trilha existe. Todos os casos abaixo são <strong>históricos e documentados</strong> — estudá-los é pesquisa acadêmica, não reprodução.</p>
+  <ul><li><strong>Morris Worm (1988)</strong> — um dos primeiros worms da internet explorou, entre outras falhas, um <em>buffer overflow</em> no <code>fingerd</code> (um serviço escrito em C que usava <code>gets</code>). O worm se propagou sozinho e derrubou grandes redes: um lembrete antigo de que <em>uma única cópia sem limite de tamanho</em> já era um problema em 1988.</li>
+<li><strong>Heartbleed (2014, CVE-2014-0160)</strong> — falha de <em>bounds check</em> na extensão heartbeat do OpenSSL (em C): o servidor copiava <code>n</code> bytes de um buffer sem conferir que existiam <code>n</code> bytes disponíveis, vazando memória do processo (incluindo chaves privadas). A lição: <em>cheque o tamanho do dado contra o tamanho do alvo</em> (bounds checking), nunca confie em um tamanho declarado pela entrada.</li>
+<li><strong>EternalBlue (2017)</strong> — falha em <code>srv.sys</code> do Windows (SMBv1, escrito em C) permitia escrever além do buffer no <em>kernel</em>. Combinado ao worm <strong>WannaCry</strong>, causou um dos maiores ataques de ransomware da história. Lição: exploração não é só brinquedo de aplicação — bugs de memória existem em nível de kernel.</li>
+<li><strong>Log4Shell (2021, CVE-2021-44228)</strong> — não é C (é Java/Log4j), mas mostra a versão moderna da mesma ideia: <em>entrada não validada interpretada como código/conteúdo executável</em>. O padrão mental "dado externo misturado com interpretação" é universal.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Por que C ainda é central em cibersegurança</h2>
+  <p>Décadas depois, a maioria das vulnerabilidades sérias de memória (<em>memory safety</em>) vive em código C/C++: kernels, drivers, browsers, bibliotecas TLS/cripto, firmware de roteadores e sistemas embarcados. C domina justamente onde o hardware está perto: <strong>exploits, shellcode, análise de malware e engenharia reversa exigem C e assembly na veia</strong>.</p>
+<p>A consequência prática para o curso: quem domina C entende (1) <em>por que</em> o bug existe, (2) <em>como</em> ele é explorável, (3) <em>qual correção</em> elimina a classe inteira, e (4) como ler relatórios (CVE, CWE, CVSS) sem panacéias. Ferramentas de scanner ajudam, mas a decisão final é humana.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Montando o laboratório com WSL2 + Ubuntu (recomendado)</h2>
+  <p>No Windows, a maneira mais simples é o <strong>WSL2</strong> com Ubuntu — você ganha um Linux real (kernel próprio) com terminal integrado. Passo a passo:</p>
+  <ul><li>Abra o PowerShell como administrador e rode <code>wsl --install</code> (instala WSL2 + Ubuntu por padrão) e reinicie quando pedir.</li>
+<li>Crie usuário/senha linux ao primeiro boot. Depois atualize: <code>sudo apt update && sudo apt upgrade -y</code>.</li>
+<li>Instale as ferramentas: <code>sudo apt install -y build-essential gcc gdb valgrind python3 netcat-openbsd tcpdump</code> (build-essential traz gcc, make e libc).</li>
+<li><em>(Opcional, recomendado para os módulos 4 a 7)</em> Instale o pwndbg: <code>git clone https://github.com/pwndbg/pwndbg</code>, entre na pasta e rode <code>./setup.sh</code>. Ele vira o gdb padrão com visualização de pilha e registradores.</li>
+<li><em>(Alternativa)</em> Instale o peda (já é um script único): <code>git clone https://github.com/longld/peda</code>, depois adicione <code>source ~/peda/peda.py</code> no final do seu <code>~/.gdbinit</code>.</li>
+<li>Crie a pasta de trabalho: <code>mkdir -p ~/labs/4.{01..10}</code> — um diretório por módulo. Os comandos desta trilha assumem que você está dentro de <code>~/labs</code>.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Alternativa: máquina virtual isolada</h2>
+  <p>Se preferir um isolamento mais forte que o WSL2 (ou não puder instalar o WSL), use uma VM:</p>
+  <ul><li><strong>VirtualBox</strong> (gratuito) + imagem <strong>Debian</strong> ou <strong>Kali</strong>. Kali já traz gdb, pwndbg, metasploit e ferramentas; Debian é mais enxuta e suficiente para esta trilha.</li>
+<li>Configure a rede da VM como <strong>NAT ou rede interna</strong> — nunca "bridge" em rede de produção/terceiros. A VM deve estar isolada do resto da rede.</li>
+<li>Instale as mesmas ferramentas da lista do WSL2 dentro da VM.</li>
+<li>Vantagem extra da VM: <em>snapshots</em>. Tire um snapshot "limpo" antes de cada sessão de exploração e restaure depois — seu sistema base nunca é tocado.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Teste rápido do ambiente</h2>
+  <p>Crie o programa abaixo dentro do WSL/VM e compile com o gcc do Linux. Se isto rodar, seu laboratório está pronto para o módulo 02. Este arquivo compila também no Windows/MinGW, mas esta trilha inteira assume o Linux.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — hello.c no Linux</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;Lab pronto: %d cores logicos\n&quot;, 1);
+    printf(&quot;Este eh um Linux real, exigido pela trilha Cyber\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ gcc -Wall -Wextra -std=c11 hello_lab.c -o hello_lab
+$ ./hello_lab
+Lab pronto: 1 cores logicos
+Este eh um Linux real, exigido pela trilha Cyber</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Conferência do ambiente</h2>
+  
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — verificando as ferramentas</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">$ uname -a
+$ gcc --version
+$ gdb --version
+$ valgrind --version
+$ mkdir -p ~/labs &amp;&amp; ls -ld ~/labs</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Linux DESKTOP-XXXX 5.15.xxx-microsoft-standard-WSL2 ...
+gcc (Ubuntu 13.2.0-6ubuntu2) 13.2.0
+GNU gdb (Ubuntu 13.2) ...
+valgrind-3.19.0
+drwxr-xr-x 2 voce voce 4096 ... labs</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Regras de ouro para o resto da trilha</h2>
+  
+  <ul><li>Rode APENAS em WSL2/VM controlada; nunca em produção — repita este mantra em cada módulo.</li>
+<li>Os binários vulneráveis da trilha ficam somente em <code>~/labs</code>. Não os copie para o sistema principal.</li>
+<li>Desligue ASLR e use flags especiais de compilação SOMENTE durante o estudo, por sessão, e restaure ao final (veremos o comando exato no módulo 05).</li>
+<li>Antes de explorar qualquer coisa, leia o código-fonte completo e escreva o que espera que aconteça. Exploração às cegas não é ciência.</li>
+<li>Nenhum exercício requer contato com sistemas externos. Se algo pedir acesso a outra máquina, pare e revise: não é este material.</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t4-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.01.1</p>
+  <p class="enunciado">Instale o WSL2 + Ubuntu (ou prepare uma VM com Debian/Kali), atualize o sistema e instale build-essential, gcc, gdb e valgrind. Rode <code>uname -a</code>, <code>gcc --version</code> e <code>valgrind --version</code> e confira que os três respondem.</p>
+  <p class="dica"><strong>Dica:</strong> Tudo isso é feito no terminal Linux. No WSL, use <code>sudo apt install -y build-essential gcc gdb valgrind python3</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ uname -a
+Linux NC-DESKTOP 5.15.xxx-microsoft-standard-WSL2 #1 SMP ... x86_64 GNU/Linux
+$ gcc --version
+gcc (Ubuntu 13.2.0-6ubuntu2) 13.2.0
+$ valgrind --version
+valgrind-3.19.0</code></pre>
+        <p class="obs">Se <code>gcc</code> não aparecer, rode <code>sudo apt install -y build-essential</code>. A versão exata não importa — precisa existir.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t4-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.01.2</p>
+  <p class="enunciado">Crie a estrutura de pastas <code>~/labs/4.01</code> até <code>~/labs/4.10</code> com um único comando e confirme com <code>ls</code>. Dentro de <code>~/labs/4.01</code> coloque o <code>hello_lab.c</code> desta seção, compile com <code>-Wall -Wextra</code> e rode.</p>
+  <p class="dica"><strong>Dica:</strong> Use <code>mkdir -p ~/labs/4.{01..10}</code> (expansão de chaves do bash).</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ mkdir -p ~/labs/4.{01..10}
+$ ls ~/labs
+4.01  4.02  4.03  4.04  4.05  4.06  4.07  4.08  4.09  4.10
+$ cd ~/labs/4.01
+$ gcc -Wall -Wextra -std=c11 hello_lab.c -o hello_lab
+$ ./hello_lab</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t4-m01">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.01.3</p>
+  <p class="enunciado">Instale o peda (com o comando da seção) e confira que ele carrega: rode <code>gdb ./seu_programa</code> e dentro do gdb o prompt deve passar a mostrar as linhas de "PEDA". Depois digite <code>quit</code>.</p>
+  <p class="dica"><strong>Dica:</strong> Se o peda não carregar, verifique se a linha <code>source ~/peda/peda.py</code> está no fim do <code>~/.gdbinit</code> e se o arquivo <code>peda.py</code> existe.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ git clone https://github.com/longld/peda ~/peda
+$ echo &quot;source ~/peda/peda.py&quot; &gt;&gt; ~/.gdbinit
+$ gdb ./hello_lab
+gdb-peda$ quit</code></pre>
+        <p class="obs">A partir do módulo 04 usaremos peda/pwndbg diariamente para visualizar pilha e registradores.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual falha o Morris Worm de 1988 explorou e por que o caso é lembrado até hoje?&quot;,&quot;opcoes&quot;:[&quot;Um overflow no fingerd (função gets) que permitiu propagação automática em rede&quot;,&quot;Uma falha de criptografia no HTTPS&quot;,&quot;Um erro de configuração de senha no Linux&quot;,&quot;Uma vulnerabilidade de Java no servidor web&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O Morris Worm explorou, entre outras, o overflow no fingerd (which usava gets) e se propagou sozinho, derrubando redes inteiras.&quot;},{&quot;pergunta&quot;:&quot;A falha Heartbleed (2014) pertence a qual classe de bug?&quot;,&quot;opcoes&quot;:[&quot;Erro de bounds checking (não verificava se n bytes realmente existiam antes de copiá-los)&quot;,&quot;Format string no OpenSSL&quot;,&quot;Uso de gets em um serviço de e-mail&quot;,&quot;Senha padrão hardcoded&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Heartbleed copiava n bytes de memória sem confirmar que existiam n bytes disponíveis — a lição central do bounds checking.&quot;},{&quot;pergunta&quot;:&quot;Onde a trilha Cyber deve ser executada, segundo a regra de ouro?&quot;,&quot;opcoes&quot;:[&quot;Em qualquer máquina, inclusive produção, se for \&quot;só um teste rápido\&quot;&quot;,&quot;Apenas em ambiente controlado (WSL2 ou VM isolada), nunca em produção&quot;,&quot;Apenas em servidores Windows do trabalho&quot;,&quot;Em qualquer máquina, desde que se apague o histórico depois&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Todo pentest/exploração exige autorização e isolamento; este curso roda somente em lab próprio.&quot;},{&quot;pergunta&quot;:&quot;Quais ferramentas formam o laboratório mínimo desta trilha?&quot;,&quot;opcoes&quot;:[&quot;gcc, gdb, valgrind e python3 (além de peda/pwndbg recomendados)&quot;,&quot;Excel, Word e PowerPoint&quot;,&quot;Apenas o navegador Edge&quot;,&quot;Visual Studio e .NET Framework&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O lab usa gcc (compilar), gdb (depurar), valgrind (memória), python3 (gerar payloads) e opcionalmente o peda/pwndbg.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Laboratório completo da trilha Cyber</h2>
+  <p>Deixe o laboratório pronto para os módulos 02–10: WSL2 ou VM atualizada, gcc/gdb/valgrind/python3 instalados, peda E pwndbg (ou só um deles, mas configurado), pastas ~/labs/4.01..4.10 criadas, e um ~/notas_gdb.txt com os comandos essenciais do gdb que você já conhece da Trilha 0. Dentro de cada pasta labs/4.XX crie um README.md de uma linha descrevendo o que será estudado ali (pode escrever depois, conforme avança).</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li><code>uname -a</code>, <code>gcc --version</code>, <code>gdb --version</code> e <code>valgrind --version</code> respondem no terminal Linux.</li><li><code>~/labs/4.01</code>…<code>4.10</code> existem e a seção 4.01 contém o hello_lab compilado e rodando.</li><li>peda OU pwndbg carregam no gdb sem erro.</li><li>Você consegue abrir o gdb, carregar um binário, dar break, run e sair.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-next" href="codificacao-segura-em-c-defensiva.html">4.02 Codificação segura em C (defensiva) →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t4-m01">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

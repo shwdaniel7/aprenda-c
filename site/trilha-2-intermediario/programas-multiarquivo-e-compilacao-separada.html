@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.09 — Programas multiarquivo e compilação separada — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / Programas multiarquivo e compilação separada</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.09</div>
+    <h1>Programas multiarquivo e compilação separada</h1>
+    <p class="subtitulo">.h, .c, protótipos, guardas, static/extern, Makefile</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: T2.08</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m09">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Dividir um programa em cabeçalhos (.h) e implementações (.c), compilar peça por peça com gcc -c, linkar tudo depois, e automatizar a build com um Makefile simples com build incremental.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 17 (Separate Compilation, Makefiles)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 15 (Writing Large Programs)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, o capítulo 15 cobre exatamente o cenário aqui: dividir em arquivos, cabeçalhos, e o papel das guardas. No Beej, foque na parte de compilar vários arquivos e no exemplo de Makefile.</p>
+</section>
+  <section class="card secao">
+  <h2>O cabeçalho: só declarações</h2>
+  <p>A regra do jogo: o <strong>.h</strong> traz apenas declarações (protótipos, tipos, macros, constantes); o <strong>.c</strong> traz as definições concretas. Quem quer usar uma função faz <code>#include "calc.h"</code> e o compilador sabe a assinatura. A include guard evita duplicação (T2.08).</p>
+<p>Este bloco é um cabeçalho; os dois próximos são as peças compiláveis que, juntas, formam o programa.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — calc.h (fragmento de cabeçalho)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* calc.h */
+#ifndef CALC_H
+#define CALC_H
+
+int soma(int a, int b);
+int sub(int a, int b);
+int mul(int a, int b);
+
+#endif</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>A implementação: definitions</h2>
+  <p><code>calc.c</code> <em>inclui o próprio</em> cabeçalho — assim o compilador confere se o protótipo bate com a definição. Note que este arquivo <strong>não tem</strong> <code>main</code>: é uma biblioteca, um translação unit que só fará sentido ao ser linkado com quem tem <code>main</code>.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — calc.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* calc.c */
+#include &quot;calc.h&quot;
+
+int soma(int a, int b) { return a + b; }
+int sub(int a, int b)  { return a - b; }
+int mul(int a, int b)  { return a * b; }</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>O programa principal</h2>
+  <p><code>main.c</code> usa as funções com a interface declarada no <code>calc.h</code>. Para gerar o executável, <code>gcc calc.c main.c -o calc</code>: o compilador gera objetos de cada .c e o linker junta tudo, resolvendo as chamadas.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — main.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* main.c */
+#include &lt;stdio.h&gt;
+#include &quot;calc.h&quot;
+
+int main(void)
+{
+    printf(&quot;soma: %d\n&quot;, soma(3, 4));
+    printf(&quot;sub:  %d\n&quot;, sub(10, 4));
+    printf(&quot;mul:  %d\n&quot;, mul(3, 4));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; gcc calc.c main.c -o calc
+&gt; .\calc.exe
+
+soma: 7
+sub:  6
+mul:  12</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Compilação separada: gcc -c e os arquivos .o</h2>
+  <p>Projetos grandes compilam cada <code>.c</code> em um <strong>arquivo objeto</strong> (<code>.o</code>) com <code>gcc -c</code>, e só a mudança de um arquivo exige recompilar aquele arquivo. No fim, o linker junta os <code>.o</code> no executável:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — compilando-por-partes</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">gcc -Wall -Wextra -std=c11 -c calc.c
+gcc -Wall -Wextra -std=c11 -c main.c
+gcc calc.o main.o -o calc
+.\calc.exe</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>soma: 7
+sub:  6
+mul:  12</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Makefile: build incremental por dependências</h2>
+  <p>Um Makefile descreve <strong>alvos</strong> (targets), <strong>pré-requisitos</strong> e <strong>regras</strong>: se qualquer pré-requisito mudou, o alvo é reconstruído. Isso dá o build incremental — imagina recompilar 200 arquivos porque trocou 1.</p>
+<p>Abaixo, o Makefile do nosso mini-projeto (no Windows, use <code>mingw32-make</code>):</p>
+  <ul><li><code>calc:</code> — alvo final, depende de <code>calc.o</code> e <code>main.o</code>.</li>
+<li><code>calc.o:</code> e <code>main.o:</code> — dependem de seus <code>.c</code> e do <code>calc.h</code>.</li>
+<li><code>clean:</code> — remove os artefatos gerados.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — Makefile</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c"># Makefile
+CC = gcc
+CFLAGS = -Wall -Wextra -std=c11
+
+calc: calc.o main.o
+	$(CC) $(CFLAGS) calc.o main.o -o calc
+
+calc.o: calc.c calc.h
+	$(CC) $(CFLAGS) -c calc.c
+
+main.o: main.c calc.h
+	$(CC) $(CFLAGS) -c main.c
+
+clean:
+	del /q calc.o main.o calc.exe</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>static e extern</h2>
+  <p><code>extern</code> diz que uma variável/função está <em>definida em outro arquivo</em> (já é o padrão para funções). <code>static</code> no nível de arquivo esconde o símbolo daquele arquivo (linkage interna); <code>static</code> dentro de função preserva o valor entre chamadas — a "memória" da função:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — contador-static.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int chamadas_estaticas(void)
+{
+    static int contador = 0;
+    contador++;
+    return contador;
+}
+
+int main(void)
+{
+    printf(&quot;chamada 1: %d\n&quot;, chamadas_estaticas());
+    printf(&quot;chamada 2: %d\n&quot;, chamadas_estaticas());
+    printf(&quot;chamada 3: %d\n&quot;, chamadas_estaticas());
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>chamada 1: 1
+chamada 2: 2
+chamada 3: 3</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.09.1</p>
+  <p class="enunciado">Separe em <code>media.h</code> e <code>media.c</code> a função <code>double media(double a, double b)</code> e use-a em um <code>main.c</code>. Responda com os três arquivos e o comando de compilação. (Solução mostra uma versão compacta e a regra de ouro dos arquivos.)</p>
+  <p class="dica"><strong>Dica:</strong> media.h declara e media.c define. main.c inclui media.h e chamam media(7.5, 4.5).</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">/* media.h */
+#ifndef MEDIA_H
+#define MEDIA_H
+double media(double a, double b);
+#endif
+
+/* media.c */
+#include &quot;media.h&quot;
+double media(double a, double b) { return (a + b) / 2.0; }
+
+/* main.c */
+#include &lt;stdio.h&gt;
+#include &quot;media.h&quot;
+int main(void)
+{
+    printf(&quot;media de 7.5 e 4.5 = %.2f\n&quot;, media(7.5, 4.5));
+    return 0;
+}
+
+/* compilar: gcc media.c main.c -o media */
+</code></pre>
+        <p class="obs">Na prática, cada arquivo vai em um arquivo de verdade (.h e .c); a solução acima junta os três em um código único só para conferência rápida.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.09.2</p>
+  <p class="enunciado">Com os arquivos do exemplo calc (calc.h/calc.c/main.c), compile manualmente em duas etapas: gere os objetos com <code>gcc -c</code> e linke com os .o. Depois, usando o Makefile, rode <code>mingw32-make</code> duas vezes seguidas e observe como a segunda build é mais curta (nothing to be done).</p>
+  <p class="dica"><strong>Dica:</strong> O Makefile deve estar na mesma pasta dos .c. A segunda execução imprime "make: Nothing to be done".</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">&gt; gcc -Wall -Wextra -std=c11 -c calc.c main.c
+&gt; gcc calc.o main.o -o calc
+&gt; .\calc.exe
+soma: 7
+sub:  6
+mul:  12
+
+&gt; mingw32-make
+calc.o  (ou &quot;nada a fazer&quot; na segunda vez)
+&gt; .\calc.exe</code></pre>
+        <p class="obs">O Makefile compara timestamps: nada que mudou, nada a recompilar.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.09.3</p>
+  <p class="enunciado">Escreva uma função com <code>static int contador</code> que devolve 1, 2, 3... a cada chamada (o exemplo do módulo). Agora alterne: crie uma versão SEM static (sempre 1) e outra COM static, em um só programa, e imprima as duas sequências lado a lado.</p>
+  <p class="dica"><strong>Dica:</strong> A função sem static reinicia em 0 a cada chamada; a com static lembra.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int sem_static(void)
+{
+    int c = 0;
+    c++;
+    return c;
+}
+
+int com_static(void)
+{
+    static int c = 0;
+    c++;
+    return c;
+}
+
+int main(void)
+{
+    for (int i = 0; i &lt; 4; i++) {
+        printf(&quot;sem_static:%d   com_static:%d\n&quot;, sem_static(), com_static());
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">A variável static vive entre chamadas; a local morre ao fim da função.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m09">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.09.4</p>
+  <p class="enunciado">Use <code>extern</code>: em <code>global.c</code> defina <code>int contador_global = 0;</code> e a função <code>void incrementar_global(void)</code>; em <code>main.c</code> declare <code>extern int contador_global;</code>, chame a função três vezes e imprima o valor. Compile com os dois arquivos.</p>
+  <p class="dica"><strong>Dica:</strong> precisa de dois arquivos; responda com o conteúdo de cada um e o comando <code>gcc global.c main.c -o prog</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">/* global.c */
+int contador_global = 0;
+
+void incrementar_global(void)
+{
+    contador_global++;
+}
+
+/* main.c */
+#include &lt;stdio.h&gt;
+
+extern int contador_global;
+void incrementar_global(void);
+
+int main(void)
+{
+    incrementar_global();
+    incrementar_global();
+    incrementar_global();
+    printf(&quot;contador_global = %d\n&quot;, contador_global);
+    return 0;
+}
+
+/* compilar: gcc global.c main.c -o prog  -&gt; imprime 3 */
+</code></pre>
+        <p class="obs">extern não é uma declaração "nova": apenas promete que a variável existe em outro arquivo. O linker resolve na fase de linkagem.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que normalmente vive num arquivo .h?&quot;,&quot;opcoes&quot;:[&quot;Código compilado&quot;,&quot;Declarações: protótipos, tipos, macros, constantes&quot;,&quot;Somente a função main&quot;,&quot;o binário do programa&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O .h é a \&quot;interface\&quot;; as definições ficam nos .c.&quot;},{&quot;pergunta&quot;:&quot;Para que serve &lt;code&gt;gcc -c arquivo.c&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;Cria o executável final&quot;,&quot;Compila apenas gerando o arquivo objeto (sem linkar)&quot;,&quot;Limpa arquivos temporários&quot;,&quot;Compila e executa na mesma hora&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;-c gera foo.o sem chamar o linker; a junção final acontece depois.&quot;},{&quot;pergunta&quot;:&quot;O que o \&quot;build incremental\&quot; de um Makefile faz?&quot;,&quot;opcoes&quot;:[&quot;Recompila tudo a cada comando&quot;,&quot;Recompila apenas os arquivos cujos pré-requisitos mudaram&quot;,&quot;Compila em 3 threads sempre&quot;,&quot;Impede o uso de -g&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Comparando timestamps, o make só recompila o que está desatualizado.&quot;},{&quot;pergunta&quot;:&quot;O que signfica &lt;code&gt;static&lt;/code&gt; numa variável local?&quot;,&quot;opcoes&quot;:[&quot;Vira global automaticamente&quot;,&quot;Preserva o valor entre chamadas da função&quot;,&quot;Fica na heap&quot;,&quot;Não pode ser usada em loops&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;A variável static local nasce uma vez e mantém seu valor nas próximas chamadas.&quot;},{&quot;pergunta&quot;:&quot;Um arquivo .c sem main...&quot;,&quot;opcoes&quot;:[&quot;não compila nunca&quot;,&quot;compila como objeto (-c); só liga quando linkado com outro que tenha main.&quot;,&quot;é ignorado pelo gcc&quot;,&quot;gera sempre um executável vazio&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Bibliotecas são unidades de tradução sem main; o linker as junta com quem tem a função de entrada.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  
+  <nav class="mod-nav"><a class="btn nav-prev" href="o-pre-processador.html">← 2.08 O pré-processador</a><a class="btn nav-next" href="operacoes-bit-a-bit.html">2.10 Operações bit a bit →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m09">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

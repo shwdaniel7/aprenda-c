@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3.08 — Sockets com POSIX (no Linux/WSL) — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="3">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t3">Trilha 3 — Avançado</a> / Sockets com POSIX (no Linux/WSL)</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">3.08</div>
+    <h1>Sockets com POSIX (no Linux/WSL)</h1>
+    <p class="subtitulo">Ordems de bytes, getaddrinfo, servidor e cliente de eco</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado</span>
+      <span class="chip">Duração: ~35 min</span>
+      <span class="chip">Pré-requisitos: T3.06 (threads — usadas no exercício 2)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t3-m08">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Montar o primeiro par cliente-servidor em C: entender por que htons/htonl existem, resolver nomes com getaddrinfo, criar e ouvir um socket com socket/bind/listen/accept, conversar com connect/send/recv e encerrar com shutdown(SHUT_WR). Todo o código deste módulo usa a API POSIX (usada no Linux e no WSL).</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Beej's Guide to Network Programming — capítulos 5 a 9 (socket, bind, listen, accept, send/recv e getaddrinfo)</p>
+  <p><strong>King (livro em PDF):</strong> Referência POSIX do seu sistema (man 2 socket, man 2 connect...)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> Este módulo só compila e roda em ambiente POSIX (Linux ou WSL). Nosso ambiente Windows sem distro WSL instalada não compila estes exemplos; eles ficam com "saída esperada" como referência. Se você está no Linux, compile com: gcc -Wall -Wextra -std=c11 eco_serv.c -o eco_serv e teste em dois terminais.</p>
+</section>
+  <section class="card secao">
+  <h2>Endianness na rede: por que htons existe</h2>
+  <p>A rede não usa o byte order do seu processador: ela fala <strong>big-endian</strong> (o primeiro byte é o mais significativo) em todos os números dos cabeçalhos. Em x86/x86-64 (little-endian), o número 9000 vive na memória como <code>28 23</code>, mas a rede espera <code>23 28</code>. As funções <code>htons</code>/<code>ntohs</code> (host-to-network / network-to-host, "s" = short/porta) fazem a troca quando preciso; em big-endian elas são identidade. Como o número "vira" valor diferente ao ser interpretado na outra ponta, o jeito seguro é sempre usar htons/ntohs ao montar/ler structs de rede.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — bytes.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;arpa/inet.h&gt;
+
+int main(void)
+{
+    uint16_t porta = 9000;
+    uint16_t rede = htons(porta);
+    printf(&quot;host:        %u\n&quot;, (unsigned)porta);
+    printf(&quot;na rede:     %u  (bytes %u %u)\n&quot;, (unsigned)rede,
+           (unsigned)((rede &gt;&gt; 8) &amp; 0xffu), (unsigned)(rede &amp; 0xffu));
+    printf(&quot;de volta:    %u\n&quot;, (unsigned)ntohs(rede));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; bytes
+host:        9000
+na rede:     10275  (bytes 40 35)
+de volta:    9000</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Resolvendo nomes com getaddrinfo</h2>
+  <p>O jeito moderno (e portável) de "achar" um destino é <code>getaddrinfo</code>: ele consulta DNS e devolve uma lista de candidatos (<code>struct addrinfo</code> encadeada) com endereço, família e socket type prontos — não precisamos brincar manualmente com IPv4/IPv6. Passamos como ajuda <code>ai_family = AF_UNSPEC</code> e <code>ai_socktype = SOCK_STREAM</code> e recebemos tudo. <code>inet_ntop</code> converte o endereço binário para texto legível. Este programa resolve "example.com" (ou o argumento dado) e lista os IPs.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — resolv.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;sys/types.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;netdb.h&gt;
+#include &lt;arpa/inet.h&gt;
+
+int main(int argc, char **argv)
+{
+    const char *host = argc &gt; 1 ? argv[1] : &quot;example.com&quot;;
+    struct addrinfo dicas;
+    memset(&amp;dicas, 0, sizeof dicas);
+    dicas.ai_family = AF_UNSPEC;
+    dicas.ai_socktype = SOCK_STREAM;
+
+    struct addrinfo *res = NULL;
+    int rc = getaddrinfo(host, NULL, &amp;dicas, &amp;res);
+    if (rc != 0) {
+        fprintf(stderr, &quot;getaddrinfo: %s\n&quot;, gai_strerror(rc));
+        return EXIT_FAILURE;
+    }
+    for (struct addrinfo *p = res; p != NULL; p = p-&gt;ai_next) {
+        char ip[INET6_ADDRSTRLEN] = &quot;&quot;;
+        const void *addr = NULL;
+        if (p-&gt;ai_family == AF_INET) {
+            addr = &amp;((struct sockaddr_in *)p-&gt;ai_addr)-&gt;sin_addr;
+        } else if (p-&gt;ai_family == AF_INET6) {
+            addr = &amp;((struct sockaddr_in6 *)p-&gt;ai_addr)-&gt;sin6_addr;
+        }
+        if (addr != NULL) {
+            inet_ntop(p-&gt;ai_family, addr, ip, sizeof ip);
+            printf(&quot;%s -&gt; %s\n&quot;, host, ip);
+        }
+    }
+    freeaddrinfo(res);
+    return EXIT_SUCCESS;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; resolv example.com
+example.com -&gt; 93.184.215.14
+example.com -&gt; 2606:2800:220:1:248:1893:25c8:1946</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O servidor (1ª vez): socket, bind, listen, accept e eco</h2>
+  <p>O esqueleto de um servidor TCP: <code>socket()</code> abre um descritor; <code>bind()</code> amarra ele a um endereço:porta (usando <code>INADDR_ANY</code> para todas as interfaces); <code>listen()</code> avisa o sistema para aceitar conexões (fila de 8); <code>accept()</code> bloqueia até chegar um cliente e devolve um <em>novo</em> socket para conversar; <code>send/recv</code> fazem o eco; <code>close()</code> encerra. Este servidor lida com um cliente por vez e ecoa tudo que recebe. Compile no Linux/WSL com <code>gcc -Wall -Wextra -std=c11 eco_serv.c -o eco_serv</code> e teste com o cliente da próxima seção.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — eco_serv.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;sys/socket.h&gt;
+
+#define PORTA 9000
+
+int main(void)
+{
+    int srv = socket(AF_INET, SOCK_STREAM, 0);
+    if (srv &lt; 0) {
+        perror(&quot;socket&quot;);
+        return EXIT_FAILURE;
+    }
+    int opt = 1;
+    setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, &amp;opt, sizeof opt);
+
+    struct sockaddr_in end;
+    memset(&amp;end, 0, sizeof end);
+    end.sin_family = AF_INET;
+    end.sin_addr.s_addr = htonl(INADDR_ANY);
+    end.sin_port = htons(PORTA);
+
+    if (bind(srv, (struct sockaddr *)&amp;end, sizeof end) &lt; 0) {
+        perror(&quot;bind&quot;);
+        return EXIT_FAILURE;
+    }
+    if (listen(srv, 8) &lt; 0) {
+        perror(&quot;listen&quot;);
+        return EXIT_FAILURE;
+    }
+    printf(&quot;eco pronto na porta %d (Ctrl+C encerra)\n&quot;, PORTA);
+
+    while (1) {
+        struct sockaddr_in cli;
+        socklen_t len = sizeof cli;
+        int c = accept(srv, (struct sockaddr *)&amp;cli, &amp;len);
+        if (c &lt; 0) {
+            perror(&quot;accept&quot;);
+            continue;
+        }
+        printf(&quot;cliente conectado de %s\n&quot;, inet_ntoa(cli.sin_addr));
+        char buf[1024];
+        ssize_t n;
+        while ((n = recv(c, buf, sizeof buf, 0)) &gt; 0) {
+            (void)send(c, buf, (size_t)n, 0);
+        }
+        close(c);
+        printf(&quot;cliente desconectado\n&quot;);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; ./eco_serv
+eco pronto na porta 9000 (Ctrl+C encerra)
+cliente conectado de 127.0.0.1
+cliente desconectado</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O cliente e o &quot;meio-círculo&quot;: fgets + recv</h2>
+  <p>O cliente monta um socket, preenche <code>sockaddr_in</code> com <code>127.0.0.1</code> (via inet_pton) e a porta, e chama <code>connect()</code>. Depois é um loop: ler linha do teclado com fgets, mandar com send e imprimir o eco com recv. Vale aprender a leitura <code>recv</code> devolve o nº de bytes de uma "rajada" — que pode ser menor que a mensagem; para o eco por linha funciona bem. Teste no Linux/WSL com o eco_serv rodando num terminal e o eco_cli em outro.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — eco_cli.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;sys/socket.h&gt;
+
+#define PORTA 9000
+
+int main(void)
+{
+    int s = socket(AF_INET, SOCK_STREAM, 0);
+    if (s &lt; 0) {
+        perror(&quot;socket&quot;);
+        return EXIT_FAILURE;
+    }
+    struct sockaddr_in end;
+    memset(&amp;end, 0, sizeof end);
+    end.sin_family = AF_INET;
+    end.sin_port = htons(PORTA);
+    if (inet_pton(AF_INET, &quot;127.0.0.1&quot;, &amp;end.sin_addr) != 1) {
+        fprintf(stderr, &quot;endereco invalido\n&quot;);
+        close(s);
+        return EXIT_FAILURE;
+    }
+    if (connect(s, (struct sockaddr *)&amp;end, sizeof end) &lt; 0) {
+        perror(&quot;connect&quot;);
+        close(s);
+        return EXIT_FAILURE;
+    }
+    printf(&quot;conectado; digite linhas para eco (Ctrl+D sai)\n&quot;);
+    char buf[1024];
+    while (fgets(buf, sizeof buf, stdin) != NULL) {
+        size_t tam = strlen(buf);
+        (void)send(s, buf, tam, 0);
+        ssize_t n = recv(s, buf, sizeof buf, 0);
+        if (n &lt;= 0) {
+            printf(&quot;servidor fechou a conexao\n&quot;);
+            break;
+        }
+        printf(&quot;eco: %.*s&quot;, (int)n, buf);
+    }
+    close(s);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; ./eco_cli
+conectado; digite linhas para eco (Ctrl+D sai)
+hello
+eco: hello
+mundo
+eco: mundo</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t3-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.08.1</p>
+  <p class="enunciado">Um cliente "one-shot": conecta em 127.0.0.1:9000, manda a string "oi servidor\n" e espera/ imprime a resposta. É o mínimo para testar um servidor de eco sem digitação.</p>
+  <p class="dica"><strong>Dica:</strong> Você não precisa de loop: um send e um recv resolvem. Chame connect antes e verifique o erro.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;sys/socket.h&gt;
+
+#define PORTA 9000
+
+int main(void)
+{
+    int s = socket(AF_INET, SOCK_STREAM, 0);
+    if (s &lt; 0) {
+        perror(&quot;socket&quot;);
+        return EXIT_FAILURE;
+    }
+    struct sockaddr_in end;
+    memset(&amp;end, 0, sizeof end);
+    end.sin_family = AF_INET;
+    end.sin_port = htons(PORTA);
+    if (inet_pton(AF_INET, &quot;127.0.0.1&quot;, &amp;end.sin_addr) != 1) {
+        fprintf(stderr, &quot;endereco invalido\n&quot;);
+        close(s);
+        return EXIT_FAILURE;
+    }
+    if (connect(s, (struct sockaddr *)&amp;end, sizeof end) &lt; 0) {
+        perror(&quot;connect&quot;);
+        close(s);
+        return EXIT_FAILURE;
+    }
+    const char *msg = &quot;oi servidor\n&quot;;
+    (void)send(s, msg, strlen(msg), 0);
+    char buf[1024];
+    ssize_t n = recv(s, buf, sizeof buf, 0);
+    if (n &gt; 0) {
+        printf(&quot;resposta: %.*s&quot;, (int)n, buf);
+    }
+    close(s);
+    return 0;
+}</code></pre>
+        <p class="obs">Execução esperada com o eco_serv rodando: "resposta: oi servidor". Se não houver servidor, connect falha e o perror mostra "Connection refused".</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t3-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.08.2</p>
+  <p class="enunciado">Vamos fazer o servidor atender várias conexões ao mesmo tempo: cada conexão aceita vai para uma thread própria (padrão thread-per-connection). Use malloc para entregar o descritor para a thread e pthread_detach após criar.</p>
+  <p class="dica"><strong>Dica:</strong> O fd da conexão precisa sobreviver à volta do accept: passe uma cópia heap da int. A thread fecha e libera ao terminar.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;pthread.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;sys/socket.h&gt;
+
+#define PORTA 9000
+
+static void *atende(void *arg)
+{
+    int c = *(int *)arg;
+    free(arg);
+    char buf[1024];
+    ssize_t n;
+    while ((n = recv(c, buf, sizeof buf, 0)) &gt; 0) {
+        (void)send(c, buf, (size_t)n, 0);
+    }
+    close(c);
+    printf(&quot;conexao encerrada\n&quot;);
+    return NULL;
+}
+
+int main(void)
+{
+    int srv = socket(AF_INET, SOCK_STREAM, 0);
+    if (srv &lt; 0) {
+        perror(&quot;socket&quot;);
+        return EXIT_FAILURE;
+    }
+    int opt = 1;
+    setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, &amp;opt, sizeof opt);
+    struct sockaddr_in end;
+    memset(&amp;end, 0, sizeof end);
+    end.sin_family = AF_INET;
+    end.sin_addr.s_addr = htonl(INADDR_ANY);
+    end.sin_port = htons(PORTA);
+    if (bind(srv, (struct sockaddr *)&amp;end, sizeof end) &lt; 0) {
+        perror(&quot;bind&quot;);
+        return EXIT_FAILURE;
+    }
+    if (listen(srv, 8) &lt; 0) {
+        perror(&quot;listen&quot;);
+        return EXIT_FAILURE;
+    }
+    printf(&quot;servidor com 1 thread por conexao na porta %d (Ctrl+C encerra)\n&quot;, PORTA);
+    while (1) {
+        struct sockaddr_in cli;
+        socklen_t len = sizeof cli;
+        int c = accept(srv, (struct sockaddr *)&amp;cli, &amp;len);
+        if (c &lt; 0) {
+            perror(&quot;accept&quot;);
+            continue;
+        }
+        int *fd = malloc(sizeof *fd);
+        if (fd == NULL) {
+            close(c);
+            continue;
+        }
+        *fd = c;
+        pthread_t t;
+        if (pthread_create(&amp;t, NULL, atende, fd) != 0) {
+            perror(&quot;pthread_create&quot;);
+            free(fd);
+            close(c);
+            continue;
+        }
+        pthread_detach(t);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">Compile com -pthread. Sob dois clientes simultâneos, o servidor atende os dois: a saída esperada é "servidor com 1 thread por conexao na porta 9000" + duas "conexao encerrada" conforme os clientes saem.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t3-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.08.3</p>
+  <p class="enunciado">O cliente que envia várias linhas deve terminar de forma elegante: depois do último fgets, chame shutdown(s, SHUT_WR) para avisar o servidor "fim de envio" e ainda ler o eco que estiver por vir. O loop termina quando recv devolve 0 (FIN).</p>
+  <p class="dica"><strong>Dica:</strong> shutdown(SHUT_WR) envia FIN; o servidor "vê" o EOF no recv dele e fecha; aí o seu recv devolve 0. Sem shutdown, a conexão ficaria esperando.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;sys/socket.h&gt;
+
+#define PORTA 9000
+
+int main(void)
+{
+    int s = socket(AF_INET, SOCK_STREAM, 0);
+    if (s &lt; 0) {
+        perror(&quot;socket&quot;);
+        return EXIT_FAILURE;
+    }
+    struct sockaddr_in end;
+    memset(&amp;end, 0, sizeof end);
+    end.sin_family = AF_INET;
+    end.sin_port = htons(PORTA);
+    if (inet_pton(AF_INET, &quot;127.0.0.1&quot;, &amp;end.sin_addr) != 1) {
+        fprintf(stderr, &quot;endereco invalido\n&quot;);
+        close(s);
+        return EXIT_FAILURE;
+    }
+    if (connect(s, (struct sockaddr *)&amp;end, sizeof end) &lt; 0) {
+        perror(&quot;connect&quot;);
+        close(s);
+        return EXIT_FAILURE;
+    }
+    printf(&quot;digite linhas; fim de entrada encerra (Ctrl+D)\n&quot;);
+    char buf[1024];
+    while (fgets(buf, sizeof buf, stdin) != NULL) {
+        size_t tam = strlen(buf);
+        (void)send(s, buf, tam, 0);
+    }
+    shutdown(s, SHUT_WR);   /* aviso de fim de dados: o eco volta tudo antes */
+    printf(&quot;aguardando o resto do eco...\n&quot;);
+    ssize_t n;
+    while ((n = recv(s, buf, sizeof buf, 0)) &gt; 0) {
+        printf(&quot;eco: %.*s&quot;, (int)n, buf);
+    }
+    printf(&quot;conexao encerrada (FIN recebido)\n&quot;);
+    close(s);
+    return 0;
+}</code></pre>
+        <p class="obs">Execução esperada: digite 2 linhas, Ctrl+D; o programa imprime os dois ecos e fecha com "conexao encerrada (FIN recebido)".</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Para que serve htons(porta)?&quot;,&quot;opcoes&quot;:[&quot;Acelerar a porta&quot;,&quot;Converter a porta do byte order do host para o big-endian da rede&quot;,&quot;Definir a porta&quot;,&quot;Conectar o socket&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;A rede numera com o byte mais significativo primeiro; o host little-endian precisa da conversão.&quot;},{&quot;pergunta&quot;:&quot;Qual o papel de getaddrinfo no cliente/servidor?&quot;,&quot;opcoes&quot;:[&quot;Abrir um arquivo&quot;,&quot;Resolver nomes (DNS) para endereços do tipo struct addrinfo&quot;,&quot;Enviar dados&quot;,&quot;Fechar a conexão&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;getaddrinfo devolve a lista de endereços possíveis com família, socket type e estrutura pronta para connect/bind.&quot;},{&quot;pergunta&quot;:&quot;O que accept() devolve?&quot;,&quot;opcoes&quot;:[&quot;O socket original do servidor&quot;,&quot;Um novo descritor pronto para conversar com o cliente conectado&quot;,&quot;O endereço do host remoto&quot;,&quot;O número da porta&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;accept bloqueia até um cliente e devolve um socket \&quot;filho\&quot;; o socket do servidor segue em listen.&quot;},{&quot;pergunta&quot;:&quot;Quando recv devolve 0?&quot;,&quot;opcoes&quot;:[&quot;Quando o buffer vazio&quot;,&quot;Quando a outra ponta fechou (FIN recebido)&quot;,&quot;Quando o tempo esgotou&quot;,&quot;Quando ocorreu erro&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;0 significa EOF na conexão: a outra ponta fechou ou enviou FIN (casos: shutdown(SHUT_WR)).&quot;},{&quot;pergunta&quot;:&quot;Por que o servidor thread-per-connection usou malloc para o fd?&quot;,&quot;opcoes&quot;:[&quot;Para gastar memória de propósito&quot;,&quot;Porque o descritor precisa sobreviver ao retorno do accept e do loop, e a thread o libera&quot;,&quot;Para acelerar o accept&quot;,&quot;É obrigatório no POSIX&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;A variável local do loop morreria; heap mantém o valor vivo até a thread terminar e dar free.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: campo.minado: controle remoto via TCP</h2>
+  <p>Transforme o Campo Minado (jogo de linha de comando) num servidor controlado por TCP: um servidor <code>m3_serv</code> mantém o tabuleiro e aguarda clientes; o cliente <code>m3_cli</code> envia comandos como "jogar (linha coluna)" e "marcar (linha coluna)". O servidor responde com o estado do tabuleiro a cada jogada. Use thread-per-connection para aceitar vários clientes.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Servidor em socket/listen/accept de onde o jogo roda; usa htons para a porta 9000.</li><li>Cliente conecta em 127.0.0.1:9000, envia os comandos e imprime o tabuleiro retornado.</li><li>Termina com shutdown(SHUT_WR) ao sair e lê o estado final.</li><li>Partida com uma bomba fixa (por exemplo, linha 3 coluna 2): "explodiu" deve aparecer ao clicar na bomba.</li><li>Múltiplos clientes podem entrar na mesma partida (o servidor não pode quebrar ao receber dois clientes de uma vez).</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="atomicos-e-sincronizacao-sem-locks.html">← 3.07 Atômicos e sincronização sem locks</a><a class="btn nav-next" href="tempo-e-datas-sob-o-olhar-do-qs.html">3.09 Tempo e datas (sob o olhar do QS) →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t3-m08">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

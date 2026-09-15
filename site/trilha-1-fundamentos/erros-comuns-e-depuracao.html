@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.11 — Erros comuns e depuração — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="1">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t1">Trilha 1 — Fundamentos</a> / Erros comuns e depuração</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">1.11</div>
+    <h1>Erros comuns e depuração</h1>
+    <p class="subtitulo">caçando bugs com warnings, printf, assert e gdb</p>
+    <div class="chips">
+      <span class="chip">Nível: Iniciante</span>
+      <span class="chip">Duração: ~50 min</span>
+      <span class="chip">Pré-requisitos: T1.09</span>
+    </div>
+    <button class="btn btn-done" data-mod="t1-m11">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Conhecer os erros clássicos de iniciante (faltar ;, = vs ==, off-by-one, esquecer & no scanf, tipo errado no printf), aprender a ler warnings do gcc, usar printf de depuração, assert como trava de pré-condições e o gdb para passo a passo.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Seções 4.1 (erros comuns) e 28.4 (assert)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulos 1 (primeiros passos) e 9 (depuração, até testes)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, leia a lista de erros comuns e a seção do assert. No King, o final do capítulo 9 tem a estratégia de depuração passo a passo; volte aos capítulos 1 e 2 para os erros de sintaxe listados.</p>
+</section>
+  <section class="card secao">
+  <h2>As armadilhas clássicas do C</h2>
+  <p>A maior parte do tempo de um iniciante é devorado por um punhado de bugs que se repetem. Conheça o crime para reconhecer o criminoso:</p>
+  <ul><li><strong>Ponto e vírgula esquecido</strong> — o gcc acusa na linha seguinte. Corrija o primeiro erro primeiro.</li>
+<li><strong><code>=</code> no lugar de <code>==</code></strong> — o programa compila e a condição vira sempre verdadeira. O gcc avisa com <code>-Wall</code> ("suggest parentheses").</li>
+<li><strong>Off-by-one</strong> — usar <code>&lt;=</code> onde deveria ser <code>&lt;</code>, ou percorrer 1..n em vez de 0..n-1. Compila perfeitamente.</li>
+<li><strong>Esquecer <code>&amp;</code> no scanf</strong> — o scanf recebe um valor em vez de um endereço; com <code>-Wall</code> há warning, e em execução costuma estourar.</li>
+<li><strong>Tipo errado no printf</strong> — <code>%f</code> com <code>int</code>, <code>%d</code> com <code>double</code>... comportamento indefinido, e o <code>-Wall -Wformat</code> denuncia.</li>
+<li><strong>Comparar double com <code>==</code></strong> — ponto flutuante arredonda; use margem de erro.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Como ler um warning (e o infame = vs ==)</h2>
+  <p>Um <strong>warning</strong> é o compilador dizendo "isso provavelmente não é o que você quer". O formato é <code>arquivo:linha:coluna: warning: mensagem [-Wtipo]</code>. O trecho <code>[-W...]</code> identifica a família do aviso. Compile com <code>-Wall -Wextra</code> e trate qualquer warning como erro em potencial.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — warnings</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int x = 2;
+
+    if (x = 3) {   /* BUG: atribuicao, nao comparacao */
+        printf(&quot;x vale 3\n&quot;);
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>bug.c:7:9: warning: suggest parentheses around assignment used as truth value [-Wparentheses]
+    7 |     if (x = 3) {   /* BUG: atribuicao, nao comparacao */
+      |         ^
+
+x vale 3</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O scanf sem &amp;: a receita do desastre</h2>
+  <p>Escrever <code>scanf("%d", x);</code> em vez de <code>scanf("%d", &x);</code> é o erro mais famoso de todos. O compilador avisa (veremos o warning real), e na execução o scanf tenta gravar em um endereço "sem sentido" — na prática, comportamento indefinido.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — scanf sem &amp;</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int x;
+
+    printf(&quot;Digite um numero: &quot;);
+    scanf(&quot;%d&quot;, x);   /* BUG: faltou o &amp; */
+    printf(&quot;voce digitou: %d\n&quot;, x);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>bug2.c: In function 'main':
+bug2.c:8:13: warning: format '%d' expects argument of type 'int *', but argument 2 has type 'int' [-Wformat=]
+    8 |     scanf(&quot;%d&quot;, x);   /* BUG: faltou o &amp; */
+      |            ~^   ~
+      |             |   |
+      |             |   int
+      |             int *
+bug2.c:8:5: warning: 'x' is used uninitialized [-Wuninitialized]
+    8 |     scanf(&quot;%d&quot;, x);   /* BUG: faltou o &amp; */
+      |     ^~~~~~~~~~~~~~
+bug2.c:5:9: note: 'x' was declared here
+    5 |     int x;
+      |         ^</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O off-by-one no espelho</h2>
+  <p>O off-by-one não dá warning: ele <em>roda errado e nada fala</em>. Compare o bug com a correção — a diferença é um sinal de comparação:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — off-by-one</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int soma = 0;
+    int i;
+
+    for (i = 1; i &lt;= 7; i++) {   /* BUG: deveria ser i &lt;= 5 */
+        soma += i;
+    }
+
+    printf(&quot;soma de 1 a 5: %d\n&quot;, soma);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>soma de 1 a 5: 28</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Depuração por printf: seu primeiro detector</h2>
+  <p>Quando o programa compila e roda mas faz o contrário do esperado, imprima <em>o que você está pensando</em>: <code>printf("i=%d, soma=%d\n", i, soma);</code> dentro do loop. Você vê a evolução das variáveis e acha o instante exato em que algo sai dos trilhos. Retire (ou comente) os prints de depuração ao terminar — código limpo não tem lixo.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>assert: a trava que para o programa</h2>
+  <p>O <code>assert</code> (de <code>&lt;assert.h&gt;</code>) avalia uma condição e, se for falsa, aborta o programa imprimindo o que falhou, o arquivo e a linha. É perfeito para <strong>pré-condições</strong>: "aqui, matematicamente, isto tem que ser verdade". Se algum dia não for, você quer descobrir <em>agora</em>.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — assert</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;assert.h&gt;
+
+int divide(int a, int b)
+{
+    assert(b != 0);
+    return a / b;
+}
+
+int main(void)
+{
+    printf(&quot;10 / 2 = %d\n&quot;, divide(10, 2));
+    printf(&quot;8 / 0 = %d\n&quot;, divide(8, 0));   /* assert trava aqui */
+    printf(&quot;nunca chega aqui\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>10 / 2 = 5
+Assertion failed: b != 0, file assert_demo.c, line 6</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>gdb: o passo a passo de verdade</h2>
+  <p>Compilado com <code>-g</code>, o programa carrega "mapa" de linhas e variáveis. Os quatro comandos que resolvem 90% dos casos: <code>break</code> (para em uma linha/função), <code>next</code> (executa próxima linha, sem entrar em função), <code>step</code> (entra em função), <code>print</code> (mostra o valor de uma variável).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — gdb</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">gcc -g -Wall -Wextra -std=c11 prog.c -o prog
+gdb ./prog.exe
+(gdb) break main
+(gdb) run
+(gdb) next
+(gdb) print soma
+(gdb) print i
+(gdb) step
+(gdb) continue
+(gdb) quit</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>A versão corrigida</h2>
+  <p>O mesmo programa, certo:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — correção</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int soma = 0;
+    int i;
+
+    for (i = 1; i &lt;= 5; i++) {
+        soma += i;
+    }
+
+    printf(&quot;soma de 1 a 5: %d\n&quot;, soma);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>soma de 1 a 5: 15</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t1-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.11.1</p>
+  <p class="enunciado">Encontre e corrija os dois erros no código: falta um <code>&amp;</code> no scanf e um ponto e vírgula está faltando em uma das linhas.</p>
+  <p class="dica"><strong>Dica:</strong> Compile com -Wall e leia <code>arquivo:linha</code>. O primeiro erro bloqueia, o segundo aparece depois.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n;
+
+    printf(&quot;Digite um numero: &quot;);
+    scanf(&quot;%d&quot;, &amp;n);
+
+    printf(&quot;voce digitou: %d\n&quot;, n);
+    return 0;
+}</code></pre>
+        <p class="obs">O enunciado intencionalmente tinha <code>scanf("%d", n);</code> e <code>printf(...)</code> sem ponto e vírgula.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t1-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.11.2</p>
+  <p class="enunciado">O programa abaixo soma as notas até digitar 0, mas está devolvendo valores estranhos. Depure com <code>printf</code> de depuração (ou gdb) e corrija: <code>int n; int soma = 0; do { scanf("%d", &amp;n); soma += n; } while (n != 0);</code>. O bug: ele soma o 0 final na média errada de notas — refaça para não contar o 0 sentinela.</p>
+  <p class="dica"><strong>Dica:</strong> aumente o soma apenas quando n != 0.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n;
+    int soma = 0;
+
+    printf(&quot;Digite notas (0 encerra):\n&quot;);
+    do {
+        printf(&quot;&gt; &quot;);
+        scanf(&quot;%d&quot;, &amp;n);
+        if (n != 0) {
+            soma += n;
+        }
+    } while (n != 0);
+
+    printf(&quot;total: %d\n&quot;, soma);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t1-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.11.3</p>
+  <p class="enunciado">Use <code>assert</code> para validar que uma função de divisão não recebe divisor zero, e faça um main que teste a função com 0 para ver o programa abortar com a mensagem do assert.</p>
+  <p class="dica"><strong>Dica:</strong> Inclua <assert.h>. A mensagem mostrada inclui arquivo e linha.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;assert.h&gt;
+
+double dividir(double a, double b)
+{
+    assert(b != 0.0);
+    return a / b;
+}
+
+int main(void)
+{
+    printf(&quot;%.2f\n&quot;, dividir(10.0, 4.0));
+    printf(&quot;%.2f\n&quot;, dividir(10.0, 0.0));
+    return 0;
+}</code></pre>
+        <p class="obs">Ao rodar, o programa imprime "2.50" e depois aborta no assert—a mensagem mostrada inclui arquivo e linha.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t1-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.11.4</p>
+  <p class="enunciado">O programa seguinte percorre um array de 5 posições, mas imprime um valor lixo na última execução. Descubra o off-by-one e corrija: <code>int v[5] = {10,20,30,40,50}; for (i = 1; i <= 5; i++) printf("%d ", v[i]);</code>.</p>
+  <p class="dica"><strong>Dica:</strong> v[5] não existe! O laço vai de 0 a 4.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int v[5] = {10, 20, 30, 40, 50};
+    int i;
+
+    for (i = 0; i &lt; 5; i++) {
+        printf(&quot;%d &quot;, v[i]);
+    }
+    printf(&quot;\n&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">O valor lixo vinha da leitura fora dos limites (UB). Percorrimento de array é sempre 0..n-1.</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t1-m11">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.11.5</p>
+  <p class="enunciado">Crie um programa com o erro <code>=</code> no lugar de <code>==</code> (ex.: decidir se o usuário digitou a senha 1234). Compile SEM -Wall, rode, veja a condição sempre "verdadeira"; depois compile COM -Wall e leia o warning. Corrija o programa.</p>
+  <p class="dica"><strong>Dica:</strong> Warnings são seus amigos: para a condição de senha compare com <code>==</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int senha;
+
+    printf(&quot;Digite a senha: &quot;);
+    scanf(&quot;%d&quot;, &amp;senha);
+
+    if (senha == 1234) {
+        printf(&quot;acesso liberado\n&quot;);
+    } else {
+        printf(&quot;acesso negado\n&quot;);
+    }
+    return 0;
+}</code></pre>
+        <p class="obs">No bug, <code>if (senha = 1234)</code> sempre "passava", pois o valor da atribuição é 1234 (verdadeiro).</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O gcc avisa sobre &lt;code&gt;if (x = 5)&lt;/code&gt; se você compilar com:&quot;,&quot;opcoes&quot;:[&quot;-Wall (suggest parentheses…)&quot;,&quot;nunca avisa&quot;,&quot;apenas com -O2&quot;,&quot;é erro, não aviso&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Com -Wall, o gcc gera o warning \&quot;suggest parentheses around assignment used as truth value\&quot;.&quot;},{&quot;pergunta&quot;:&quot;O que informa \&quot;arquivo:linha:coluna: warning:...\&quot;?&quot;,&quot;opcoes&quot;:[&quot;onde exatamente está o problema, para você olhar primeiro&quot;,&quot;onde mora o executável&quot;,&quot;a versão do compilador&quot;,&quot;o histórico de compilação&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Formato clássico do gcc/clang: localização precisa + tipo + mensagem.&quot;},{&quot;pergunta&quot;:&quot;Qual a cara do erro &amp;lt;code&amp;gt;scanf(\&quot;%d\&quot;, x)&amp;lt;/code&amp;gt; (sem &amp;amp;) no -Wall?&quot;,&quot;opcoes&quot;:[&quot;warning: format expects int *, argument has int&quot;,&quot;nenhum aviso, é 100% válido&quot;,&quot;error de sintaxe na declaração&quot;,&quot;o scanf vira printf&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O warning -Wformat= mostra exatamente a incompatibilidade de tipos do argumento.&quot;},{&quot;pergunta&quot;:&quot;O que faz &lt;code&gt;assert(x &gt; 0)&lt;/code&gt; quando x é 0?&quot;,&quot;opcoes&quot;:[&quot;aborta o programa imprimindo a condição, arquivo e linha&quot;,&quot;imprime um aviso e continua&quot;,&quot;troca x por 1&quot;,&quot;apenas devolve 0&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Assert falha → programa aborta com diagnóstico — trava proposital para pré-condições.&quot;},{&quot;pergunta&quot;:&quot;Para inspecionar o valor de uma variável no gdb, o comando é:&quot;,&quot;opcoes&quot;:[&quot;print var&quot;,&quot;debug var&quot;,&quot;var x&quot;,&quot;show var&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;print &lt;nome&gt; mostra o valor atual; next/step/break controlam onde parar.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  
+  <nav class="mod-nav"><a class="btn nav-prev" href="escopo-duracao-e-organizacao.html">← 1.10 Escopo, duração e organização</a><a class="btn nav-next" href="tudo-junto-programa-de-linha-de-comando.html">1.12 Tudo junto: programa de linha de comando →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t1-m11">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

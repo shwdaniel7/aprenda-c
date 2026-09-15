@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.02 — Ponteiros e arrays: aritmética de ponteiros — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / Ponteiros e arrays: aritmética de ponteiros</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.02</div>
+    <h1>Ponteiros e arrays: aritmética de ponteiros</h1>
+    <p class="subtitulo">arrays que decaem para ponteiros, p+n, a[i] == *(a+i), void* e size_t</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~40 min</span>
+      <span class="chip">Pré-requisitos: T2.01</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m02">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Entender a equivalência fundamental entre arrays e ponteiros, somar e comparar ponteiros com segurança (stride do tipo), percorrer arrays com ponteiros e dominar ponteiros void* e o tipo size_t.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulos 5 e 6.6 (Pointers and Arrays); seções 11 e sobre void* e size_t</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 12 (Pointers and Arrays)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, fixe a regra "um array decai para o endereço do primeiro elemento na maioria das expressões". No King, faça os exercícios de aparidade de ponteiros e os diagramas de a[i] vs *(a+i).</p>
+</section>
+  <section class="card secao">
+  <h2>Arrays decaem para o ponteiro do primeiro elemento</h2>
+  <p>Exceto em alguns contextos (<code>sizeof</code>, <code>&amp;arr</code>), o nome de um array se converte ("decai") para um ponteiro para o seu primeiro elemento. Ou seja: <code>arr</code> na maioria das expressões vale <code>&amp;arr[0]</code>.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — decai.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int arr[5] = {10, 20, 30, 40, 50};
+
+    printf(&quot;arr     = %p\n&quot;, (void *)arr);
+    printf(&quot;&amp;arr[0] = %p\n&quot;, (void *)&amp;arr[0]);
+    printf(&quot;iguais? %s\n&quot;, arr == &amp;arr[0] ? &quot;sim&quot; : &quot;nao&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>arr     = 0000007355BFF990
+&amp;arr[0] = 0000007355BFF990
+iguais? sim</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Aritmética de ponteiros: p + n</h2>
+  <p>Somar um inteiro a um ponteiro <strong>não soma 1 byte</strong>: soma <code>n × sizeof(tipo)</code>. Isso chama-se <em>stride</em>. <code>p + 2</code> em um <code>int *</code> pula 2 inteiros, ou seja, 8 bytes. É por isso que o tipo do ponteiro importa.</p>
+<p>Visualize: <code>p = &amp;arr[0]</code>; então <code>p + 1</code> é <code>&amp;arr[1]</code>, <code>p + 2</code> é <code>&amp;arr[2]</code>, e assim por diante.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — aritmetica.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int arr[5] = {10, 20, 30, 40, 50};
+    int *p = arr;
+
+    for (int i = 0; i &lt; 5; i++) {
+        printf(&quot;arr[%d] = %2d   p+%d = %p\n&quot;, i, arr[i], i, (void *)(p + i));
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>arr[0] = 10   p+0 = 000000A68A7FFB20
+arr[1] = 20   p+1 = 000000A68A7FFB24
+arr[2] = 30   p+2 = 000000A68A7FFB28
+arr[3] = 40   p+3 = 000000A68A7FFB2C
+arr[4] = 50   p+4 = 000000A68A7FFB30
+
+(repare: cada passo soma 4 bytes = sizeof(int))</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Percorrendo um array com ponteiro</h2>
+  <p>Com a aritmética pronta, um loop deve percorrer um array com <code>++p</code>: a variável <code>p</code> "anda" de casa em casa. A condição de parada compara ponteiros — <code>arr + n</code> é o endereço <em>um-passo-além</em> do último elemento (válido para comparar, mas não para dereferenciar).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — percorrer.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int arr[5] = {10, 20, 30, 40, 50};
+    int soma = 0;
+    int *p;
+
+    for (p = arr; p &lt; arr + 5; p++) {
+        soma += *p;
+    }
+
+    printf(&quot;soma = %d\n&quot;, soma);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>soma = 150</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Equivalência: a[i] é açúcar para *(a + i)</h2>
+  <p>O compilador trata <code>a[i]</code> como <code>*(a + i)</code> — não é coincidência que os dois escrevam com os mesmos símbolos. Como a adição é comutativa, <code>a[i]</code> e <code>i[a]</code> são tecnicamente a mesma coisa, mas <em>ninguém</em> escreve <code>i[a]</code> em código real.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — equivalencia.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int arr[5] = {10, 20, 30, 40, 50};
+
+    for (int i = 0; i &lt; 5; i++) {
+        printf(&quot;arr[%d] = %d    *(arr + %d) = %d\n&quot;,
+               i, arr[i], i, *(arr + i));
+    }
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>arr[0] = 10    *(arr + 0) = 10
+arr[1] = 20    *(arr + 1) = 20
+arr[2] = 30    *(arr + 2) = 30
+arr[3] = 40    *(arr + 3) = 40
+arr[4] = 50    *(arr + 4) = 50</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>void* e size_t: o ponteiro &quot;maioral&quot; e o tipo de tamanho</h2>
+  <p><code>void *</code> é um ponteiro <em>sem tipo</em>: serve para transportar endereços sem saber o conteúdo (é o que <code>malloc</code> retorna). Você <strong>não pode dereferenciar</strong> um <code>void *</code> (o C não sabe quantos bytes ler) — é preciso converter com um cast para o tipo certo.</p>
+<p><code>size_t</code> (em <code>&lt;stddef.h&gt;</code> / <code>&lt;stdlib.h&gt;</code>) é o tipo "sem sinal de tamanho" usado por <code>sizeof</code>, <code>strlen</code>, índices de alocação etc. No printf usamos <code>%zu</code>.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — void-e-size.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stddef.h&gt;
+
+int main(void)
+{
+    int x = 7;
+    void *pv = &amp;x;
+    int *pi = (int *)pv;
+
+    printf(&quot;pv = %p\n&quot;, pv);
+    printf(&quot;*pi = %d (apos cast de void* para int*)\n&quot;, *pi);
+    printf(&quot;sizeof(size_t) = %zu\n&quot;, sizeof(size_t));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>pv = 0000000FD71FFA3C
+*pi = 7 (apos cast de void* para int*)
+sizeof(size_t) = 8</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.02.1</p>
+  <p class="enunciado">Prove, imprimindo com <code>%p</code>, que <code>arr</code>, <code>&amp;arr[0]</code> e um <code>int *p = arr;</code> têm o mesmo endereço. Repita com um array de <code>double</code>.</p>
+  <p class="dica"><strong>Dica:</strong> O próprio array decai; imprima os três e compare visualmente.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int arr[3] = {1, 2, 3};
+    double d[3] = {1.5, 2.5, 3.5};
+    int *pi = arr;
+    double *pd = d;
+
+    printf(&quot;arr     = %p   pi     = %p   &amp;arr[0] = %p\n&quot;,
+           (void *)arr, (void *)pi, (void *)&amp;arr[0]);
+    printf(&quot;d       = %p   pd     = %p   &amp;d[0]   = %p\n&quot;,
+           (void *)d, (void *)pd, (void *)&amp;d[0]);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.02.2</p>
+  <p class="enunciado">Some os elementos de um array de 8 inteiros usando apenas um ponteiro com <code>++</code> (sem índice). Imprima a soma.</p>
+  <p class="dica"><strong>Dica:</strong> Loop do padrão <code>for (p = arr; p < arr + 8; p++)</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int arr[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+    int soma = 0;
+    int *p;
+
+    for (p = arr; p &lt; arr + 8; p++) {
+        soma += *p;
+    }
+    printf(&quot;soma = %d\n&quot;, soma);
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado 36. O ponteiro p anda 8 casas de 4 bytes cada.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.02.3</p>
+  <p class="enunciado">Inverta um array de 6 inteiros in-place usando dois ponteiros (um no início, outro no fim) e a função trocar. Mostre antes e depois.</p>
+  <p class="dica"><strong>Dica:</strong> Enquanto <code>ini &lt; fim</code>: troque <code>*ini</code> e <code>*fim</code>, depois <code>ini++</code> e <code>fim--</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void trocar(int *a, int *b)
+{
+    int tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+int main(void)
+{
+    int arr[6] = {1, 2, 3, 4, 5, 6};
+    int *ini = arr;
+    int *fim = arr + 5;
+
+    printf(&quot;original: &quot;);
+    for (int i = 0; i &lt; 6; i++) printf(&quot;%d &quot;, arr[i]);
+    printf(&quot;\n&quot;);
+
+    while (ini &lt; fim) {
+        trocar(ini, fim);
+        ini++;
+        fim--;
+    }
+
+    printf(&quot;invertido: &quot;);
+    for (int i = 0; i &lt; 6; i++) printf(&quot;%d &quot;, arr[i]);
+    printf(&quot;\n&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">Saída esperada: original 1 2 3 4 5 6; invertido 6 5 4 3 2 1.</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.02.4</p>
+  <p class="enunciado">Usando apenas ponteiros (nada de <code>[]</code>), encontre o menor valor e a posição dele em um array <code>{9, 3, 12, -2, 5, 3}</code>. Imprima o valor e o índice.</p>
+  <p class="dica"><strong>Dica:</strong> Mantenha <code>p_menor</code> como ponteiro para o menor até agora; no fim, <code>p_menor - arr</code> é o índice.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int arr[6] = {9, 3, 12, -2, 5, 3};
+    int *p_menor = arr;
+
+    for (int *p = arr + 1; p &lt; arr + 6; p++) {
+        if (*p &lt; *p_menor) {
+            p_menor = p;
+        }
+    }
+
+    printf(&quot;menor valor = %d na posicao %ld\n&quot;,
+           *p_menor, (long)(p_menor - arr));
+    return 0;
+}</code></pre>
+        <p class="obs">A subtração de dois ponteiros dá vetor de diferença (tipo <code>ptrdiff_t</code>) — número de elementos entre eles.</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t2-m02">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.02.5</p>
+  <p class="enunciado">Uma matriz 2×3 em C é contígua na memória. Percorra <code>mat[2][3]</code> com um único <code>int *p = &amp;mat[0][0]</code>, calcule a soma de todos os elementos e ainda imprima o endereço do primeiro e do último.</p>
+  <p class="dica"><strong>Dica:</strong> <code>&amp;mat[0][0]</code> é o "chão" da grade; <code>p + (2*3)</code> é o fim.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int mat[2][3] = {{1, 2, 3}, {4, 5, 6}};
+    int *p = &amp;mat[0][0];
+    int soma = 0;
+
+    for (int *q = p; q &lt; p + 6; q++) {
+        soma += *q;
+    }
+
+    printf(&quot;soma = %d\n&quot;, soma);
+    printf(&quot;primeiro: %p   derradeiro: %p\n&quot;,
+           (void *)p, (void *)(p + 5));
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado soma = 21. Matrizes 2D são "arrays de arrays" contíguos: 2 blocos de 3 ints seguidos.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que \&quot;o array decai para ponteiro\&quot; significa na prática?&quot;,&quot;opcoes&quot;:[&quot;O array vira um ponteiro e perde os dados&quot;,&quot;Na maioria das expressões, arr vale &amp;amp;arr[0]&quot;,&quot;O array fica mais lento&quot;,&quot;O sizeof(arr) muda de valor&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Em expressões (exceto &lt;code&gt;sizeof&lt;/code&gt; e &lt;code&gt;&amp;amp;arr&lt;/code&gt;), o nome do array se converte para o endereço do primeiro elemento.&quot;},{&quot;pergunta&quot;:&quot;Se &lt;code&gt;int *p = &amp;amp;x;&lt;/code&gt; e &lt;code&gt;x&lt;/code&gt; está em 0x1000, quanto vale &lt;code&gt;p + 1&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;0x1001&quot;,&quot;0x1004&quot;,&quot;0x1002&quot;,&quot;0x1000&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Somar 1 a um &lt;code&gt;int *&lt;/code&gt; soma &lt;code&gt;1 × sizeof(int)&lt;/code&gt; = 4 bytes: 0x1004.&quot;},{&quot;pergunta&quot;:&quot;Qual expressão é exatamente equivalente a &lt;code&gt;a[i]&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;a + i&quot;,&quot;*(a + i)&quot;,&quot;&amp;amp;a + i&quot;,&quot;i * sizeof(a)&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O operador &lt;code&gt;[]&lt;/code&gt; é açúcar para dereferência de &lt;code&gt;a + i&lt;/code&gt;.&quot;},{&quot;pergunta&quot;:&quot;Por que não podemos dereferenciar um ponteiro &lt;code&gt;void *&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;Porque void* ocupa 0 bytes&quot;,&quot;Porque o compilador não sabe quantos bytes e como interpretar&quot;,&quot;Porque void é uma palavra-chave reservada&quot;,&quot;Dá para dereferenciar, mas só com --std=c23&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Sem o tipo, não há stride nem interpretação; &lt;code&gt;*pv&lt;/code&gt; é proibido. Converte-se para &lt;code&gt;int *&lt;/code&gt;, &lt;code&gt;char *&lt;/code&gt;, etc.&quot;},{&quot;pergunta&quot;:&quot;O tipo &lt;code&gt;size_t&lt;/code&gt; é usado para...&quot;,&quot;opcoes&quot;:[&quot;guardar floats especiais&quot;,&quot;tamanhos e contagens (sem sinal), como sizeof e strlen&quot;,&quot;números com sinal de ponteiro válido&quot;,&quot;endereços de memória apenas&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;&lt;code&gt;size_t&lt;/code&gt; é um inteiro sem sinal adequado a tamanhos/contagens; no printf usamos &lt;code&gt;%zu&lt;/code&gt;.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  
+  <nav class="mod-nav"><a class="btn nav-prev" href="ponteiros-o-coracao-do-c.html">← 2.01 Ponteiros: o coração do C</a><a class="btn nav-next" href="strings-em-c.html">2.03 Strings em C →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m02">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

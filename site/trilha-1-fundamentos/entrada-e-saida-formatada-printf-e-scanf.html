@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.03 — Entrada e saída formatada: printf e scanf — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="1">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t1">Trilha 1 — Fundamentos</a> / Entrada e saída formatada: printf e scanf</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">1.03</div>
+    <h1>Entrada e saída formatada: printf e scanf</h1>
+    <p class="subtitulo">conversões, largura, precisão e leitura do teclado</p>
+    <div class="chips">
+      <span class="chip">Nível: Iniciante</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: T1.02</span>
+    </div>
+    <button class="btn btn-done" data-mod="t1-m03">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Dominar o <code>printf</code> (especificadores %d/%f/%c/%s/%x, largura, precisão, alinhamento, escapes) e aprender o básico do <code>scanf</code> para ler números do teclado — usando o <code>&</code> como "pega o endereço", sem entrar em ponteiros ainda.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Seção 3.2 — printf e scanf (somente a parte de entrada e saída)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulo 3 — Input/Output formatado</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, estude a tabela de especificadores e os exemplos de printf; o scanf leia com calma entendendo o papel do &. No King, capítulo 3 inteiro — principalmente as tabelas de conversão e os exemplos de leitura.</p>
+</section>
+  <section class="card secao">
+  <h2>printf: o conversor de valores em texto</h2>
+  <p>O <code>printf</code> recebe um texto com "buracos" chamados de <strong>especificadores de conversão</strong> e, depois, os valores que preenchem esses buracos. Cada especificador começa com <code>%</code> e termina com uma letra que diz o tipo:</p>
+  <ul><li><code>%d</code> — inteiro decimal (<code>int</code>).</li>
+<li><code>%x</code> — inteiro em <em>hexadecimal</em> (<code>%X</code> em maiúsculas).</li>
+<li><code>%f</code> — ponto flutuante (<code>double</code>/<code>float</code>).</li>
+<li><code>%c</code> — um caractere (<code>char</code>).</li>
+<li><code>%s</code> — uma sequência de caracteres (texto).</li>
+<li><code>%%</code> — imprime um <code>%</code> literal (para não abrir um novo buraco).</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — conversões</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n = 255;
+    double pi = 3.14159;
+    char letra = 'Z';
+
+    printf(&quot;inteiro: %d\n&quot;, n);
+    printf(&quot;hexadecimal: %x\n&quot;, n);
+    printf(&quot;real: %f\n&quot;, pi);
+    printf(&quot;real com 2 casas: %.2f\n&quot;, pi);
+    printf(&quot;um char: %c\n&quot;, letra);
+    printf(&quot;uma frase: %s\n&quot;, &quot;Aprenda C&quot;);
+    printf(&quot;porcentagem: %%\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>inteiro: 255
+hexadecimal: ff
+real: 3.141590
+real com 2 casas: 3.14
+um char: Z
+uma frase: Aprenda C
+porcentagem: %</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Largura, precisão e alinhamento</h2>
+  <p>Você pode controlar <em>todo</em> o visual: a largura mínima do campo, as casas decimais e o alinhamento.</p>
+  <ul><li><code>%5d</code> — no mínimo 5 caracteres de largura (preenche com espaços à esquerda).</li>
+<li><code>%-5d</code> — largura mínima, alinhado à <strong>esquerda</strong> (o <code>-</code> muda de lado).</li>
+<li><code>%05d</code> — preenche com <strong>zeros</strong> em vez de espaços.</li>
+<li><code>%.2f</code> — exatamente 2 casas decimais.</li>
+<li><code>%8.2f</code> — largura 8 e 2 casas decimais.</li>
+<li><code>%-8.2f</code> — o mesmo, alinhado à esquerda.</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — formatando colunas</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n = 42;
+    double r = 3.14159;
+
+    printf(&quot;[%5d]\n&quot;, n);
+    printf(&quot;[%-5d]\n&quot;, n);
+    printf(&quot;[%05d]\n&quot;, n);
+    printf(&quot;[%8.2f]\n&quot;, r);
+    printf(&quot;[%-8.2f]\n&quot;, r);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>[   42]
+[42   ]
+[00042]
+[    3.14]
+[3.14    ]</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>scanf: lendo do teclado (e o mistério do &amp;)</h2>
+  <p>Se <code>printf</code> traduz valores em texto, o <code>scanf</code> faz o caminho inverso: lê texto digitado e guarda em uma variável.</p>
+  <ul><li><code>int a;</code> <code>scanf("%d", &a);</code> — lê um inteiro e guarda em <code>a</code>.</li>
+<li><code>double x;</code> <code>scanf("%lf", &x);</code> — lê um real; <strong>repare no <code>lf</code></strong> (é o especificador de leitura de <code>double</code>).</li>
+<li>Para <code>float</code> usa-se <code>%f</code> na leitura.</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Sequências de escape</h2>
+  <p>Dentro de uma string, uma barra invertida seguida de um caractere dá origem a um <strong>escape</strong> — um caractere especial que não dá para digitar "cru" no texto:</p>
+  <ul><li><code>\n</code> — quebra de linha (newline).</li>
+<li><code>\t</code> — tabulação (tab).</li>
+<li><code>\\</code> — uma barra invertida literal.</li>
+<li><code>\"</code> — aspas duplas dentro da string.</li>
+<li><code>\0</code> — o caractere nulo (veremos com strings, na Trilha 2).</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — escapes</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    printf(&quot;Linha 1\nLinha 2\n&quot;);
+    printf(&quot;Coluna\tTab\n&quot;);
+    printf(&quot;Contrabarra: \\ \n&quot;);
+    printf(&quot;Aspas: \&quot;C\&quot;\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Linha 1
+Linha 2
+Coluna	Tab
+Contrabarra:  
+Aspas: &quot;C&quot;</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O perigo do tipo errado no printf</h2>
+  <p>Especificador e valor devem casar. Imprimir um <code>double</code> com <code>%d</code>, ou passar um <code>int</code> onde o formato espera <code>%f</code>, é <strong>comportamento indefinido</strong>: pode sair lixo na tela em uma execução e outra coisa diferente na seguinte. A boa notícia: com a flag <code>-Wall</code>, o gcc aponta a maioria desses erros de formato com um warning — corrija até zerar avisos.</p>
+<p>Regra prática: <code>int</code> → <code>%d</code>; <code>char</code> → <code>%c</code>; <code>double</code>/<code>float</code> → <code>%f</code> (no printf). Lendo no scanf: <code>double</code> → <code>%lf</code>, <code>float</code> → <code>%f</code>.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Programa: conversor de temperatura</h2>
+  <p>Vamos juntar tudo: ler um valor de Celsius do teclado, converter para Fahrenheit e imprimir formatado.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — temperatura.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double celsius;
+
+    printf(&quot;Temperatura em Celsius: &quot;);
+    scanf(&quot;%lf&quot;, &amp;celsius);
+
+    printf(&quot;%.2f C = %.2f F\n&quot;, celsius, celsius * 9.0 / 5.0 + 32.0);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Temperatura em Celsius: 37.5
+37.50 C = 99.50 F</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Programa: calculadora de área do círculo</h2>
+  <p>E um leitor de raio + cálculo de área. Usamos a constante 3.14159 para não depender de biblioteca matemática nesta trilha.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — area.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double raio, area;
+
+    printf(&quot;Raio do circulo: &quot;);
+    scanf(&quot;%lf&quot;, &amp;raio);
+
+    area = 3.14159 * raio * raio;
+    printf(&quot;area: %.2f\n&quot;, area);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Raio do circulo: 2
+area: 12.57</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t1-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.03.1</p>
+  <p class="enunciado">Leia dois números inteiros e imprima a soma e o produto deles, cada um em uma linha com uma frase.</p>
+  <p class="dica"><strong>Dica:</strong> Dois <code>scanf("%d", &a)</code> e <code>scanf("%d", &b)</code> resolvem.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int a, b;
+
+    printf(&quot;Digite o primeiro numero: &quot;);
+    scanf(&quot;%d&quot;, &amp;a);
+    printf(&quot;Digite o segundo numero: &quot;);
+    scanf(&quot;%d&quot;, &amp;b);
+
+    printf(&quot;soma: %d\n&quot;, a + b);
+    printf(&quot;produto: %d\n&quot;, a * b);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t1-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.03.2</p>
+  <p class="enunciado">Leia um número real e imprima-o de três formas: com 3 casas decimais, com largura 10 (alinhado à direita) e com largura 10 alinhado à esquerda. Use colchetes para enxergar as larguras.</p>
+  <p class="dica"><strong>Dica:</strong> <code>%.3f</code>, <code>%10.3f</code> e <code>%-10.3f</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double x;
+
+    printf(&quot;Digite um numero real: &quot;);
+    scanf(&quot;%lf&quot;, &amp;x);
+
+    printf(&quot;[%.3f]\n&quot;, x);
+    printf(&quot;[%10.3f]\n&quot;, x);
+    printf(&quot;[%-10.3f]\n&quot;, x);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t1-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.03.3</p>
+  <p class="enunciado">Leia uma temperatura em Fahrenheit e converta para Celsius usando a fórmula C = (F - 32) * 5 / 9. Imprima com 1 casa decimal.</p>
+  <p class="dica"><strong>Dica:</strong> Cuidado para não misturar inteiros na fórmula: escreva <code>(f - 32.0) * 5.0 / 9.0</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double f, c;
+
+    printf(&quot;Temperatura em Fahrenheit: &quot;);
+    scanf(&quot;%lf&quot;, &amp;f);
+
+    c = (f - 32.0) * 5.0 / 9.0;
+    printf(&quot;%.1f F = %.1f C\n&quot;, f, c);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t1-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.03.4</p>
+  <p class="enunciado">Leia duas notas e imprima a média ponderada, onde a primeira tem peso 2 e a segunda peso 3, com 2 casas decimais.</p>
+  <p class="dica"><strong>Dica:</strong> média ponderada = (n1*peso1 + n2*peso2) / (peso1 + peso2).</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double n1, n2, media;
+
+    printf(&quot;Nota 1: &quot;);
+    scanf(&quot;%lf&quot;, &amp;n1);
+    printf(&quot;Nota 2: &quot;);
+    scanf(&quot;%lf&quot;, &amp;n2);
+
+    media = (n1 * 2.0 + n2 * 3.0) / (2.0 + 3.0);
+    printf(&quot;media ponderada: %.2f\n&quot;, media);
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t1-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 1.03.5</p>
+  <p class="enunciado">Leia um número inteiro e imprima-o em decimal (<code>%d</code>), em hexadecimal (<code>%x</code>) e em octal (<code>%o</code>), com as palavras "dec:", "hex:" e "oct:" antes.</p>
+  <p class="dica"><strong>Dica:</strong> <code>%o</code> imprime em octal, assim como <code>%x</code> imprime em hexadecimal.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int n;
+
+    printf(&quot;Digite um numero: &quot;);
+    scanf(&quot;%d&quot;, &amp;n);
+
+    printf(&quot;dec: %d\n&quot;, n);
+    printf(&quot;hex: %x\n&quot;, n);
+    printf(&quot;oct: %o\n&quot;, n);
+    return 0;
+}</code></pre>
+        <p class="obs">Para 26: decimal 26, hexadecimal 1a, octal 32.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual especificador imprime um int em hexadecimal?&quot;,&quot;opcoes&quot;:[&quot;%x&quot;,&quot;%d&quot;,&quot;%h&quot;,&quot;%c&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;&lt;code&gt;%x&lt;/code&gt; exibe o inteiro em hexadecimal (minúsculas).&quot;},{&quot;pergunta&quot;:&quot;O que a expressão &lt;code&gt;printf(\&quot;%.2f\&quot;, 3.14159)&lt;/code&gt; imprime?&quot;,&quot;opcoes&quot;:[&quot;3.14&quot;,&quot;3.14159&quot;,&quot;314&quot;,&quot;3.1&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;A precisão &lt;code&gt;.2&lt;/code&gt; limita o número a 2 casas decimais.&quot;},{&quot;pergunta&quot;:&quot;Afirmativa correta sobre o &lt;code&gt;&amp;&lt;/code&gt; no &lt;code&gt;scanf(\&quot;%d\&quot;, &amp;x)&lt;/code&gt;:&quot;,&quot;opcoes&quot;:[&quot;significa \&quot;pega o endereço da variável\&quot; — o scanf precisa saber onde guardar o valor&quot;,&quot;soma o valor lido com a variável&quot;,&quot;é opcional quando a variável é int&quot;,&quot;imprime o valor na tela&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O &amp; fornece o endereço da variável para o scanf gravar; detalhes de ponteiro ficam para a Trilha 2.&quot;},{&quot;pergunta&quot;:&quot;Para ler um &lt;code&gt;double&lt;/code&gt; com scanf, usa-se:&quot;,&quot;opcoes&quot;:[&quot;%lf&quot;,&quot;%f&quot;,&quot;%d&quot;,&quot;%double&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Na leitura, &lt;code&gt;double&lt;/code&gt; usa &lt;code&gt;%lf&lt;/code&gt;; &lt;code&gt;float&lt;/code&gt; usa &lt;code&gt;%f&lt;/code&gt;.&quot;},{&quot;pergunta&quot;:&quot;Qual sequência de escape representa uma barra invertida literal dentro de uma string C?&quot;,&quot;opcoes&quot;:[&quot;\\\\&quot;,&quot;/&quot;,&quot;\\b&quot;,&quot;\\]&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;&lt;code&gt;\\\\&lt;/code&gt; no código C produz uma única barra invertida impressa.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Conta de restaurante</h2>
+  <p>Crie <code>conta.c</code> que lê o valor do consumo (double), a taxa de serviço em % (ex.: 10) e o número de pessoas (int); o programa calcula e imprime o total com serviço e o valor por pessoa, formatados em uma "nota" com larguras e 2 casas decimais. Persona: você é o sistema de um restaurante simples.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Lê os três dados com <code>scanf</code> (com <code>&</code> na variável certa).</li><li>Calcula serviço, total e divisão por pessoa.</li><li>Imprime como uma nota: cada item em uma linha, valores em colunas alinhadas (largura fixa).</li><li>Compila com <code>-Wall -Wextra -std=c11</code> sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="variaveis-tipos-e-atribuicao.html">← 1.02 Variáveis, tipos e atribuição</a><a class="btn nav-next" href="operadores-e-expressoes.html">1.04 Operadores e expressões →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t1-m03">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.03 — Strings em C — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / Strings em C</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.03</div>
+    <h1>Strings em C</h1>
+    <p class="subtitulo">char[] + '\0', literais, char*, fgets vs gets, scanf %s e strlen</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~35 min</span>
+      <span class="chip">Pré-requisitos: T2.01 e T2.02</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m03">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Saber que uma string em C é um array de char terminado em '\0', diferenciar array vs literal imutável, ler entradas de forma segura com fgets e percorrer strings com ponteiros.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 7 (Strings)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulos 13.1–13.3 (Strings: conceito, literais, entrada/saída)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No Beej, leia a seção sobre string as char array e a de input com fgets. No King, atenção especial à diferença entre "string é um array" e "ponteiro para string literal" na seção 13.2.</p>
+</section>
+  <section class="card secao">
+  <h2>String = array de char terminado em \0</h2>
+  <p>No C, "string" é uma convenção: um array de <strong>char</strong> terminado em <code>'\0'</code> (byte 0). O tamanho da string não é guardado em lugar nenhum — o código para ao encontrar o <code>\0</code>. Por isso "tamanho do array" (<code>sizeof</code>) e "tamanho da string" (<code>strlen</code>) são coisas diferentes: o array inclui o <code>\0</code>.</p>
+<p>Um <em>string literal</em> (<code>"Ana"</code>) gera um array estático <strong>só de leitura</strong> — tentar modificar é comportamento indefinido. Para ter uma string modificável, copiamos os caractéres para um array próprio:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — literal.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char nome1[] = &quot;Ana&quot;;        /* array de 4: 'A','n','a','\0' */
+    char *nome2 = &quot;Ana&quot;;         /* ponteiro para literal (read-only) */
+    char copia[] = &quot;Software Livre&quot;;
+
+    nome1[0] = 'B';              /* ok: nome1 eh uma copia propria */
+    /* nome2[0] = 'B'; */        /* proibido: literal e read-only */
+
+    printf(&quot;nome1 (array)   = %s\n&quot;, nome1);
+    printf(&quot;nome2 (literal) = %s\n&quot;, nome2);
+    printf(&quot;strlen(nome1) = %zu\n&quot;, strlen(nome1));
+    printf(&quot;sizeof(nome1) = %zu (inclui o '\\0')\n&quot;, sizeof nome1);
+    printf(&quot;len da string = %zu, bytes do array = %zu\n&quot;,
+           strlen(copia), sizeof copia);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>nome1 (array)   = Bna
+nome2 (literal) = Ana
+strlen(nome1) = 3
+sizeof(nome1) = 4 (inclui o '\0')
+len da string = 14, bytes do array = 15</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Lendo com fgets: seguro, mas cuidado com o \n</h2>
+  <p>A função <code>gets</code> é <strong>proibida</strong> (nem existe mais no padrão): ela não tem como saber o tamanho do buffer e estoura a memória. Use <code>fgets(buffer, tamanho, stdin)</code>, que lê no máximo <code>tamanho-1</code> caracteres e <strong>sempre</strong> coloca o <code>\0</code>.</p>
+<p>Charme do fgets: ele guarda a nova linha pressionada no buffer. Removê-la é trabalho nosso — um truque comum é o <code>strcspn</code> (módulo T2.04) ou um loop que localiza o <code>'\n'</code>:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — fgets.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char nome[100];
+
+    printf(&quot;Digite seu nome: &quot;);
+    if (fgets(nome, sizeof nome, stdin) == NULL) {
+        return 1;
+    }
+
+    nome[strcspn(nome, &quot;\n&quot;)] = '\0';   /* remove a quebra de linha */
+
+    printf(&quot;Ola, %s!\n&quot;, nome);
+    printf(&quot;A string tem %zu caracteres.\n&quot;, strlen(nome));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Digite seu nome: Daniel
+Ola, Daniel!
+A string tem 6 caracteres.</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>scanf %s: rápido, com limitações</h2>
+  <p><code>scanf("%s", buf)</code> lê uma palavra (para no primeiro espaço) e <strong>não valida o tamanho</strong> — com um campo de largura como <code>%99s</code> limitamos a 99 caracteres, evitando estouro. A grande limitação: ele para no espaço, então não serve para ler frases.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — scanf-string.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    char nome[100];
+    int idade;
+
+    printf(&quot;Digite nome e idade: &quot;);
+    if (scanf(&quot;%99s %d&quot;, nome, &amp;idade) != 2) {
+        return 1;
+    }
+
+    printf(&quot;Nome: %s\n&quot;, nome);
+    printf(&quot;Idade: %d\n&quot;, idade);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>Digite nome e idade: Maria 28
+Nome: Maria
+Idade: 28
+
+(tente digitar &quot;Ana Clara Souza 28&quot;: só &quot;Ana&quot; é lido como nome)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Percorrendo uma string com ponteiro</h2>
+  <p>Como a string é um array terminado em <code>\0</code>, o padrão <code>for (p = s; *p != '\0'; p++)</code> anda casa por casa até a sentinela. Veja a contagem de caracteres feita à mão (o que a <code>strlen</code> faz por dentro):</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — percorrer.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int tamanho(const char *s)
+{
+    int n = 0;
+    while (s[n] != '\0') {
+        n++;
+    }
+    return n;
+}
+
+int main(void)
+{
+    const char *msg = &quot;caminho&quot;;
+
+    printf(&quot;tamanho(\&quot;%s\&quot;) = %d\n&quot;, msg, tamanho(msg));
+
+    printf(&quot;letras: &quot;);
+    for (const char *p = msg; *p != '\0'; p++) {
+        printf(&quot;%c &quot;, *p);
+    }
+    printf(&quot;\n&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>tamanho(&quot;caminho&quot;) = 7
+letras: c a m i n h o</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.03.1</p>
+  <p class="enunciado">Escreva sua própria <code>comprimento</code> (parecida com <code>strlen</code>) que conta caracteres até o <code>\0</code>. Teste com <code>"ada"</code>, <code>"programacao"</code> e <code>""</code> (string vazia).</p>
+  <p class="dica"><strong>Dica:</strong> loop <code>while (s[n] != '\0') n++;</code></p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int comprimento(const char *s)
+{
+    int n = 0;
+    while (s[n] != '\0') {
+        n++;
+    }
+    return n;
+}
+
+int main(void)
+{
+    printf(&quot;\&quot;ada\&quot;          -&gt; %d\n&quot;, comprimento(&quot;ada&quot;));
+    printf(&quot;\&quot;programacao\&quot;  -&gt; %d\n&quot;, comprimento(&quot;programacao&quot;));
+    printf(&quot;\&quot;\&quot; (vazia)     -&gt; %d\n&quot;, comprimento(&quot;&quot;));
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado: 3, 11 e 0. Note que a string vazia tem só o \0.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.03.2</p>
+  <p class="enunciado">Leia o nome do usuário com <code>fgets</code>, remova o <code>\n</code> e imprima uma saudação com a quantidade de letras, ex.: "Olá, JULIA! Seu nome tem 5 letras."</p>
+  <p class="dica"><strong>Dica:</strong> Use <code>strcspn</code> para achar o \n e <code>strlen</code> para contar.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char nome[100];
+
+    printf(&quot;Digite seu nome: &quot;);
+    if (fgets(nome, sizeof nome, stdin) == NULL) {
+        return 1;
+    }
+    nome[strcspn(nome, &quot;\n&quot;)] = '\0';
+
+    printf(&quot;Ola, %s!  Seu nome tem %zu letras.\n&quot;,
+           nome, strlen(nome));
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.03.3</p>
+  <p class="enunciado">Implemente seu próprio <code>copiar</code> (clone de <code>strcpy</code>) que copia o conteúdo de <code>origem</code> para <code>destino</code> incluindo o <code>\0</code>. Teste copiando <code>"linguagem"</code> para um buffer e imprima.</p>
+  <p class="dica"><strong>Dica:</strong> O clássico: <code>while ((*dest++ = *src++)) ;</code> — para quando copiar o \0. Ou um loop simples por índice.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void copiar(char *dest, const char *src)
+{
+    int i = 0;
+    while (src[i] != '\0') {
+        dest[i] = src[i];
+        i++;
+    }
+    dest[i] = '\0';
+}
+
+int main(void)
+{
+    char copia[32];
+
+    copiar(copia, &quot;linguagem&quot;);
+    printf(&quot;copia = \&quot;%s\&quot;\n&quot;, copia);
+    return 0;
+}</code></pre>
+        <p class="obs">Garanta que <code>destino</code> tem espaço suficiente (>= strlen(origem)+1).</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.03.4</p>
+  <p class="enunciado">Escreva <code>contar_vogais</code> que conta as vogais (a, e, i, o, u, ignorando maiúsculas) de uma string. Teste com <code>"Programacao em C"</code>.</p>
+  <p class="dica"><strong>Dica:</strong> Compare cada char já normalizado com <code>tolower</code> ou faça duas listas (maiúsculas e minúsculas).</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;ctype.h&gt;
+
+int contar_vogais(const char *s)
+{
+    int total = 0;
+    for (; *s != '\0'; s++) {
+        char c = (char)tolower((unsigned char)*s);
+        if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u') {
+            total++;
+        }
+    }
+    return total;
+}
+
+int main(void)
+{
+    printf(&quot;vogais em \&quot;Programacao em C\&quot;: %d\n&quot;,
+           contar_vogais(&quot;Programacao em C&quot;));
+    return 0;
+}</code></pre>
+        <p class="obs">Resultado esperado: 7 vogais.</p></details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t2-m03">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.03.5</p>
+  <p class="enunciado">Inverta uma string in-place com dois ponteiros, um no início e outro no fim. Cuidado para não inverter o <code>\0</code>! Teste com <code>"abcdefg"</code>.</p>
+  <p class="dica"><strong>Dica:</strong> <code>fim</code> deve apontar para o último caractere, ou seja, <code>base + comprimento - 1</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void trocar(char *a, char *b)
+{
+    char tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+int main(void)
+{
+    char texto[] = &quot;abcdefg&quot;;
+    char *ini = texto;
+    char *fim = texto;
+
+    while (*fim != '\0') {
+        fim++;
+    }
+    fim--;                     /* para no ultimo caractere */
+
+    while (ini &lt; fim) {
+        trocar(ini, fim);
+        ini++;
+        fim--;
+    }
+
+    printf(&quot;invertida: %s\n&quot;, texto);
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado "gfedcba". Crucial: começar o <code>fim</code> no último caractere, nunca apontar o fim para o \0 durante a troca.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que marca o fim de uma string em C?&quot;,&quot;opcoes&quot;:[&quot;o byte 0 (\\0)&quot;,&quot;um caractere \\n&quot;,&quot;o fim do array sempre&quot;,&quot;um tamanho guardado&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;A convenção do C: a string termina no primeiro byte &lt;code&gt;\\0&lt;/code&gt;.&quot;},{&quot;pergunta&quot;:&quot;Por que &lt;code&gt;gets&lt;/code&gt; é proibido?&quot;,&quot;opcoes&quot;:[&quot;Porque ocupa muita memória&quot;,&quot;Porque não existe limite de leitura e estoura o buffer&quot;,&quot;Porque não lê espaços&quot;,&quot;Porque imprime lixo no terminal&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;&lt;code&gt;gets&lt;/code&gt; copia sem verificar o tamanho do destino — vetor de buffer overflow. Em C11 foi removida.&quot;},{&quot;pergunta&quot;:&quot;Se &lt;code&gt;char s[] = \&quot;oi\&quot;;&lt;/code&gt;, qual é o valor de &lt;code&gt;sizeof s&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;2&quot;,&quot;3&quot;,&quot;4&quot;,&quot;ugual a strlen(s)&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O array guarda &#39;o&#39;,&#39;i&#39;,&#39;\\0&#39; = 3 bytes. Já &lt;code&gt;strlen(s)&lt;/code&gt; daria 2.&quot;},{&quot;pergunta&quot;:&quot;O que há de especial em um string literal como &lt;code&gt;\&quot;Ana\&quot;&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;É sempre mutável&quot;,&quot;Vive em memória read-only; modificar é comportamento indefinido&quot;,&quot;Não tem \\0 no final&quot;,&quot;Só pode ser usado em printf&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;O literal gera um array estático apenar-leitura; para modificar, copiamos para um array nosso.&quot;},{&quot;pergunta&quot;:&quot;Depois de &lt;code&gt;fgets(buf, n, stdin)&lt;/code&gt;, o que geralmente precisa ser feito?&quot;,&quot;opcoes&quot;:[&quot;Chamar strlen para apagar tudo&quot;,&quot;Remover o \\n que o fgets deixou no final&quot;,&quot;Redimensionar o buffer&quot;,&quot;Nada, o fgets já faz tudo&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;fgets inclui a quebra de linha; técnicas como &lt;code&gt;strcspn&lt;/code&gt; a removem antes de processar.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Leitor de frases amigável</h2>
+  <p>Crie um programa que pergunta três frases (uma por linha, com fgets), remove as quebras de linha, e depois imprime: a frase mais longa (com posição), a frase mais curta, e a soma total de caracteres. Faça sem usar strlen em pelo menos uma parte (uma função própria de tamanho) e com ponteiros para comparar.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Entrada 100% com fgets (sem scanf %s no texto final).</li><li>Função própria de tamanho + uso de strlen em outro trecho.</li><li>Impressão das frases na ordem digitada e dos resultados pedidos.</li><li>Compila com -Wall -Wextra sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="ponteiros-e-arrays-aritmetica-de-ponteiros.html">← 2.02 Ponteiros e arrays: aritmética de ponteiros</a><a class="btn nav-next" href="manipulando-strings.html">2.04 Manipulando strings →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m03">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

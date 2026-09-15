@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2.10 — Operações bit a bit — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="2">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t2">Trilha 2 — Intermediário</a> / Operações bit a bit</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">2.10</div>
+    <h1>Operações bit a bit</h1>
+    <p class="subtitulo">máscaras, flags, &amp; | ^ ~ &lt;&lt; &gt;&gt;, XOR e popcount</p>
+    <div class="chips">
+      <span class="chip">Nível: Intermediário</span>
+      <span class="chip">Duração: ~35 min</span>
+      <span class="chip">Pré-requisitos: T1.06 (lógica) e T1.09 (binário/hex)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t2-m10">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Operar diretamente sobre os bits de inteiros: definir/limpar/testar flags, usar máscaras, deslocamentos, encriptação XOR simples e contagem de bits set — habilidades do mundo de sistemas e de baixo nível.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 24 (Bitwise Operations)</p>
+  <p><strong>King (livro em PDF):</strong> Capítulos 20.2–20.3 (Bitwise operators)</p>
+  <p class="foco"><strong>Foco da leitura:</strong> No King, 20.2 apresenta cada operador bit a bit e 20.3 as aplicações com bandeiras (flags). No Beej, os exemplos de ler um bit específico e montar/limpar bandeiras.</p>
+</section>
+  <section class="card secao">
+  <h2>Os operadores na prática</h2>
+  <p>Os operadores bit a bit trabalham bit por bit nos inteiros: <code>&amp;</code> (E), <code>|</code> (OU), <code>^</code> (OU exclusivo), <code>~</code> (complemento), <code>&lt;&lt;</code> e <code>&gt;&gt;</code> (deslocamentos). Eles não funcionam com tipos ponto flutuante.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — operadores.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+void mostrar(const char *nome, int v)
+{
+    printf(&quot;%-14s = %4d  (0x%08X)\n&quot;, nome, v, (unsigned)v);
+}
+
+int main(void)
+{
+    int a = 0x0C;   /* 1100 em binario */
+    int b = 0x0A;   /* 1010 em binario */
+
+    mostrar(&quot;a&quot;, a);
+    mostrar(&quot;b&quot;, b);
+    mostrar(&quot;a &amp; b&quot;, a &amp; b);
+    mostrar(&quot;a | b&quot;, a | b);
+    mostrar(&quot;a ^ b&quot;, a ^ b);
+    mostrar(&quot;~a&quot;, ~a);
+    mostrar(&quot;a &lt;&lt; 1&quot;, a &lt;&lt; 1);
+    mostrar(&quot;b &gt;&gt; 1&quot;, b &gt;&gt; 1);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>a             =   12  (0x0000000C)
+b             =   10  (0x0000000A)
+a &amp; b         =    8  (0x00000008)
+a | b         =   14  (0x0000000E)
+a ^ b         =    6  (0x00000006)
+~a            =  -13  (0xFFFFFFF3)
+a &lt;&lt; 1        =   24  (0x00000018)
+b &gt;&gt; 1        =    5  (0x00000005)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Flags e máscaras: permissões estilo chmod</h2>
+  <p>Um int de 32 bits pode guardar 32 bandeiras binárias de uma vez — economia extrema. Para <strong>ligar</strong> um bit usamos <code>|=</code>, para <strong>limpar</strong> <code>&amp;= ~mascara</code>, para <strong>alternar</strong> <code>^=</code>, e para <strong>testar</strong> <code>(v &amp; mascara)</code>. É exatamente assim que o chmod/unix representa permissões (r = 4, w = 2, x = 1) e como drivers leem registradores de hardware.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — flags.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+#define FLAG_LEITURA  (1 &lt;&lt; 0)
+#define FLAG_ESCRITA  (1 &lt;&lt; 1)
+#define FLAG_EXEC     (1 &lt;&lt; 2)
+
+int main(void)
+{
+    int permissoes = 0;
+
+    permissoes |= FLAG_LEITURA;   /* liga bit 0 */
+    permissoes |= FLAG_EXEC;      /* liga bit 2 */
+
+    printf(&quot;permissoes = %d (0x%X)\n&quot;, permissoes, permissoes);
+    printf(&quot;tem leitura? %s\n&quot;, (permissoes &amp; FLAG_LEITURA) ? &quot;sim&quot; : &quot;nao&quot;);
+    printf(&quot;tem escrita? %s\n&quot;, (permissoes &amp; FLAG_ESCRITA) ? &quot;sim&quot; : &quot;nao&quot;);
+
+    permissoes ^= FLAG_EXEC;      /* alterna bit 2 */
+    printf(&quot;alternando EXEC: %d (0x%X)\n&quot;, permissoes, permissoes);
+
+    permissoes &amp;= ~FLAG_LEITURA;  /* limpa bit 0 */
+    printf(&quot;limpando LEITURA: %d (0x%X)\n&quot;, permissoes, permissoes);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>permissoes = 5 (0x5)
+tem leitura? sim
+tem escrita? nao
+alternando EXEC: 1 (0x1)
+limpando LEITURA: 0 (0x0)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Bits em perfumaria: registradores e hardware</h2>
+  <p>Em embarcados e sistemas, os bits de um <strong>registrador</strong> controlam hardware: um bit de habilitação, um de modo, um de interrupção. Ler um registrador é "ler um int"; configurá-lo é montar a máscara certa. É por isso que essa habilidade é requisito básico na trilha Cyber/sistemas.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Encriptação XOR: o cifrador do sim</h2>
+  <p>O XOR tem uma propriedade mágica: aplicar duas vezes o mesmo valor "desfaz" a operação — <code>(x ^ k) ^ k == x</code>. Por isso serve de cifra de aprendizado (não use em produção!): cifrar com a chave e decifrar com a mesma chave. O hardware usa a mesma lógica internamente.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — xor.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    char msg[] = &quot;secreto&quot;;
+    int chave = 0x5A;
+
+    for (int i = 0; msg[i] != '\0'; i++) {
+        msg[i] ^= chave;
+    }
+    printf(&quot;cifrado: &quot;);
+    for (int i = 0; msg[i] != '\0'; i++) {
+        printf(&quot;%02X &quot;, (unsigned char)msg[i]);
+    }
+    printf(&quot;\n&quot;);
+
+    for (int i = 0; msg[i] != '\0'; i++) {
+        msg[i] ^= chave;
+    }
+    printf(&quot;decifrado: %s\n&quot;, msg);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>cifrado: 29 3F 39 28 3F 2E 35
+decifrado: secreto</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Popcount: contando bits ligados</h2>
+  <p>Contar os bits 1 de um inteiro tem aplicações (paridade, CRC, criptografia). A versão manual: testa o bit 0 com <code>v &amp; 1</code> e desloca um lugar a cada iteração. (A CPU moderna tem a instrução popcnt, mas a lógica é esta.)</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — popcount.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int contar_bits(int v)
+{
+    int total = 0;
+    while (v != 0) {
+        total += v &amp; 1;
+        v = (unsigned)v &gt;&gt; 1;
+    }
+    return total;
+}
+
+int main(void)
+{
+    printf(&quot;popcount(0xC3) = %d   (1100 0011)\n&quot;, contar_bits(0xC3));
+    printf(&quot;popcount(0xFF) = %d\n&quot;, contar_bits(0xFF));
+    printf(&quot;popcount(0)    = %d\n&quot;, contar_bits(0));
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>popcount(0xC3) = 4   (1100 0011)
+popcount(0xFF) = 8
+popcount(0)    = 0</code></pre>
+</div>
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t2-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.10.1</p>
+  <p class="enunciado">Escreva um programa que determina se um número é par ou ímpar usando <code>n &amp; 1</code> (último bit). Teste com 7, 8 e 0.</p>
+  <p class="dica"><strong>Dica:</strong> Números ímpares têm o bit 0 ligado.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int v[3] = {7, 8, 0};
+
+    for (int i = 0; i &lt; 3; i++) {
+        printf(&quot;%d -&gt; %s\n&quot;, v[i], (v[i] &amp; 1) ? &quot;impar&quot; : &quot;par&quot;);
+    }
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t2-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.10.2</p>
+  <p class="enunciado">Defina as macros <code>BIT_3 = (1 &lt;&lt; 3)</code>. Crie um programa que liga o bit 3 de um int (valor inicial 1), imprime, alterna (^), imprime, limpa (&amp;= ~), imprime. Mostre também o estado antes.</p>
+  <p class="dica"><strong>Dica:</strong> Use printf com %d e %X para visualizar.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+#define BIT_3 (1 &lt;&lt; 3)
+
+int main(void)
+{
+    int v = 1;
+
+    printf(&quot;inicio   : %d (0x%X)\n&quot;, v, v);
+    v |= BIT_3;
+    printf(&quot;ligado   : %d (0x%X)\n&quot;, v, v);
+    v ^= BIT_3;
+    printf(&quot;alternou : %d (0x%X)\n&quot;, v, v);
+    v &amp;= ~BIT_3;
+    printf(&quot;limpado  : %d (0x%X)\n&quot;, v, v);
+    return 0;
+}</code></pre>
+        <p class="obs">Sequência: 1 (0x1) -> 9 (0x9) -> 1 (0x1) -> 1 (0x1).</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t2-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.10.3</p>
+  <p class="enunciado">Troque os valores de duas variáveis int, a e b, <em>sem variável temporária</em>, usando três XOR sucessivos: a ^= b; b ^= a; a ^= b. Imprima antes e depois e confira que o par (a,b) ficou invertido.</p>
+  <p class="dica"><strong>Dica:</strong> Propriedade: (x ^ y) ^ x == y.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int a = 6, b = 13;
+
+    printf(&quot;antes : a=%d b=%d\n&quot;, a, b);
+    a = a ^ b;
+    b = b ^ a;
+    a = a ^ b;
+    printf(&quot;depois: a=%d b=%d\n&quot;, a, b);
+    return 0;
+}</code></pre>
+        <p class="obs">Funciona para qualquer par; é truque clássico (embora menos legível que o tmp).</p></details>
+</div>
+<div class="exercicio" id="ex-4" data-mod="t2-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.10.4</p>
+  <p class="enunciado">Escreva a função <code>int eh_potencia_de_2(int n)</code> usando o truque <code>(n &amp; (n-1)) == 0</code>. Teste com 1, 2, 4, 16, 12 e 0 (0 <em>não</em> é potência).</p>
+  <p class="dica"><strong>Dica:</strong> Uma potência de 2 tem exatamente um bit ligado; n-1 apaga esse bit e acende os de baixo.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int eh_potencia_de_2(int n)
+{
+    return n &gt; 0 &amp;&amp; (n &amp; (n - 1)) == 0;
+}
+
+int main(void)
+{
+    int v[6] = {1, 2, 4, 16, 12, 0};
+
+    for (int i = 0; i &lt; 6; i++) {
+        printf(&quot;%d -&gt; %s\n&quot;, v[i], eh_potencia_de_2(v[i]) ? &quot;sim&quot; : &quot;nao&quot;);
+    }
+    return 0;
+}</code></pre>
+        </details>
+</div>
+<div class="exercicio" id="ex-5" data-mod="t2-m10">
+  <div class="ex-head">
+    <span class="badge badge-nivel n4">Nível 4</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 2.10.5</p>
+  <p class="enunciado">Imprima um inteiro (ex.: 0xA5) como sequência de bits do mais significativo para o menos (8 bits). Use um loop que testa cada bit com uma máscara <code>1 &lt;&lt; i</code>.</p>
+  <p class="dica"><strong>Dica:</strong> Do i=7 até i=0: <code>printf(v &amp; (1 &lt;&lt; i) ? "1" : "0")</code>.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    int v = 0xA5;   /* 1010 0101 */
+    printf(&quot;v = %d = &quot;, v);
+
+    for (int i = 7; i &gt;= 0; i--) {
+        putchar((v &amp; (1 &lt;&lt; i)) ? '1' : '0');
+    }
+    printf(&quot;\n&quot;);
+    return 0;
+}</code></pre>
+        <p class="obs">Esperado: 10100101. Adapte para 16/32 bits trocando os limites do loop.</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual operador testa se um bit específico está ligado (máscara m)?&quot;,&quot;opcoes&quot;:[&quot;v != m&quot;,&quot;v &amp; m&quot;,&quot;v | m&quot;,&quot;v ^ m&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;&lt;code&gt;v &amp;amp; m&lt;/code&gt; é diferente de zero exatamente quando os bits da máscara estão ligados em v.&quot;},{&quot;pergunta&quot;:&quot;Como \&quot;ligar\&quot; o bit de posição n de v?&quot;,&quot;opcoes&quot;:[&quot;v &amp;= (1 &lt;&lt; n)&quot;,&quot;v |= (1 &lt;&lt; n)&quot;,&quot;v ^= (1 &lt;&lt; n) sempre&quot;,&quot;v &amp;= ~(1 &lt;&lt; n)&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;OU com a máscara acende o bit; AND com ~(mascara) apaga; ^ alterna.&quot;},{&quot;pergunta&quot;:&quot;Qual resultado de &lt;code&gt;0xFF ^ 0xFF&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;0xFF&quot;,&quot;0x00&quot;,&quot;0xFE&quot;,&quot;0x01&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;XOR de iguais é 0: bit a bit, 1^1=0 e 0^0=0.&quot;},{&quot;pergunta&quot;:&quot;O que faz &lt;code&gt;v &amp;lt;&amp;lt; 2&lt;/code&gt;?&quot;,&quot;opcoes&quot;:[&quot;Multiplica v por 2&quot;,&quot;Desloca os bits 2 posições à esquerda (equivale a multiplicar por 4, ignorando estouro)&quot;,&quot;Divide v por 4&quot;,&quot;Inverte os bits&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Cada deslocamento à esquerda dobra o valor; &lt;&lt; 2 multiplica por 4 (com alerta de estouro).&quot;},{&quot;pergunta&quot;:&quot;Por que usar flags em um único int em vez de várias variáveis?&quot;,&quot;opcoes&quot;:[&quot;Porque int não pode guardar valores lógicos&quot;,&quot;Compactação: 32 estados por inteiro, fáceis de setar/testar e transmitir&quot;,&quot;Porque o compilador obriga&quot;,&quot;Para deixar o programa mais lento de propósito&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Bit flags agrupam muitos estados em um inteiro com operações rápidas — padrão em sistemas, drivers e protocolos.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Permissões estilo chmod</h2>
+  <p>Crie um programa que trabalha com um <code>int permissoes</code> de 9 bits (leitura/escrita/execução do dono, do grupo e de outros) usando macros <code>U_LEITURA</code> etc. (ex.: dono rwx = 7 = 700 em octal). O menu: 1) mostrar em formato rwxr-xr-x, 2) adicionar permissão (recebe "u+x", "g-r" ...), 3) remover, 4) sair. A interpretação do rwxr-xr-x usa os bits na ordem certa.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Formatação rwxr-xr-x correta a partir dos 9 bits.</li><li>Pelo menos um comando de adicionar e um de remover (u/g/o com + ou - e r/w/x).</li><li>Validação de comando inválido.</li><li>Compila com -Wall -Wextra sem avisos.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="programas-multiarquivo-e-compilacao-separada.html">← 2.09 Programas multiarquivo e compilação separada</a><a class="btn nav-next" href="ponteiros-para-funcoes-e-ponteiros-para-ponteiros.html">2.11 Ponteiros para funções e ponteiros para ponteiros →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t2-m10">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4.08 — Heap, integer overflow e use-after-free — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="4">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t4">Trilha 4 — Cyber</a> / Heap, integer overflow e use-after-free</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">4.08</div>
+    <h1>Heap, integer overflow e use-after-free</h1>
+    <p class="subtitulo">Três classes de bug que não estão na pilha</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado/Cyber</span>
+      <span class="chip">Duração: ~45 min</span>
+      <span class="chip">Pré-requisitos: T2.06 (malloc/free), T2.05 (strings), T2.02 (números)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t4-m08">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Reconhecer e corrigir três grandes classes de bugs de memória que não dependem do stack overflow: integer overflow (wrap, malloc(0), off-by-one), heap overflow (corromper bloco vizinho/metadados) e use-after-free (ponteiro pendurado em bloco liberado). Entender o allocator da glibc em conceito (chunks, free lists, tcache) e usar valgrind/ASan para caçar todos.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  
+  
+  <p class="foco"><strong>Foco da leitura:</strong> Cobre os capítulos 0x300 (Exploitation) do livro "Hacking: The Art of Exploitation" e, para o allocator, leia "Heap Exploitation part 1: Understanding the glibc heap" (Azeria Labs, https://azeria-labs.com/heap-exploitation-part-1-understanding-the-glibc-heap-implementation/) — conceito de chunks, metadados e free lists que este módulo resume em português.</p>
+</section>
+  <section class="card secao">
+  <h2>O problema comum: tamanhos que a matemática devora</h2>
+  <p>Os bugs deste módulo têm a mesma raiz do módulo 05: <strong>medida de tamanho calculada errado</strong>. A diferença é que em vez de "escrevi além do buffer", aqui a conta do tamanho já nasce errada — por wraparound, por sinal, por off-by-one — e a partir dela alocamos menos do que escrevemos. O atacante administra o <em>over</em> e o <em>under</em> da memória para alcançar o adjacente.</p>
+  
+  
+  
+</section>
+<section class="card secao">
+  <h2>Integer overflow: quando a aritmética vira ferramenta</h2>
+  <p>Em C, <code>unsigned</code> faz <strong>wraparound</strong> (mod 2^n) e <code>signed</code> tem <em>comportamento indefinido</em> em overflow. Consequências práticas para segurança:</p>
+  <ul><li><code>0xffffffffu + 1 == 0</code> — um "total" calculado por soma pode virar 0/pequeno, e <code>malloc(pequeno)</code> aloca pouco para os dados que serão copiados</li>
+<li><code>n - 1</code> em unsigned com n==0 vira <em>enorme</em> (0xffff...ffff) — um limite de loop pode virar 18 quintilhões de iterações ou uma cópia gigante</li>
+<li><code>malloc(0)</code> em glibc retorna um ponteiro <strong>não-NULL</strong> e único, enquanto <code>malloc(negativo→size_t)</code> retorna NULL — o programa que confunde "NULL" com "funcionou" quebra</li>
+<li>Off-by-one clássico: copiar "n bytes" mas declarar <code>char dest[n]</code> — o <code>\0</code> final estoura em 1 (heaps clássicos de OpenSSL, etc.)</li>
+<li>Elenco: <code>int -1</code> convertido para <code>size_t</code> vira 2^64-1 — nunca converter comprimento "negativo" em tamanho</li></ul>
+  <div class="code-block">
+  <div class="code-head"><span>Código — intbug.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* intbug.c -- demonstrando wraparound e armadilhas de tamanho.
+   gcc -Wall -Wextra -std=c11 intbug.c -o intbug   (qualquer SO) */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(void)
+{
+    unsigned int n = 0xffffffffu;
+    printf(&quot;0xffffffffu + 1      = %u\n&quot;, n + 1);       /* 0 */
+
+    unsigned short s = 65535;
+    s = s + 1;
+    printf(&quot;unsigned short 65535+1= %u\n&quot;, s);           /* 0 */
+
+    size_t zero = 0;
+    printf(&quot;size_t 0 - 1         = %zu\n&quot;, zero - 1);    /* enorme */
+
+    int menos_um = -1;
+    printf(&quot;int -1 como size_t   = %zu\n&quot;, (size_t)menos_um);
+
+    char *z = malloc(0);
+    printf(&quot;malloc(0) retorna    = %s\n&quot;, z ? &quot;ponteiro nao-NULL&quot; : &quot;NULL&quot;);
+    free(z);
+
+    char *m = malloc((size_t)menos_um);
+    printf(&quot;malloc(2^64-1)       = %s\n&quot;, m ? &quot;ponteiro&quot; : &quot;NULL (falha, certo)&quot;);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ ./intbug
+0xffffffffu + 1      = 0
+unsigned short 65535+1= 0
+size_t 0 - 1         = 18446744073709551615
+int -1 como size_t   = 18446744073709551615
+malloc(0) retorna    = ponteiro nao-NULL
+malloc(2^64-1)       = NULL (falha, certo)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O padrão maldito: tamanho calculado ↔ alocação ↔ cópia</h2>
+  <p>O exploit clássico encadeia três linhas que parecem inocentes:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — overflow no padrao</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* o PADRAO VULNERAVEL: a conta e a alocacao divergem da copia */
+size_t tamanho = (largo * alto) + 4;   /* pode wrap para pequeno */
+char *img = malloc(tamanho);           /* pouco */
+memcpy(img, dado, largo * alto);       /* muito : estouro */
+
+/* o mesmo bug com sinal: */
+int lido = ler_int_do_pacote();        /* -1 vindo da rede */
+char *b = malloc((size_t)lido);        /* vira 2^64-1 -&gt; NULL? */
+memcpy(b, payload, lido);              /* tamanho estranho... */</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Heap overflow: escrever além do bloco, corromper o vizinho</h2>
+  <p>No heap, o "buffer" é um <strong>chunk</strong> com metadados logo antes do ponteiro que você recebe. Escrever além dele avança para o chunk seguinte (dados ou metadados dele). No exemplo abaixo, o <code>strcpy</code> excede um bloco de <em>4 bytes</em> e destrói o conteúdo do bloco vizinho <code>b</code> — a prova visível da corrupção. Usamos <code>fflush</code> para o exemplo não sumir quando a corrupção derruba o processo: corromper o vizinho costuma <em>também</em> derrubar o <code>free</code> seguinte (comportamento típico que o valgrind reporta).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — heap_of.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* heap_of.c -- overflow de heap corrompendo o vizinho (VULNERAVEL).
+   gcc -Wall -Wextra -std=c11 heap_of.c -o heap_of   (qualquer SO; no WSL valgrind detecta) */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char *a = malloc(4);
+    char *b = malloc(4);
+    if (!a || !b) return 1;
+
+    strcpy(b, &quot;seguro&quot;);
+    printf(&quot;antes: b = '%s'\n&quot;, b);
+    fflush(stdout);
+
+    /* a tem 4 bytes; esta copia tem 80 chars. O estouro avanca
+       pelo chunk vizinho b e alem dele: corrompe dados e pode
+       corromper metadata (o free() seguinte pode nao sobreviver). */
+    strcpy(a, &quot;AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIIIJJJKKKKLLLLMMMMNNNNOOOOPPPPQQQQ&quot;);
+
+    printf(&quot;depois: b = '%s'  &lt;- vizinho corrompido\n&quot;, b);
+    fflush(stdout);
+
+    free(a);              /* pode crashear dependendo do allocator */
+    free(b);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ ./heap_of
+antes: b = 'seguro'
+depois: b = 'IIIIJJJKKKKLLLLMMMMNNNNOOOOPPPPQQQQ'  &lt;- vizinho corrompido
+$ valgrind ./heap_of   # no WSL acusa:
+==123== Invalid write of size 1
+==123==    at 0x4...: __strcpy_... 
+==123==    by 0x...: main (heap_of.c:19)
+==123==  Address 0x... is 0 bytes after a block of size 32 alloc'd</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Use-after-free: o ponteiro que esqueceu que foi liberado</h2>
+  <p><code>free(u)</code> não zera <code>u</code> — ele fica <strong>dangling</strong>. Se o programa libera e depois continua usando, e uma segunda <code>malloc</code> reutiliza aquela região, o "velho" conteúdo foi substituído pelo do novo objeto: o código lê/escreve o objeto errado. Em estruturas de segurança (verificação de privilégio, sessão), isso vira escalada de privilégio real. O fix absoluto: depois de <code>free</code>, <code>ptr = NULL</code> e conferir antes de usar.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — uaf.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">/* uaf.c -- use-after-free: bloco liberado e reutilizado.
+   gcc -Wall -Wextra -std=c11 uaf.c -o uaf   (qualquer SO) */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+typedef struct { char nome[16]; int admin; } Usuario;
+
+int main(void)
+{
+    Usuario *u = malloc(sizeof *u);
+    if (!u) return 1;
+    strcpy(u-&gt;nome, &quot;root&quot;);
+    u-&gt;admin = 1;
+
+    free(u);          /* liberou... */
+
+    Usuario *novo = malloc(sizeof *novo);   /* ...provavelmente reutiliza */
+    strcpy(novo-&gt;nome, &quot;hacker&quot;);
+    novo-&gt;admin = 0;
+
+    /* USE-AFTER-FREE: lendo u', que agora eh 'novo' */
+    printf(&quot;lendo ponteiro liberado: nome=%s admin=%d\n&quot;,
+           u-&gt;nome, u-&gt;admin);
+
+    free(novo);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>$ ./uaf            # Linux/glibc (tcache) reutiliza o bloco na hora:
+lendo ponteiro liberado: nome=hacker admin=0
+# no Windows/MinGW o allocator pode NAO reusar o mesmo endereco:
+# lendo ponteiro liberado: nome=root admin=1   (comportamento indefinido!)
+$ valgrind ./uaf
+==123== Invalid read of size 1 ...     # valgrind pega na hora</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>O allocator glibc em conceito</h2>
+  <p>Para raciocinar sobre heap além dos exemplos, basta o modelo conceitual:</p>
+  <ul><li><strong>Chunks</strong> — o heap é dividido em blocos. Cada bloco em uso tem um <em>cabeçalho (metadata)</em> logo antes da área que o programa recebe (tamanho, flags). O ponteiro devolvido aponta para os <em>dados</em>, não para o início do chunk.</li>
+<li><strong>Free lists</strong> — blocos liberados são pendurados em listas por tamanho (bins, tcache). O allocator reutiliza dessas listas antes de expandir o heap.</li>
+<li><strong>tcache</strong> — uma per-CPU fast list (Linux moderno): <code>free</code> empurra para a tcache, <code>malloc</code> puxa de lá. Reutilização imediata — é por isso que o UAF acima "funciona" tão previsível.</li>
+<li><strong>Coalescing / top chunk</strong> — blocos livres adjacentes fundem; o "top chunk" é a borda do heap. Corromper metadados aqui é o que transforma heap overflow em escrita de endereço (técnicas like fastbin/unsortedbin attack — <em>não vamos implementar</em>; o objetivo aqui é reconhecer a mecânica e defendê-la).</li></ul>
+  
+  
+</section>
+<section class="card secao">
+  <h2>Caçando os três com ferramentas: valgrind e ASan</h2>
+  <p>Valgrind e ASan detectam as tres classes sem que você adivinhe:</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — caça aos bugs</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c"># no WSL (Linux):
+gcc -Wall -g -fsanitize=address,undefined heap_of.c -o heap_of_asan
+./heap_of_asan          # reporta heap-buffer-overflow na hora
+valgrind --leak-check=full ./uaf        # Invalid read / write
+valgrind --leak-check=full ./intbug     # se houver leak, mostra</code></pre>
+</div>
+  
+</section>
+<section class="card secao">
+  <h2>Como se defender</h2>
+  
+  <ul><li>Faça a matemática do tamanho ANTES da alocação com multiplicação segura (<code>__builtin_mul_overflow</code>, C23 <code>_Generic</code>) ou sane a entrada e confira <code>LARGO*ALTO</code> cabe em <code>size_t</code> antes de usar.</li>
+<li>Trate <code>malloc(0)</code> como caso explícito: não assuma NULL nem "funcionou". E trate <code>malloc</code> falha (NULL) sempre.</li>
+<li>Off-by-one: aloque <code>n+1</code> quando precisar do <code>\0</code>, e prefira <code>snprintf</code>/cópias com tamanho que amantenha o NUL.</li>
+<li>Heap overflow: idêntico ao módulo 02 — cópias com limite. Nenhuma mitologia de "glibc tolerante" é desculpa.</li>
+<li>Use-after-free: <code>free(p); p = NULL;</code> sempre; ponteiros nunca reutilizados; valgrind e ASan vão achar os que você esqueceu.</li>
+<li>No Unix, rode <code>MALLOC_CHECK_</code>/glibc tunables em ambientes críticos e mantenha o binário com <code>-fstack-protector-all -z relro -z now</code> — limites de dano, mesmo com o bug presente.</li>
+<li>O CI roda sanitizers obrigatoriamente: <code>-fsanitize=address,undefined</code> em testes unitários é a rede que pega heap_over/UAF/int overflow.</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t4-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.08.1</p>
+  <p class="enunciado">Rode <code>intbug.c</code> e depois compile com <code>-fsanitize=undefined</code> (no Linux/WSL) e rode de novo. O que o UBSan acusa e o que ele NÃO acusa neste binário?</p>
+  <p class="dica"><strong>Dica:</strong> UBSan não flagra wrap unsigned (é definido); ele flagra signed overflow, divisão por zero, etc. Procure por ele gritar em algum dos prints.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">$ gcc -Wall -g -fsanitize=undefined intbug.c -o intbug_ub
+$ ./intbug_ub
+0xffffffffu + 1      = 0
+... (nada de runtime; os wraps unsigned sao comportamento
+     definido) 
+# UBSan nao acusou wrap, mas acusaria signed overflow
+# (ex.: INT_MAX + 1) e divisao por zero se houvessem.</code></pre>
+        <p class="obs">Isso reforça: unsigned wrap é "definido" mas ainda é bug de segurança. Sanitizer ajuda; o review da conta é seu.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t4-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.08.2</p>
+  <p class="enunciado">Proponha a correção do padrão vulnerável: dado <code>unsigned largo, alto</code> vindos da rede, aloque com segurança para armazenar <code>largo*alto</code> bytes com <code>__builtin_mul_overflow</code>. Escreva o código completo.</p>
+  <p class="dica"><strong>Dica:</strong> Se <code>__builtin_mul_overflow(largo, alto, &total)</code> retornar 1 (overflow), recuse o pacote.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdlib.h&gt;
+#include &lt;stdint.h&gt;
+
+int receber_imagem(unsigned largo, unsigned alto, const void *dados,
+                   size_t dados_len)
+{
+    size_t total;
+    if (__builtin_mul_overflow(largo, alto, &amp;total)) {
+        return -1;                      /* tamanho gigante: recusa */
+    }
+    if (dados_len &lt; total) {
+        return -2;                      /* dados menores que o prometido */
+    }
+    char *img = malloc(total);
+    if (!img) return -3;
+    /* copia SEGURA: memcpy(img, dados, total); ... */
+    free(img);
+    return 0;
+}</code></pre>
+        <p class="obs">O __builtin_mul_overflow materializa o "não faça tampão de tamanho".</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t4-m08">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 4.08.3</p>
+  <p class="enunciado">Corrija <code>uaf.c</code> e <code>heap_of.c</code> de modo que ambos: (a) passem limpos no valgrind e no ASan; (b) mantenham a funcionalidade descrita (uaf imprime os dados do novo objeto de forma controlada — o programa SIMPLESMENTE não deve ler o objeto liberado). Entregue as duas correções com diff conceptual (o riff "antes" vs "depois" para heap_of).</p>
+  <p class="dica"><strong>Dica:</strong> heap_of: a cópia precisa caber — aloque o tamanho do dado (não 4) ou use cópia limitada (<code>snprintf(a, tam, "%s", ...)</code>); uaf: <code>u = NULL</code> após free e imponha que o resto do código checa NULL.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">/* heap_of FIX: a copia tem que caber no que foi alocado */
+char *a = malloc(sizeof &quot;AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIII&quot;);
+strcpy(a, &quot;AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIII&quot;);   /* agora cabe */
+
+/* uaf FIX: nunca use ponteiro liberado */
+free(u);
+u = NULL;
+/* ... e no uso: */
+if (u != NULL) printf(&quot;%s\n&quot;, u-&gt;nome);  /* nunca imprime */</code></pre>
+        <p class="obs">O fix real de uaf não é "não imprimir", é estrutura de dados que não mantém ponteiro pendurado (ex.: remover da lista antes do free).</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;O que acontece com 0xffffffffu + 1 em C?&quot;,&quot;opcoes&quot;:[&quot;Vira 0 (wrap unsigned, comportamento definido)&quot;,&quot;Estoura com exceção&quot;,&quot;Vira -1 com warning&quot;,&quot;Lança um abort&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;Unsigned wrap é definido (mod 2^32); ainda assim é a fonte dos tamanhos \&quot;pequenos demais\&quot; que o atacante explora.&quot;},{&quot;pergunta&quot;:&quot;Por que malloc(0) é uma armadilha em aplicações de segurança?&quot;,&quot;opcoes&quot;:[&quot;Glibc devolve um ponteiro não-NULL único, então \&quot;mapeou, logo tem bytes\&quot; é falso&quot;,&quot;Ele sempre retorna NULL&quot;,&quot;Ele corrompe o heap&quot;,&quot;Ele não existe no Linux&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;malloc(0) em glibc dá ponteiro válido (chunk de 0 usável), mas nenhum byte útil — confundir com alocação real causa overflow.&quot;},{&quot;pergunta&quot;:&quot;Use-after-free acontece quando…&quot;,&quot;opcoes&quot;:[&quot;Um ponteiro liberado é usado depois, e o bloco pode ter sido reutilizado por outra alocação&quot;,&quot;Um buffer global não é zerado&quot;,&quot;Um int é maior que 10&quot;,&quot;O programa roda sem free nenhum&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;O dangling pointer lê/escreve memória agora pertencente a outro objeto.&quot;},{&quot;pergunta&quot;:&quot;Qual ferramenta pega as três classes (heap overflow, UAF, int overflow) em runtime?&quot;,&quot;opcoes&quot;:[&quot;ASan (address/undefined) e valgrind, nas versões adequadas&quot;,&quot;Apenas o checksec&quot;,&quot;Nenhuma; só code review&quot;,&quot;O antivírus do Windows&quot;],&quot;correta&quot;:0,&quot;explicacao&quot;:&quot;ASan cobre address bugs (heap/UAF); UBSan cobre integer overflow; valgrind cobre leituras/escritas inválidas e leaks.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  <section class="card projeto">
+  <h2>🏗️ Miniprojeto: Três bugs corrigidos, um post mortem</h2>
+  <p>Monte a pasta <code>~/labs/4.08</code> com os três "bugs-crime" (intbug, heap_of, uaf) e para cada um: (1) o código original marcado com a CWE (CWE-190 integer overflow, CWE-122 heap overflow, CWE-416 use-after-free); (2) a saída bugada; (3) o diagnóstico via valgrind/ASan (recorte); (4) a correção com diff antes/depois; (5) um parágrafo "como isso vira ataque na vida real" (ex.: UAF em verificação de privilégio, integer overflow em contador de comprimento de pacote) e como a defesa (módulos 02 + sanitizers) mitiga.</p>
+  <div class="criterios"><h3>Critérios de aceite</h3><ul><li>Três entradas completas (bug, saída, sanitizer, fix).</li><li>CWE correta em cada caso.</li><li>Diff antes/depois coerente (não apenas comentário removido).</li><li>Sanitizer/valgrind limpo nas versões corrigidas.</li></ul></div>
+</section>
+  <nav class="mod-nav"><a class="btn nav-prev" href="format-string-bugs-leak-escrita-e-a-regra-da-format-string-explicita.html">← 4.07 Format string bugs: leak, escrita e a regra da format string explícita</a><a class="btn nav-next" href="redes-ofensivas-em-c-shells-shellcode-e-packet-crafting.html">4.09 Redes ofensivas em C: shells, shellcode e packet crafting →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t4-m08">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>

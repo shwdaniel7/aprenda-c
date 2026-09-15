@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3.06 — Threads com pthreads — Aprenda C</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-trilha="3">
+<header class="site-header">
+  <a class="brand" href="../index.html">⌘ Aprenda <b>C</b></a>
+  <nav class="top-nav">
+    <a href="../index.html">Roadmap</a>
+    <a href="../exercicios/index.html">Exercícios</a>
+    <a href="../projetos/index.html">Projetos</a>
+  </nav>
+</header>
+<main class="modulo">
+  <nav class="breadcrumb"><a href="../index.html">Roadmap</a> / <a href="../index.html#t3">Trilha 3 — Avançado</a> / Threads com pthreads</nav>
+
+  <header class="mod-header">
+    <div class="mod-cab NUM">3.06</div>
+    <h1>Threads com pthreads</h1>
+    <p class="subtitulo">Criando, juntando e os perigos de dados compartilhados</p>
+    <div class="chips">
+      <span class="chip">Nível: Avançado</span>
+      <span class="chip">Duração: ~35 min</span>
+      <span class="chip">Pré-requisitos: T3.02 (limites numéricos), T2.09 (arrays)</span>
+    </div>
+    <button class="btn btn-done" data-mod="t3-m06">Marcar concluído</button>
+  </header>
+
+  <section class="card objetivos">
+    <h2>🎯 Objetivos</h2>
+    <p>Criar threads com pthread_create/pthread_join, passar dados via struct e intptr_t, entender a corrida de dados (data race) quando várias threads escrevem sem sincronização, e montar um produtor-consumidor com mutex + condition variables.</p>
+  </section>
+
+  <section class="card leitura">
+  <h2>📖 Leitura guiada</h2>
+  <p><strong>Beej's Guide:</strong> Capítulo 39 (pthreads)</p>
+  <p><strong>King (livro em PDF):</strong> Documentação do pthreads no seu sistema</p>
+  <p class="foco"><strong>Foco da leitura:</strong> Compile os exemplos deste módulo com -pthread. O MinGW-W64 posix deste ambiente suporta; em Linux use gcc -pthread também.</p>
+</section>
+  <section class="card secao">
+  <h2>Primeira thread: somando em paralelo</h2>
+  <p><code>pthread_create</code> dispara uma função (<code>void *fn(void *)</code>) numa nova linha de execução; <code>pthread_join</code> espera ela terminar. Onde está o trabalho divisível? Aqui o vetor de 1.000.000 de uns é fatiado em 4 faixas <code>[inicio, fim)</code> e cada thread soma a sua, depositando o resultado num slot próprio (<code>somas_parciais[id]</code>). Como cada thread escreve num endereço diferente, não há corrida — o padrão "cada thread escreve no seu slot" é a receita da soma paralela correta.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — par.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;pthread.h&gt;
+
+#define TAM 1000000
+#define NTHREADS 4
+
+static long vetor[TAM];
+static long somas_parciais[NTHREADS];
+
+typedef struct {
+    int id;
+    long inicio;
+    long fim;
+} RANGE;
+
+static void *soma(void *arg)
+{
+    RANGE *r = arg;
+    long total = 0;
+    for (long i = r-&gt;inicio; i &lt; r-&gt;fim; i++) {
+        total += vetor[i];
+    }
+    somas_parciais[r-&gt;id] = total;
+    return NULL;
+}
+
+int main(void)
+{
+    for (long i = 0; i &lt; TAM; i++) {
+        vetor[i] = 1;
+    }
+    pthread_t tids[NTHREADS];
+    RANGE rs[NTHREADS];
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        rs[i].id = i;
+        rs[i].inicio = (long)i * TAM / NTHREADS;
+        rs[i].fim = (long)(i + 1) * TAM / NTHREADS;
+        if (pthread_create(&amp;tids[i], NULL, soma, &amp;rs[i]) != 0) {
+            perror(&quot;pthread_create&quot;);
+            return EXIT_FAILURE;
+        }
+    }
+    long total = 0;
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        pthread_join(tids[i], NULL);
+        total += somas_parciais[i];
+    }
+    printf(&quot;total = %ld (esperado %d)\n&quot;, total, TAM);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; par
+total = 1000000 (esperado 1000000)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Corrida de dados: quando a soma paralela &quot;se perde&quot;</h2>
+  <p>E se em vez de um slot por thread todas incrementassem o <em>mesmo</em> contador global? Cada incremento é "ler, somar 1, escrever" — três passos que podem se intercalar entre threads. Duas leituras simultâneas do mesmo valor, duas somas e duas escritas fazem um incremento "sumir": o total final fica menor que o esperado. Isso é a <strong>data race</strong>: comportamento indefinido do padrão C. Rode algumas vezes e veja números diferentes. O valor abaixo é um exemplo real de uma execução típica.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — corrida.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;pthread.h&gt;
+
+#define NTHREADS 4
+#define ALVO 1000000
+
+static long contador = 0;
+
+static void *trabalha(void *arg)
+{
+    (void)arg;
+    for (long i = 0; i &lt; ALVO / NTHREADS; i++) {
+        contador++;   /* ler, somar, escrever: NAO atomico sem mutex */
+    }
+    return NULL;
+}
+
+int main(void)
+{
+    pthread_t t[NTHREADS];
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        pthread_create(&amp;t[i], NULL, trabalha, NULL);
+    }
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        pthread_join(t[i], NULL);
+    }
+    printf(&quot;contador = %ld (esperado %d)\n&quot;, contador, ALVO);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; corrida
+contador = 1278951 (esperado 1000000)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Mutex: a fechadura que conserta a corrida</h2>
+  <p>A resposta clássica é o <strong>mutex</strong> (de "mutual exclusion"): antes de mexer no crítico, a thread faz <code>pthread_mutex_lock</code> — quem chegar depois espera <code>wait</code> na fechadura — e ao terminar <code>pthread_mutex_unlock</code>. O incremento volta a ser "ler, somar, escrever" mas com ninguém intercalando no meio. Inicialize com <code>PTHREAD_MUTEX_INITIALIZER</code>; depois <code>pthread_mutex_destroy</code>. O custo: a contenda serializa o trecho (mais devagar que o atômico do módulo 07).</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — mutex.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;pthread.h&gt;
+
+#define NTHREADS 4
+#define ALVO 1000000
+
+static long contador = 0;
+static pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
+
+static void *trabalha(void *arg)
+{
+    (void)arg;
+    for (long i = 0; i &lt; ALVO / NTHREADS; i++) {
+        pthread_mutex_lock(&amp;m);
+        contador++;
+        pthread_mutex_unlock(&amp;m);
+    }
+    return NULL;
+}
+
+int main(void)
+{
+    pthread_t t[NTHREADS];
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        pthread_create(&amp;t[i], NULL, trabalha, NULL);
+    }
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        pthread_join(t[i], NULL);
+    }
+    printf(&quot;contador = %ld (esperado %d)\n&quot;, contador, ALVO);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; mutex
+contador = 1000000 (esperado 1000000)</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Produtor-consumidor com condition variables</h2>
+  <p>O cenário clássico: um <strong>produtor</strong> enche um buffer circular de 5 slots; um <strong>consumidor</strong> esvazia. O mutex protege as variáveis do buffer, e as <em>condition variables</em> <code>cheio</code>/<code>vazio</code> permitem esperar "até que alguma condição mude" sem queimar CPU: produtor espera em <code>cheio</code> enquanto count==CAP; consumidor espera em <code>vazio</code> enquanto count==0. Note o padrão obrigatório: <code>while</code> (não <code>if</code>) em torno do <code>pthread_cond_wait</code> — sempre confira a condição de novo após acordar.</p>
+  
+  <div class="code-block">
+  <div class="code-head"><span>Código — pc.c</span><button class="copy-btn" type="button">copiar</button></div>
+  <pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;pthread.h&gt;
+
+#define CAP 5
+#define ITEMS 20
+
+static int buffer[CAP];
+static int inicio = 0;
+static int fim = 0;
+static int count = 0;
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t cheio = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t vazio = PTHREAD_COND_INITIALIZER;
+
+static void *produtor(void *arg)
+{
+    (void)arg;
+    for (int i = 1; i &lt;= ITEMS; i++) {
+        pthread_mutex_lock(&amp;mutex);
+        while (count == CAP) {
+            pthread_cond_wait(&amp;cheio, &amp;mutex);
+        }
+        buffer[fim] = i;
+        fim = (fim + 1) % CAP;
+        count++;
+        pthread_cond_signal(&amp;vazio);
+        pthread_mutex_unlock(&amp;mutex);
+        printf(&quot;produzi  %d\n&quot;, i);
+    }
+    return NULL;
+}
+
+static void *consumidor(void *arg)
+{
+    (void)arg;
+    for (int i = 1; i &lt;= ITEMS; i++) {
+        pthread_mutex_lock(&amp;mutex);
+        while (count == 0) {
+            pthread_cond_wait(&amp;vazio, &amp;mutex);
+        }
+        int v = buffer[inicio];
+        inicio = (inicio + 1) % CAP;
+        count--;
+        pthread_cond_signal(&amp;cheio);
+        pthread_mutex_unlock(&amp;mutex);
+        printf(&quot;consumi  %d\n&quot;, v);
+    }
+    return NULL;
+}
+
+int main(void)
+{
+    pthread_t p, c;
+    if (pthread_create(&amp;p, NULL, produtor, NULL) != 0 ||
+        pthread_create(&amp;c, NULL, consumidor, NULL) != 0) {
+        perror(&quot;pthread_create&quot;);
+        return EXIT_FAILURE;
+    }
+    pthread_join(p, NULL);
+    pthread_join(c, NULL);
+    pthread_mutex_destroy(&amp;mutex);
+    pthread_cond_destroy(&amp;cheio);
+    pthread_cond_destroy(&amp;vazio);
+    printf(&quot;fim: %d itens processados\n&quot;, ITEMS);
+    return 0;
+}</code></pre>
+</div>
+  <div class="output-block">
+  <div class="code-head"><span>Saída esperada</span></div>
+  <pre class="output"><code>&gt; pc
+produzi  1
+produzi  2
+produzi  3
+produzi  4
+produzi  5
+produzi  6
+consumi  1
+consumi  2
+consumi  3
+consumi  4
+consumi  5
+consumi  6
+produzi  7
+produzi  8
+produzi  9
+produzi  10
+produzi  11
+consumi  7
+consumi  8
+consumi  9
+produzi  12
+produzi  13
+produzi  14
+produzi  15
+consumi  10
+consumi  11
+consumi  12
+consumi  13
+consumi  14
+consumi  15
+produzi  16
+produzi  17
+produzi  18
+produzi  19
+produzi  20
+consumi  16
+consumi  17
+consumi  18
+consumi  19
+consumi  20
+fim: 20 itens processados</code></pre>
+</div>
+</section>
+<section class="card secao">
+  <h2>Regras de ouro do código com threads</h2>
+  <p>Threads são "funções que rodam ao mesmo tempo" — a disciplina daí é: (1) cada thread recebe só o que precisa via o argumento <code>void *</code> (o sweet spot é mandar uma cópia de ponteiro para dados que ficam vivos enquanto a thread roda — <code>&rs[i]</code> vive no main até todos os join); (2) dado compartilhado <strong>sempre</strong> atrás de mutex; (3) o provedor do mutex é quem passa a régua: toda leitura E escrita do compartilhado passa pelo lock; (4) condition variables sempre com a condição conferida em <code>while</code>. Passar ints "no argumento": o caminho idiomático é <code>intptr_t</code> — ver exercício 1.</p>
+  <ul><li>Crie com pthread_create, junte com pthread_join (ou detache com pthread_detach).</li>
+<li>Argumento e retorno da thread são <code>void *</code>: use <code>intptr_t</code> para ids/flag inteiros.</li>
+<li>Quem marca com lock/unlock: mutex agarrado, solto SEMPRE no mesmo caminho (cuidado com return no meio).</li>
+<li>Condition variables: sem o "while", os wakeups espúrios quebram a lógica.</li>
+<li>Compile com -pthread; adicione -fsanitize=thread para caçar corridas no Linux.</li></ul>
+  
+  
+</section>
+  <section class="card exs"><h2>✏️ Exercícios</h2><div class="exercicio" id="ex-1" data-mod="t3-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n1">Nível 1</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.06.1</p>
+  <p class="enunciado">Crie 6 threads, cada uma imprimindo "oi da thread N" usando o argumento inteiro passado via (void*)(intptr_t)N (o jeito correto de carregar um int no void*). Junte as 6 e imprima que todas terminaram.</p>
+  <p class="dica"><strong>Dica:</strong> intptr_t (de <stdint.h>) garante que coube o int; o compilador não lança warning de conversão.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;pthread.h&gt;
+
+#define NTHREADS 6
+
+static void *diz_oi(void *arg)
+{
+    intptr_t id = (intptr_t)arg;
+    printf(&quot;oi da thread %d\n&quot;, (int)id);
+    return NULL;
+}
+
+int main(void)
+{
+    pthread_t t[NTHREADS];
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        if (pthread_create(&amp;t[i], NULL, diz_oi, (void *)(intptr_t)i) != 0) {
+            perror(&quot;pthread_create&quot;);
+            return 1;
+        }
+    }
+    for (int i = 0; i &lt; NTHREADS; i++) {
+        pthread_join(t[i], NULL);
+    }
+    printf(&quot;todas as %d threads terminaram\n&quot;, NTHREADS);
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real (a ordem das linhas varia entre execuções — é o charme das threads): as 6 mensagens em qualquer ordem, depois a linha final.</p></details>
+</div>
+<div class="exercicio" id="ex-2" data-mod="t3-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n2">Nível 2</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.06.2</p>
+  <p class="enunciado">Calcule 20! numa thread: passe uma struct {int n; long long resultado;} e o fatorial devolve o resultado preenchendo o campo da struct (retorno pelo próprio struct). O main espera e imprime.</p>
+  <p class="dica"><strong>Dica:</strong> long long porque 20! = 2432902008176640000 estoura int (32 bits). Use pthread_join antes de ler o campo.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;pthread.h&gt;
+
+typedef struct {
+    int n;
+    long long resultado;
+} TAREFA;
+
+static void *fatorial(void *arg)
+{
+    TAREFA *t = arg;
+    long long r = 1;
+    for (int i = 2; i &lt;= t-&gt;n; i++) {
+        r *= i;
+    }
+    t-&gt;resultado = r;
+    return NULL;
+}
+
+int main(void)
+{
+    TAREFA t = {20, 0};
+    pthread_t th;
+    pthread_create(&amp;th, NULL, fatorial, &amp;t);
+    pthread_join(th, NULL);
+    printf(&quot;20! = %lld\n&quot;, t.resultado);
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real: "20! = 2432902008176640000". Padrão "resultado por struct" evita malloc/join com ponteiro retornado.</p></details>
+</div>
+<div class="exercicio" id="ex-3" data-mod="t3-m06">
+  <div class="ex-head">
+    <span class="badge badge-nivel n3">Nível 3</span>
+    <span class="ex-actions"><label class="check-ex"><input type="checkbox" class="ex-done"> concluído</label></span>
+  </div>
+  <p class="num-ex">Exercício 3.06.3</p>
+  <p class="enunciado">Variação do produtor-consumidor com DOIS consumidores: o buffer circular conversa com 1 produtor que gera 30 itens e 2 consumidores que dividem o trabalho. Cada consumidor conta os próprios itens e no fim imprime seu total; main imprime o global (deve ser 30). Use pthread_cond_broadcast no vazio para acordar os dois.</p>
+  <p class="dica"><strong>Dica:</strong> O consumidor para quando consumidos_global >= TOTAL. Use a condição em while e dê lock/unlock em todo acesso ao compartilhado.</p>
+  <details class="solucao"><summary>Ver solução</summary><pre class="code"><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;pthread.h&gt;
+
+#define CAP 5
+#define TOTAL 30
+
+static int buffer[CAP];
+static int inicio = 0;
+static int fim = 0;
+static int count = 0;
+static int consumidos_global = 0;
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t cheio = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t vazio = PTHREAD_COND_INITIALIZER;
+
+static void *produtor(void *arg)
+{
+    (void)arg;
+    for (int i = 1; i &lt;= TOTAL; i++) {
+        pthread_mutex_lock(&amp;mutex);
+        while (count == CAP) {
+            pthread_cond_wait(&amp;cheio, &amp;mutex);
+        }
+        buffer[fim] = i;
+        fim = (fim + 1) % CAP;
+        count++;
+        pthread_cond_broadcast(&amp;vazio);
+        pthread_mutex_unlock(&amp;mutex);
+    }
+    return NULL;
+}
+
+static void *consumidor(void *arg)
+{
+    int id = *(int *)arg;
+    int meus = 0;
+    for (;;) {
+        pthread_mutex_lock(&amp;mutex);
+        while (count == 0 &amp;&amp; consumidos_global &lt; TOTAL) {
+            pthread_cond_wait(&amp;vazio, &amp;mutex);
+        }
+        if (consumidos_global &gt;= TOTAL) {
+            pthread_mutex_unlock(&amp;mutex);
+            break;
+        }
+        int v = buffer[inicio];
+        inicio = (inicio + 1) % CAP;
+        count--;
+        consumidos_global++;
+        meus++;
+        pthread_cond_signal(&amp;cheio);
+        pthread_mutex_unlock(&amp;mutex);
+        printf(&quot;consumidor %d pegou %d\n&quot;, id, v);
+    }
+    printf(&quot;consumidor %d total: %d\n&quot;, id, meus);
+    return NULL;
+}
+
+int main(void)
+{
+    pthread_t p, c1, c2;
+    int id1 = 1, id2 = 2;
+    pthread_create(&amp;p, NULL, produtor, NULL);
+    pthread_create(&amp;c1, NULL, consumidor, &amp;id1);
+    pthread_create(&amp;c2, NULL, consumidor, &amp;id2);
+    pthread_join(p, NULL);
+    pthread_join(c1, NULL);
+    pthread_join(c2, NULL);
+    printf(&quot;consumidos=%d (esperado %d)\n&quot;, consumidos_global, TOTAL);
+    return 0;
+}</code></pre>
+        <p class="obs">Saída real: intercala as mensagens entre consumidor 1 e 2 (ordem varia), cada consumidor imprime seu total (exemplo: 17 e 13) e o final é "consumidos=30 (esperado 30)".</p></details>
+</div></section>
+  
+<section class="card quiz-card" data-quiz-json='[{&quot;pergunta&quot;:&quot;Qual função espera uma thread terminar?&quot;,&quot;opcoes&quot;:[&quot;pthread_create&quot;,&quot;pthread_join&quot;,&quot;pthread_detach&quot;,&quot;pthread_cond_wait&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;pthread_join bloqueia o chamador até a thread alvo terminar.&quot;},{&quot;pergunta&quot;:&quot;O que é uma data race?&quot;,&quot;opcoes&quot;:[&quot;Duas threads lendo o mesmo valor&quot;,&quot;Duas threads acessando dados compartilhados sem sincronização (pelo menos uma escrevendo)&quot;,&quot;Uma thread mais rápida que outra&quot;,&quot;Um loop infinito&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;A data race exige concorrência de acesso sem sincronização com escrita — comportamento indefinido.&quot;},{&quot;pergunta&quot;:&quot;Por que o incremento contador++ falha em threads?&quot;,&quot;opcoes&quot;:[&quot;É lento&quot;,&quot;É \&quot;ler, somar, escrever\&quot; não-atômico e pode ser interrompido no meio&quot;,&quot;O compilador não otimiza&quot;,&quot;contador precisa ser unsigned&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;A non-atomicidade permite que duas threads percam uma atualização simultânea.&quot;},{&quot;pergunta&quot;:&quot;Para que serve o mutex nesse contexto?&quot;,&quot;opcoes&quot;:[&quot;Acelerar o código&quot;,&quot;Garantir exclusão mútua: só uma thread entra no trecho crítico por vez&quot;,&quot;Criar threads&quot;,&quot;Terminar o processo&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Lock/unlock em torno do dado compartilhado restaura a correção da operação.&quot;},{&quot;pergunta&quot;:&quot;Por que usar while (não if) junto de pthread_cond_wait?&quot;,&quot;opcoes&quot;:[&quot;Para ser mais rápido&quot;,&quot;Porque o wakeup pode ser espúrio e a condição pode ter mudado&quot;,&quot;Porque if não existe em C&quot;,&quot;Para evitar incremento&quot;],&quot;correta&quot;:1,&quot;explicacao&quot;:&quot;Mesmo acordado, a condição deve ser re-checada — é a regra padrão das condition variables.&quot;}]'>
+  <h2>❓ Verificação rápida</h2>
+  <div class="quiz-root"></div>
+</section>
+  
+  <nav class="mod-nav"><a class="btn nav-prev" href="sinais-as-interrupcoes-do-so.html">← 3.05 Sinais: as interrupções do SO</a><a class="btn nav-next" href="atomicos-e-sincronizacao-sem-locks.html">3.07 Atômicos e sincronização sem locks →</a></nav>
+  <div class="mod-nav done-nav"><button class="btn btn-done" data-mod="t3-m06">Marcar concluído</button></div>
+</main>
+<footer class="site-footer">
+  <p>Aprenda C — guia progressivo com Beej's Guide, King e conteúdo original.</p>
+</footer>
+<script src="../assets/js/progress.js"></script>
+<script src="../assets/js/highlight.js"></script>
+<script src="../assets/js/quiz.js"></script>
+</body>
+</html>
